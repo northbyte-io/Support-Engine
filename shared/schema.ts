@@ -75,6 +75,12 @@ export const tickets = pgTable("tickets", {
   createdById: varchar("created_by_id").references(() => users.id),
   customFieldValues: jsonb("custom_field_values"),
   dueDate: timestamp("due_date"),
+  // SLA tracking fields
+  slaDefinitionId: varchar("sla_definition_id").references(() => slaDefinitions.id),
+  firstResponseAt: timestamp("first_response_at"),
+  slaResponseDueAt: timestamp("sla_response_due_at"),
+  slaResolutionDueAt: timestamp("sla_resolution_due_at"),
+  slaBreached: boolean("sla_breached").default(false),
   resolvedAt: timestamp("resolved_at"),
   closedAt: timestamp("closed_at"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -124,6 +130,38 @@ export const attachments = pgTable("attachments", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// SLA Definitions - response and resolution times per priority
+export const slaDefinitions = pgTable("sla_definitions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  // Response times in minutes per priority
+  responseTimeLow: integer("response_time_low").default(480), // 8 hours
+  responseTimeMedium: integer("response_time_medium").default(240), // 4 hours
+  responseTimeHigh: integer("response_time_high").default(60), // 1 hour
+  responseTimeUrgent: integer("response_time_urgent").default(15), // 15 min
+  // Resolution times in minutes per priority
+  resolutionTimeLow: integer("resolution_time_low").default(4320), // 3 days
+  resolutionTimeMedium: integer("resolution_time_medium").default(1440), // 1 day
+  resolutionTimeHigh: integer("resolution_time_high").default(480), // 8 hours
+  resolutionTimeUrgent: integer("resolution_time_urgent").default(120), // 2 hours
+  isDefault: boolean("is_default").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// SLA Escalation levels
+export const slaEscalations = pgTable("sla_escalations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  slaDefinitionId: varchar("sla_definition_id").references(() => slaDefinitions.id),
+  level: integer("level").notNull(), // 1, 2, 3...
+  thresholdPercent: integer("threshold_percent").notNull(), // e.g., 80 = escalate at 80% of time
+  notifyUserIds: text("notify_user_ids").array(), // Users to notify
+  escalationType: text("escalation_type").default("response"), // response, resolution
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Areas/Departments for ticket assignment
 export const areas = pgTable("areas", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -148,6 +186,23 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
   tickets: many(tickets),
   ticketTypes: many(ticketTypes),
   areas: many(areas),
+  slaDefinitions: many(slaDefinitions),
+}));
+
+export const slaDefinitionsRelations = relations(slaDefinitions, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [slaDefinitions.tenantId],
+    references: [tenants.id],
+  }),
+  escalations: many(slaEscalations),
+  tickets: many(tickets),
+}));
+
+export const slaEscalationsRelations = relations(slaEscalations, ({ one }) => ({
+  slaDefinition: one(slaDefinitions, {
+    fields: [slaEscalations.slaDefinitionId],
+    references: [slaDefinitions.id],
+  }),
 }));
 
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -277,6 +332,8 @@ export const insertTicketWatcherSchema = createInsertSchema(ticketWatchers).omit
 export const insertCommentSchema = createInsertSchema(comments).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertAttachmentSchema = createInsertSchema(attachments).omit({ id: true, createdAt: true });
 export const insertAreaSchema = createInsertSchema(areas).omit({ id: true, createdAt: true });
+export const insertSlaDefinitionSchema = createInsertSchema(slaDefinitions).omit({ id: true, createdAt: true });
+export const insertSlaEscalationSchema = createInsertSchema(slaEscalations).omit({ id: true, createdAt: true });
 export const insertTicketAreaSchema = createInsertSchema(ticketAreas).omit({ id: true, createdAt: true });
 
 // Types
@@ -300,6 +357,10 @@ export type Attachment = typeof attachments.$inferSelect;
 export type InsertAttachment = z.infer<typeof insertAttachmentSchema>;
 export type Area = typeof areas.$inferSelect;
 export type InsertArea = z.infer<typeof insertAreaSchema>;
+export type SlaDefinition = typeof slaDefinitions.$inferSelect;
+export type InsertSlaDefinition = z.infer<typeof insertSlaDefinitionSchema>;
+export type SlaEscalation = typeof slaEscalations.$inferSelect;
+export type InsertSlaEscalation = z.infer<typeof insertSlaEscalationSchema>;
 export type TicketArea = typeof ticketAreas.$inferSelect;
 export type InsertTicketArea = z.infer<typeof insertTicketAreaSchema>;
 
@@ -307,11 +368,16 @@ export type InsertTicketArea = z.infer<typeof insertTicketAreaSchema>;
 export type TicketWithRelations = Ticket & {
   ticketType?: TicketType | null;
   createdBy?: User | null;
+  slaDefinition?: SlaDefinition | null;
   assignees?: (TicketAssignee & { user?: User })[];
   watchers?: (TicketWatcher & { user?: User })[];
   comments?: (Comment & { author?: User; attachments?: Attachment[] })[];
   attachments?: Attachment[];
   areas?: (TicketArea & { area?: Area })[];
+};
+
+export type SlaDefinitionWithEscalations = SlaDefinition & {
+  escalations?: SlaEscalation[];
 };
 
 // Auth schemas

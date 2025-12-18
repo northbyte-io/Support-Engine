@@ -10,7 +10,7 @@ import {
   agentMiddleware,
   type AuthenticatedRequest 
 } from "./auth";
-import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema } from "@shared/schema";
+import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema } from "@shared/schema";
 import { z } from "zod";
 
 // Seed default data for demo
@@ -88,6 +88,26 @@ async function seedDefaultData() {
       await storage.createArea({ name: "Buchhaltung", description: "Finanzabteilung", color: "#10B981", tenantId: defaultTenant.id });
       await storage.createArea({ name: "Personal", description: "HR-Abteilung", color: "#8B5CF6", tenantId: defaultTenant.id });
       areasList = await storage.getAreas(defaultTenant.id);
+    }
+
+    // Create default SLA definition
+    let defaultSla = await storage.getDefaultSlaDefinition(defaultTenant.id);
+    if (!defaultSla) {
+      defaultSla = await storage.createSlaDefinition({
+        tenantId: defaultTenant.id,
+        name: "Standard-SLA",
+        description: "Standard Service-Level-Vereinbarung",
+        responseTimeLow: 480,
+        responseTimeMedium: 240,
+        responseTimeHigh: 60,
+        responseTimeUrgent: 15,
+        resolutionTimeLow: 4320,
+        resolutionTimeMedium: 1440,
+        resolutionTimeHigh: 480,
+        resolutionTimeUrgent: 120,
+        isDefault: true,
+        isActive: true,
+      });
     }
 
     // Create sample tickets
@@ -451,6 +471,128 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error) {
       console.error("Delete area error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // SLA Definition Routes
+  app.get("/api/sla-definitions", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const slaDefinitions = await storage.getSlaDefinitions(req.tenantId);
+      res.json(slaDefinitions);
+    } catch (error) {
+      console.error("Get SLA definitions error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.get("/api/sla-definitions/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const sla = await storage.getSlaDefinition(req.params.id);
+      if (!sla) {
+        return res.status(404).json({ message: "SLA-Definition nicht gefunden" });
+      }
+      // Enforce tenant isolation
+      if (sla.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      res.json(sla);
+    } catch (error) {
+      console.error("Get SLA definition error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/sla-definitions", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertSlaDefinitionSchema.parse({
+        ...req.body,
+        tenantId: req.tenantId,
+      });
+
+      const sla = await storage.createSlaDefinition(data);
+      res.status(201).json(sla);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create SLA definition error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.patch("/api/sla-definitions/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Check tenant ownership first
+      const existing = await storage.getSlaDefinition(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "SLA-Definition nicht gefunden" });
+      }
+      if (existing.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      // Only allow safe fields to be updated (not tenantId)
+      const { tenantId, id, ...safeUpdates } = req.body;
+      const sla = await storage.updateSlaDefinition(req.params.id, safeUpdates);
+      res.json(sla);
+    } catch (error) {
+      console.error("Update SLA definition error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/sla-definitions/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Check tenant ownership first
+      const existing = await storage.getSlaDefinition(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "SLA-Definition nicht gefunden" });
+      }
+      if (existing.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      await storage.deleteSlaDefinition(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete SLA definition error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // SLA Escalation Routes
+  app.post("/api/sla-definitions/:id/escalations", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Check SLA definition tenant ownership first
+      const slaDef = await storage.getSlaDefinition(req.params.id);
+      if (!slaDef) {
+        return res.status(404).json({ message: "SLA-Definition nicht gefunden" });
+      }
+      if (slaDef.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      
+      const data = insertSlaEscalationSchema.parse({
+        ...req.body,
+        slaDefinitionId: req.params.id,
+      });
+
+      const escalation = await storage.createSlaEscalation(data);
+      res.status(201).json(escalation);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create SLA escalation error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/sla-escalations/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.deleteSlaEscalation(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete SLA escalation error:", error);
       res.status(500).json({ message: "Interner Serverfehler" });
     }
   });

@@ -7,6 +7,7 @@ import {
   LogOut,
   FolderKanban,
   CircleUser,
+  Clock,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
@@ -54,6 +55,11 @@ const adminNavItems = [
     title: "Benutzer",
     url: "/users",
     icon: Users,
+  },
+  {
+    title: "SLA-Verwaltung",
+    url: "/settings/sla",
+    icon: Clock,
   },
   {
     title: "Einstellungen",

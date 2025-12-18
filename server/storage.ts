@@ -10,6 +10,8 @@ import {
   attachments,
   areas,
   ticketAreas,
+  slaDefinitions,
+  slaEscalations,
   type User,
   type InsertUser,
   type Tenant,
@@ -33,6 +35,11 @@ import {
   type TicketArea,
   type InsertTicketArea,
   type TicketWithRelations,
+  type SlaDefinition,
+  type InsertSlaDefinition,
+  type SlaEscalation,
+  type InsertSlaEscalation,
+  type SlaDefinitionWithEscalations,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, ilike, or, count } from "drizzle-orm";
@@ -96,6 +103,19 @@ export interface IStorage {
   createArea(area: InsertArea): Promise<Area>;
   updateArea(id: string, updates: Partial<InsertArea>): Promise<Area | undefined>;
   deleteArea(id: string): Promise<void>;
+
+  // SLA Definitions
+  getSlaDefinitions(tenantId?: string): Promise<SlaDefinitionWithEscalations[]>;
+  getSlaDefinition(id: string): Promise<SlaDefinitionWithEscalations | undefined>;
+  getDefaultSlaDefinition(tenantId: string): Promise<SlaDefinition | undefined>;
+  createSlaDefinition(sla: InsertSlaDefinition): Promise<SlaDefinition>;
+  updateSlaDefinition(id: string, updates: Partial<InsertSlaDefinition>): Promise<SlaDefinition | undefined>;
+  deleteSlaDefinition(id: string): Promise<void>;
+
+  // SLA Escalations
+  getSlaEscalations(slaDefinitionId: string): Promise<SlaEscalation[]>;
+  createSlaEscalation(escalation: InsertSlaEscalation): Promise<SlaEscalation>;
+  deleteSlaEscalation(id: string): Promise<void>;
 
   // Dashboard Stats
   getDashboardStats(tenantId?: string): Promise<{
@@ -419,6 +439,61 @@ export class DatabaseStorage implements IStorage {
 
   async deleteArea(id: string): Promise<void> {
     await db.delete(areas).where(eq(areas.id, id));
+  }
+
+  // SLA Definitions
+  async getSlaDefinitions(tenantId?: string): Promise<SlaDefinitionWithEscalations[]> {
+    const defs = tenantId 
+      ? await db.select().from(slaDefinitions).where(eq(slaDefinitions.tenantId, tenantId))
+      : await db.select().from(slaDefinitions);
+    
+    return Promise.all(defs.map(async (def) => {
+      const escalations = await db.select().from(slaEscalations).where(eq(slaEscalations.slaDefinitionId, def.id));
+      return { ...def, escalations };
+    }));
+  }
+
+  async getSlaDefinition(id: string): Promise<SlaDefinitionWithEscalations | undefined> {
+    const [def] = await db.select().from(slaDefinitions).where(eq(slaDefinitions.id, id));
+    if (!def) return undefined;
+    
+    const escalations = await db.select().from(slaEscalations).where(eq(slaEscalations.slaDefinitionId, id));
+    return { ...def, escalations };
+  }
+
+  async getDefaultSlaDefinition(tenantId: string): Promise<SlaDefinition | undefined> {
+    const [def] = await db.select().from(slaDefinitions)
+      .where(and(eq(slaDefinitions.tenantId, tenantId), eq(slaDefinitions.isDefault, true)));
+    return def || undefined;
+  }
+
+  async createSlaDefinition(sla: InsertSlaDefinition): Promise<SlaDefinition> {
+    const [result] = await db.insert(slaDefinitions).values(sla).returning();
+    return result;
+  }
+
+  async updateSlaDefinition(id: string, updates: Partial<InsertSlaDefinition>): Promise<SlaDefinition | undefined> {
+    const [result] = await db.update(slaDefinitions).set(updates).where(eq(slaDefinitions.id, id)).returning();
+    return result || undefined;
+  }
+
+  async deleteSlaDefinition(id: string): Promise<void> {
+    await db.delete(slaEscalations).where(eq(slaEscalations.slaDefinitionId, id));
+    await db.delete(slaDefinitions).where(eq(slaDefinitions.id, id));
+  }
+
+  // SLA Escalations
+  async getSlaEscalations(slaDefinitionId: string): Promise<SlaEscalation[]> {
+    return db.select().from(slaEscalations).where(eq(slaEscalations.slaDefinitionId, slaDefinitionId));
+  }
+
+  async createSlaEscalation(escalation: InsertSlaEscalation): Promise<SlaEscalation> {
+    const [result] = await db.insert(slaEscalations).values(escalation).returning();
+    return result;
+  }
+
+  async deleteSlaEscalation(id: string): Promise<void> {
+    await db.delete(slaEscalations).where(eq(slaEscalations.id, id));
   }
 
   // Dashboard Stats

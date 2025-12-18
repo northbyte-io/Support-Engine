@@ -16,6 +16,7 @@ import TicketFormPage from "@/pages/ticket-form";
 import UsersPage from "@/pages/users";
 import AreasPage from "@/pages/areas";
 import PortalPage from "@/pages/portal";
+import SlaSettingsPage from "@/pages/sla-settings";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -137,6 +138,12 @@ function Router() {
       <Route path="/users">
         <AdminRoute>
           <UsersPage />
+        </AdminRoute>
+      </Route>
+
+      <Route path="/settings/sla">
+        <AdminRoute>
+          <SlaSettingsPage />
         </AdminRoute>
       </Route>
 
