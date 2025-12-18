@@ -216,6 +216,21 @@ export const ticketKbLinks = pgTable("ticket_kb_links", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Time Entries for time tracking
+export const timeEntries = pgTable("time_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  ticketId: varchar("ticket_id").references(() => tickets.id),
+  userId: varchar("user_id").references(() => users.id),
+  description: text("description"),
+  minutes: integer("minutes").notNull(),
+  date: timestamp("date").notNull(),
+  isBillable: boolean("is_billable").default(false),
+  hourlyRate: integer("hourly_rate"), // In cents for precision
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Areas/Departments for ticket assignment
 export const areas = pgTable("areas", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -243,6 +258,7 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
   slaDefinitions: many(slaDefinitions),
   kbCategories: many(kbCategories),
   kbArticles: many(kbArticles),
+  timeEntries: many(timeEntries),
 }));
 
 export const kbCategoriesRelations = relations(kbCategories, ({ one, many }) => ({
@@ -292,6 +308,21 @@ export const ticketKbLinksRelations = relations(ticketKbLinks, ({ one }) => ({
   }),
   linkedBy: one(users, {
     fields: [ticketKbLinks.linkedById],
+    references: [users.id],
+  }),
+}));
+
+export const timeEntriesRelations = relations(timeEntries, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [timeEntries.tenantId],
+    references: [tenants.id],
+  }),
+  ticket: one(tickets, {
+    fields: [timeEntries.ticketId],
+    references: [tickets.id],
+  }),
+  user: one(users, {
+    fields: [timeEntries.userId],
     references: [users.id],
   }),
 }));
@@ -446,6 +477,7 @@ export const insertKbCategorySchema = createInsertSchema(kbCategories).omit({ id
 export const insertKbArticleSchema = createInsertSchema(kbArticles).omit({ id: true, createdAt: true, updatedAt: true, viewCount: true, version: true, publishedAt: true });
 export const insertKbArticleVersionSchema = createInsertSchema(kbArticleVersions).omit({ id: true, createdAt: true });
 export const insertTicketKbLinkSchema = createInsertSchema(ticketKbLinks).omit({ id: true, createdAt: true });
+export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Types
 export type Tenant = typeof tenants.$inferSelect;
@@ -482,6 +514,8 @@ export type KbArticleVersion = typeof kbArticleVersions.$inferSelect;
 export type InsertKbArticleVersion = z.infer<typeof insertKbArticleVersionSchema>;
 export type TicketKbLink = typeof ticketKbLinks.$inferSelect;
 export type InsertTicketKbLink = z.infer<typeof insertTicketKbLinkSchema>;
+export type TimeEntry = typeof timeEntries.$inferSelect;
+export type InsertTimeEntry = z.infer<typeof insertTimeEntrySchema>;
 
 // Extended types for API responses
 export type TicketWithRelations = Ticket & {
@@ -507,6 +541,11 @@ export type KbArticleWithRelations = KbArticle & {
   category?: KbCategory | null;
   author?: User | null;
   versions?: KbArticleVersion[];
+};
+
+export type TimeEntryWithRelations = TimeEntry & {
+  user?: User | null;
+  ticket?: Ticket | null;
 };
 
 // Auth schemas

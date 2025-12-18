@@ -10,7 +10,7 @@ import {
   agentMiddleware,
   type AuthenticatedRequest 
 } from "./auth";
-import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema } from "@shared/schema";
+import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema } from "@shared/schema";
 import { z } from "zod";
 
 // Seed default data for demo
@@ -956,6 +956,199 @@ export async function registerRoutes(
       res.json(articles);
     } catch (error) {
       console.error("Portal get KB articles error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Time Entry Routes
+  app.get("/api/time-entries", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { ticketId, userId, startDate, endDate } = req.query;
+      const params: { ticketId?: string; userId?: string; startDate?: Date; endDate?: Date } = {};
+      
+      if (ticketId) params.ticketId = ticketId as string;
+      if (userId) params.userId = userId as string;
+      if (startDate) params.startDate = new Date(startDate as string);
+      if (endDate) params.endDate = new Date(endDate as string);
+      
+      const entries = await storage.getTimeEntries(req.tenantId!, params);
+      res.json(entries);
+    } catch (error) {
+      console.error("Get time entries error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.get("/api/time-entries/summary", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { ticketId, userId, startDate, endDate } = req.query;
+      const params: { ticketId?: string; userId?: string; startDate?: Date; endDate?: Date } = {};
+      
+      if (ticketId) params.ticketId = ticketId as string;
+      if (userId) params.userId = userId as string;
+      if (startDate) params.startDate = new Date(startDate as string);
+      if (endDate) params.endDate = new Date(endDate as string);
+      
+      const summary = await storage.getTimeEntrySummary(req.tenantId!, params);
+      res.json(summary);
+    } catch (error) {
+      console.error("Get time entry summary error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.get("/api/time-entries/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const entry = await storage.getTimeEntry(req.params.id);
+      if (!entry) {
+        return res.status(404).json({ message: "Zeiteintrag nicht gefunden" });
+      }
+      // Tenant isolation check
+      if (entry.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      res.json(entry);
+    } catch (error) {
+      console.error("Get time entry error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/time-entries", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertTimeEntrySchema.parse({
+        ...req.body,
+        tenantId: req.tenantId,
+        userId: req.user!.id,
+        date: new Date(req.body.date),
+      });
+      const entry = await storage.createTimeEntry(data);
+      res.status(201).json(entry);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create time entry error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.patch("/api/time-entries/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const entry = await storage.getTimeEntry(req.params.id);
+      if (!entry) {
+        return res.status(404).json({ message: "Zeiteintrag nicht gefunden" });
+      }
+      // Tenant isolation check
+      if (entry.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      
+      const updates: Record<string, unknown> = { ...req.body };
+      if (req.body.date) {
+        updates.date = new Date(req.body.date);
+      }
+      delete updates.tenantId;
+      delete updates.userId;
+      delete updates.id;
+      
+      const updatedEntry = await storage.updateTimeEntry(req.params.id, updates);
+      res.json(updatedEntry);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Update time entry error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/time-entries/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const entry = await storage.getTimeEntry(req.params.id);
+      if (!entry) {
+        return res.status(404).json({ message: "Zeiteintrag nicht gefunden" });
+      }
+      // Tenant isolation check
+      if (entry.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      await storage.deleteTimeEntry(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete time entry error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Get time entries for a specific ticket
+  app.get("/api/tickets/:ticketId/time-entries", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const ticket = await storage.getTicket(req.params.ticketId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket nicht gefunden" });
+      }
+      if (ticket.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      
+      // Customers can only see time entries if they're the ticket creator
+      if (req.user!.role === "customer" && ticket.createdById !== req.user!.id) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      
+      const entries = await storage.getTimeEntries(req.tenantId!, { ticketId: req.params.ticketId });
+      res.json(entries);
+    } catch (error) {
+      console.error("Get ticket time entries error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Create time entry for a specific ticket
+  app.post("/api/tickets/:ticketId/time-entries", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const ticket = await storage.getTicket(req.params.ticketId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket nicht gefunden" });
+      }
+      if (ticket.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      
+      const data = insertTimeEntrySchema.parse({
+        ...req.body,
+        tenantId: req.tenantId,
+        ticketId: req.params.ticketId,
+        userId: req.user!.id,
+        date: new Date(req.body.date),
+      });
+      const entry = await storage.createTimeEntry(data);
+      res.status(201).json(entry);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create ticket time entry error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Get time entry summary for a specific ticket
+  app.get("/api/tickets/:ticketId/time-summary", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const ticket = await storage.getTicket(req.params.ticketId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket nicht gefunden" });
+      }
+      if (ticket.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      
+      const summary = await storage.getTimeEntrySummary(req.tenantId!, { ticketId: req.params.ticketId });
+      res.json(summary);
+    } catch (error) {
+      console.error("Get ticket time summary error:", error);
       res.status(500).json({ message: "Interner Serverfehler" });
     }
   });

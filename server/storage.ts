@@ -16,6 +16,7 @@ import {
   kbArticles,
   kbArticleVersions,
   ticketKbLinks,
+  timeEntries,
   type User,
   type InsertUser,
   type Tenant,
@@ -53,6 +54,9 @@ import {
   type TicketKbLink,
   type InsertTicketKbLink,
   type KbArticleWithRelations,
+  type TimeEntry,
+  type InsertTimeEntry,
+  type TimeEntryWithRelations,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, ilike, or, count } from "drizzle-orm";
@@ -163,6 +167,14 @@ export interface IStorage {
   getTicketKbLinks(ticketId: string): Promise<(TicketKbLink & { article?: KbArticle })[]>;
   createTicketKbLink(link: InsertTicketKbLink): Promise<TicketKbLink>;
   deleteTicketKbLink(id: string): Promise<void>;
+
+  // Time Entries
+  getTimeEntries(tenantId: string, params?: { ticketId?: string; userId?: string; startDate?: Date; endDate?: Date }): Promise<TimeEntryWithRelations[]>;
+  getTimeEntry(id: string): Promise<TimeEntryWithRelations | undefined>;
+  createTimeEntry(entry: InsertTimeEntry): Promise<TimeEntry>;
+  updateTimeEntry(id: string, updates: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined>;
+  deleteTimeEntry(id: string): Promise<void>;
+  getTimeEntrySummary(tenantId: string, params?: { ticketId?: string; userId?: string; startDate?: Date; endDate?: Date }): Promise<{ totalMinutes: number; billableMinutes: number; totalAmount: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -722,6 +734,101 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTicketKbLink(id: string): Promise<void> {
     await db.delete(ticketKbLinks).where(eq(ticketKbLinks.id, id));
+  }
+
+  // Time Entries
+  async getTimeEntries(tenantId: string, params?: { ticketId?: string; userId?: string; startDate?: Date; endDate?: Date }): Promise<TimeEntryWithRelations[]> {
+    const conditions = [eq(timeEntries.tenantId, tenantId)];
+    
+    if (params?.ticketId) {
+      conditions.push(eq(timeEntries.ticketId, params.ticketId));
+    }
+    if (params?.userId) {
+      conditions.push(eq(timeEntries.userId, params.userId));
+    }
+    if (params?.startDate) {
+      conditions.push(sql`${timeEntries.date} >= ${params.startDate}`);
+    }
+    if (params?.endDate) {
+      conditions.push(sql`${timeEntries.date} <= ${params.endDate}`);
+    }
+    
+    const entries = await db.select().from(timeEntries)
+      .where(and(...conditions))
+      .orderBy(desc(timeEntries.date));
+    
+    return Promise.all(entries.map(async (entry) => {
+      const [user, ticket] = await Promise.all([
+        entry.userId ? db.select().from(users).where(eq(users.id, entry.userId)).then(r => r[0]) : null,
+        entry.ticketId ? db.select().from(tickets).where(eq(tickets.id, entry.ticketId)).then(r => r[0]) : null,
+      ]);
+      const userWithoutPassword = user ? { ...user, password: undefined } : null;
+      return { ...entry, user: userWithoutPassword, ticket: ticket || null };
+    }));
+  }
+
+  async getTimeEntry(id: string): Promise<TimeEntryWithRelations | undefined> {
+    const [entry] = await db.select().from(timeEntries).where(eq(timeEntries.id, id));
+    if (!entry) return undefined;
+
+    const [user, ticket] = await Promise.all([
+      entry.userId ? db.select().from(users).where(eq(users.id, entry.userId)).then(r => r[0]) : null,
+      entry.ticketId ? db.select().from(tickets).where(eq(tickets.id, entry.ticketId)).then(r => r[0]) : null,
+    ]);
+    const userWithoutPassword = user ? { ...user, password: undefined } : null;
+    return { ...entry, user: userWithoutPassword, ticket: ticket || null };
+  }
+
+  async createTimeEntry(entry: InsertTimeEntry): Promise<TimeEntry> {
+    const [result] = await db.insert(timeEntries).values(entry).returning();
+    return result;
+  }
+
+  async updateTimeEntry(id: string, updates: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined> {
+    const [result] = await db.update(timeEntries)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(timeEntries.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteTimeEntry(id: string): Promise<void> {
+    await db.delete(timeEntries).where(eq(timeEntries.id, id));
+  }
+
+  async getTimeEntrySummary(tenantId: string, params?: { ticketId?: string; userId?: string; startDate?: Date; endDate?: Date }): Promise<{ totalMinutes: number; billableMinutes: number; totalAmount: number }> {
+    const conditions = [eq(timeEntries.tenantId, tenantId)];
+    
+    if (params?.ticketId) {
+      conditions.push(eq(timeEntries.ticketId, params.ticketId));
+    }
+    if (params?.userId) {
+      conditions.push(eq(timeEntries.userId, params.userId));
+    }
+    if (params?.startDate) {
+      conditions.push(sql`${timeEntries.date} >= ${params.startDate}`);
+    }
+    if (params?.endDate) {
+      conditions.push(sql`${timeEntries.date} <= ${params.endDate}`);
+    }
+
+    const entries = await db.select().from(timeEntries).where(and(...conditions));
+    
+    let totalMinutes = 0;
+    let billableMinutes = 0;
+    let totalAmount = 0;
+
+    for (const entry of entries) {
+      totalMinutes += entry.minutes;
+      if (entry.isBillable) {
+        billableMinutes += entry.minutes;
+        if (entry.hourlyRate) {
+          totalAmount += Math.round((entry.minutes / 60) * entry.hourlyRate);
+        }
+      }
+    }
+
+    return { totalMinutes, billableMinutes, totalAmount };
   }
 }
 

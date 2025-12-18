@@ -18,6 +18,7 @@ import AreasPage from "@/pages/areas";
 import PortalPage from "@/pages/portal";
 import SlaSettingsPage from "@/pages/sla-settings";
 import KnowledgeBasePage from "@/pages/knowledge-base";
+import TimeTrackingPage from "@/pages/time-tracking";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -140,6 +141,12 @@ function Router() {
         <ProtectedRoute>
           <KnowledgeBasePage />
         </ProtectedRoute>
+      </Route>
+
+      <Route path="/time-tracking">
+        <AgentRoute>
+          <TimeTrackingPage />
+        </AgentRoute>
       </Route>
 
       <Route path="/users">
