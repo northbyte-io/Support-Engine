@@ -162,6 +162,60 @@ export const slaEscalations = pgTable("sla_escalations", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Knowledge Base Categories
+export const kbCategories = pgTable("kb_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  parentId: varchar("parent_id"), // Self-reference for nested categories
+  slug: text("slug").notNull(),
+  order: integer("order").default(0),
+  isPublic: boolean("is_public").default(true), // Visible to customers
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Knowledge Base Articles
+export const kbArticles = pgTable("kb_articles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  categoryId: varchar("category_id").references(() => kbCategories.id),
+  title: text("title").notNull(),
+  slug: text("slug").notNull(),
+  content: text("content").notNull(),
+  summary: text("summary"),
+  authorId: varchar("author_id").references(() => users.id),
+  status: text("status").default("draft"), // draft, published, archived
+  isPublic: boolean("is_public").default(true), // Visible to customers
+  viewCount: integer("view_count").default(0),
+  version: integer("version").default(1),
+  tags: text("tags").array(),
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Knowledge Base Article Versions (for version history)
+export const kbArticleVersions = pgTable("kb_article_versions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  articleId: varchar("article_id").references(() => kbArticles.id),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  version: integer("version").notNull(),
+  changedById: varchar("changed_by_id").references(() => users.id),
+  changeNote: text("change_note"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Ticket to Article links (suggested/attached knowledge base articles)
+export const ticketKbLinks = pgTable("ticket_kb_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: varchar("ticket_id").references(() => tickets.id),
+  articleId: varchar("article_id").references(() => kbArticles.id),
+  linkedById: varchar("linked_by_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Areas/Departments for ticket assignment
 export const areas = pgTable("areas", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -187,6 +241,59 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
   ticketTypes: many(ticketTypes),
   areas: many(areas),
   slaDefinitions: many(slaDefinitions),
+  kbCategories: many(kbCategories),
+  kbArticles: many(kbArticles),
+}));
+
+export const kbCategoriesRelations = relations(kbCategories, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [kbCategories.tenantId],
+    references: [tenants.id],
+  }),
+  articles: many(kbArticles),
+}));
+
+export const kbArticlesRelations = relations(kbArticles, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [kbArticles.tenantId],
+    references: [tenants.id],
+  }),
+  category: one(kbCategories, {
+    fields: [kbArticles.categoryId],
+    references: [kbCategories.id],
+  }),
+  author: one(users, {
+    fields: [kbArticles.authorId],
+    references: [users.id],
+  }),
+  versions: many(kbArticleVersions),
+  ticketLinks: many(ticketKbLinks),
+}));
+
+export const kbArticleVersionsRelations = relations(kbArticleVersions, ({ one }) => ({
+  article: one(kbArticles, {
+    fields: [kbArticleVersions.articleId],
+    references: [kbArticles.id],
+  }),
+  changedBy: one(users, {
+    fields: [kbArticleVersions.changedById],
+    references: [users.id],
+  }),
+}));
+
+export const ticketKbLinksRelations = relations(ticketKbLinks, ({ one }) => ({
+  ticket: one(tickets, {
+    fields: [ticketKbLinks.ticketId],
+    references: [tickets.id],
+  }),
+  article: one(kbArticles, {
+    fields: [ticketKbLinks.articleId],
+    references: [kbArticles.id],
+  }),
+  linkedBy: one(users, {
+    fields: [ticketKbLinks.linkedById],
+    references: [users.id],
+  }),
 }));
 
 export const slaDefinitionsRelations = relations(slaDefinitions, ({ one, many }) => ({
@@ -335,6 +442,10 @@ export const insertAreaSchema = createInsertSchema(areas).omit({ id: true, creat
 export const insertSlaDefinitionSchema = createInsertSchema(slaDefinitions).omit({ id: true, createdAt: true });
 export const insertSlaEscalationSchema = createInsertSchema(slaEscalations).omit({ id: true, createdAt: true });
 export const insertTicketAreaSchema = createInsertSchema(ticketAreas).omit({ id: true, createdAt: true });
+export const insertKbCategorySchema = createInsertSchema(kbCategories).omit({ id: true, createdAt: true });
+export const insertKbArticleSchema = createInsertSchema(kbArticles).omit({ id: true, createdAt: true, updatedAt: true, viewCount: true, version: true, publishedAt: true });
+export const insertKbArticleVersionSchema = createInsertSchema(kbArticleVersions).omit({ id: true, createdAt: true });
+export const insertTicketKbLinkSchema = createInsertSchema(ticketKbLinks).omit({ id: true, createdAt: true });
 
 // Types
 export type Tenant = typeof tenants.$inferSelect;
@@ -363,6 +474,14 @@ export type SlaEscalation = typeof slaEscalations.$inferSelect;
 export type InsertSlaEscalation = z.infer<typeof insertSlaEscalationSchema>;
 export type TicketArea = typeof ticketAreas.$inferSelect;
 export type InsertTicketArea = z.infer<typeof insertTicketAreaSchema>;
+export type KbCategory = typeof kbCategories.$inferSelect;
+export type InsertKbCategory = z.infer<typeof insertKbCategorySchema>;
+export type KbArticle = typeof kbArticles.$inferSelect;
+export type InsertKbArticle = z.infer<typeof insertKbArticleSchema>;
+export type KbArticleVersion = typeof kbArticleVersions.$inferSelect;
+export type InsertKbArticleVersion = z.infer<typeof insertKbArticleVersionSchema>;
+export type TicketKbLink = typeof ticketKbLinks.$inferSelect;
+export type InsertTicketKbLink = z.infer<typeof insertTicketKbLinkSchema>;
 
 // Extended types for API responses
 export type TicketWithRelations = Ticket & {
@@ -378,6 +497,16 @@ export type TicketWithRelations = Ticket & {
 
 export type SlaDefinitionWithEscalations = SlaDefinition & {
   escalations?: SlaEscalation[];
+};
+
+export type KbCategoryWithArticles = KbCategory & {
+  articles?: KbArticle[];
+};
+
+export type KbArticleWithRelations = KbArticle & {
+  category?: KbCategory | null;
+  author?: User | null;
+  versions?: KbArticleVersion[];
 };
 
 // Auth schemas

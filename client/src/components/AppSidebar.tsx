@@ -8,6 +8,7 @@ import {
   FolderKanban,
   CircleUser,
   Clock,
+  BookOpen,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
@@ -42,6 +43,11 @@ const mainNavItems = [
     title: "Tickets",
     url: "/tickets",
     icon: Ticket,
+  },
+  {
+    title: "Wissensdatenbank",
+    url: "/knowledge-base",
+    icon: BookOpen,
   },
   {
     title: "Bereiche",

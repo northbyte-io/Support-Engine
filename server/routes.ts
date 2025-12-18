@@ -10,7 +10,7 @@ import {
   agentMiddleware,
   type AuthenticatedRequest 
 } from "./auth";
-import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema } from "@shared/schema";
+import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema } from "@shared/schema";
 import { z } from "zod";
 
 // Seed default data for demo
@@ -656,6 +656,306 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
       }
       console.error("Portal create ticket error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Knowledge Base Category Routes
+  app.get("/api/kb/categories", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const categories = await storage.getKbCategories(req.tenantId!);
+      res.json(categories);
+    } catch (error) {
+      console.error("Get KB categories error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.get("/api/kb/categories/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const category = await storage.getKbCategory(req.params.id);
+      if (!category) {
+        return res.status(404).json({ message: "Kategorie nicht gefunden" });
+      }
+      if (category.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      res.json(category);
+    } catch (error) {
+      console.error("Get KB category error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/kb/categories", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertKbCategorySchema.parse({
+        ...req.body,
+        tenantId: req.tenantId,
+      });
+      const category = await storage.createKbCategory(data);
+      res.status(201).json(category);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create KB category error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.patch("/api/kb/categories/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const existing = await storage.getKbCategory(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Kategorie nicht gefunden" });
+      }
+      if (existing.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      const { tenantId, id, ...safeUpdates } = req.body;
+      const category = await storage.updateKbCategory(req.params.id, safeUpdates);
+      res.json(category);
+    } catch (error) {
+      console.error("Update KB category error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/kb/categories/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const existing = await storage.getKbCategory(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Kategorie nicht gefunden" });
+      }
+      if (existing.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      await storage.deleteKbCategory(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete KB category error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Knowledge Base Article Routes
+  app.get("/api/kb/articles", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { categoryId, status, search, isPublic } = req.query;
+      const params: { categoryId?: string; status?: string; search?: string; isPublic?: boolean } = {};
+      if (categoryId) params.categoryId = categoryId as string;
+      if (status) params.status = status as string;
+      if (search) params.search = search as string;
+      if (isPublic !== undefined) params.isPublic = isPublic === "true";
+      
+      // Customers can only see public, published articles
+      if (req.user?.role === "customer") {
+        params.status = "published";
+        params.isPublic = true;
+      }
+      
+      const articles = await storage.getKbArticles(req.tenantId!, params);
+      res.json(articles);
+    } catch (error) {
+      console.error("Get KB articles error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.get("/api/kb/articles/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const article = await storage.getKbArticle(req.params.id);
+      if (!article) {
+        return res.status(404).json({ message: "Artikel nicht gefunden" });
+      }
+      if (article.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      // Customers can only see public, published articles
+      if (req.user?.role === "customer" && (article.status !== "published" || !article.isPublic)) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      // Increment view count
+      await storage.incrementKbArticleViewCount(req.params.id);
+      res.json(article);
+    } catch (error) {
+      console.error("Get KB article error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Helper function to generate slug
+  function generateSlug(title: string): string {
+    return title
+      .toLowerCase()
+      .replace(/[äÄ]/g, "ae")
+      .replace(/[öÖ]/g, "oe")
+      .replace(/[üÜ]/g, "ue")
+      .replace(/ß/g, "ss")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+  }
+
+  app.post("/api/kb/articles", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const slug = req.body.slug || generateSlug(req.body.title);
+      const data = insertKbArticleSchema.parse({
+        ...req.body,
+        tenantId: req.tenantId,
+        authorId: req.user!.id,
+        slug,
+      });
+      const article = await storage.createKbArticle(data);
+      res.status(201).json(article);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create KB article error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.patch("/api/kb/articles/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const existing = await storage.getKbArticle(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Artikel nicht gefunden" });
+      }
+      if (existing.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      
+      // Save version before updating
+      if (req.body.content && req.body.content !== existing.content) {
+        await storage.createKbArticleVersion({
+          articleId: existing.id,
+          title: existing.title,
+          content: existing.content,
+          version: existing.version || 1,
+          changedById: req.user!.id,
+          changeNote: req.body.changeNote,
+        });
+      }
+      
+      const { tenantId, id, ...safeUpdates } = req.body;
+      // Increment version if content changed
+      if (req.body.content && req.body.content !== existing.content) {
+        (safeUpdates as Record<string, unknown>).version = (existing.version || 1) + 1;
+      }
+      const article = await storage.updateKbArticle(req.params.id, safeUpdates);
+      res.json(article);
+    } catch (error) {
+      console.error("Update KB article error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/kb/articles/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const existing = await storage.getKbArticle(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Artikel nicht gefunden" });
+      }
+      if (existing.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      await storage.deleteKbArticle(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete KB article error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // KB Article Versions
+  app.get("/api/kb/articles/:id/versions", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const article = await storage.getKbArticle(req.params.id);
+      if (!article) {
+        return res.status(404).json({ message: "Artikel nicht gefunden" });
+      }
+      if (article.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      const versions = await storage.getKbArticleVersions(req.params.id);
+      res.json(versions);
+    } catch (error) {
+      console.error("Get KB article versions error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Ticket KB Links
+  app.get("/api/tickets/:ticketId/kb-links", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const ticket = await storage.getTicket(req.params.ticketId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket nicht gefunden" });
+      }
+      if (ticket.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      const links = await storage.getTicketKbLinks(req.params.ticketId);
+      res.json(links);
+    } catch (error) {
+      console.error("Get ticket KB links error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/tickets/:ticketId/kb-links", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const ticket = await storage.getTicket(req.params.ticketId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket nicht gefunden" });
+      }
+      if (ticket.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      
+      const data = insertTicketKbLinkSchema.parse({
+        ticketId: req.params.ticketId,
+        articleId: req.body.articleId,
+        linkedById: req.user!.id,
+      });
+      const link = await storage.createTicketKbLink(data);
+      res.status(201).json(link);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create ticket KB link error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/ticket-kb-links/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.deleteTicketKbLink(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete ticket KB link error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Public Knowledge Base for Portal (customers)
+  app.get("/api/portal/kb/articles", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { categoryId, search } = req.query;
+      const params: { categoryId?: string; search?: string; status: string; isPublic: boolean } = {
+        status: "published",
+        isPublic: true,
+      };
+      if (categoryId) params.categoryId = categoryId as string;
+      if (search) params.search = search as string;
+      
+      const articles = await storage.getKbArticles(req.tenantId!, params);
+      res.json(articles);
+    } catch (error) {
+      console.error("Portal get KB articles error:", error);
       res.status(500).json({ message: "Interner Serverfehler" });
     }
   });

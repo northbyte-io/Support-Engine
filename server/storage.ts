@@ -12,6 +12,10 @@ import {
   ticketAreas,
   slaDefinitions,
   slaEscalations,
+  kbCategories,
+  kbArticles,
+  kbArticleVersions,
+  ticketKbLinks,
   type User,
   type InsertUser,
   type Tenant,
@@ -40,6 +44,15 @@ import {
   type SlaEscalation,
   type InsertSlaEscalation,
   type SlaDefinitionWithEscalations,
+  type KbCategory,
+  type InsertKbCategory,
+  type KbArticle,
+  type InsertKbArticle,
+  type KbArticleVersion,
+  type InsertKbArticleVersion,
+  type TicketKbLink,
+  type InsertTicketKbLink,
+  type KbArticleWithRelations,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, ilike, or, count } from "drizzle-orm";
@@ -125,6 +138,31 @@ export interface IStorage {
     avgResponseTime: string;
   }>;
   getAgentWorkload(tenantId?: string): Promise<{ user: User; ticketCount: number }[]>;
+
+  // Knowledge Base Categories
+  getKbCategories(tenantId: string): Promise<KbCategory[]>;
+  getKbCategory(id: string): Promise<KbCategory | undefined>;
+  createKbCategory(category: InsertKbCategory): Promise<KbCategory>;
+  updateKbCategory(id: string, updates: Partial<InsertKbCategory>): Promise<KbCategory | undefined>;
+  deleteKbCategory(id: string): Promise<void>;
+
+  // Knowledge Base Articles
+  getKbArticles(tenantId: string, params?: { categoryId?: string; status?: string; search?: string; isPublic?: boolean }): Promise<KbArticleWithRelations[]>;
+  getKbArticle(id: string): Promise<KbArticleWithRelations | undefined>;
+  getKbArticleBySlug(tenantId: string, slug: string): Promise<KbArticleWithRelations | undefined>;
+  createKbArticle(article: InsertKbArticle): Promise<KbArticle>;
+  updateKbArticle(id: string, updates: Partial<InsertKbArticle>): Promise<KbArticle | undefined>;
+  deleteKbArticle(id: string): Promise<void>;
+  incrementKbArticleViewCount(id: string): Promise<void>;
+
+  // Knowledge Base Article Versions
+  getKbArticleVersions(articleId: string): Promise<KbArticleVersion[]>;
+  createKbArticleVersion(version: InsertKbArticleVersion): Promise<KbArticleVersion>;
+
+  // Ticket KB Links
+  getTicketKbLinks(ticketId: string): Promise<(TicketKbLink & { article?: KbArticle })[]>;
+  createTicketKbLink(link: InsertTicketKbLink): Promise<TicketKbLink>;
+  deleteTicketKbLink(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -540,6 +578,150 @@ export class DatabaseStorage implements IStorage {
     );
 
     return workload.sort((a, b) => b.ticketCount - a.ticketCount);
+  }
+
+  // Knowledge Base Categories
+  async getKbCategories(tenantId: string): Promise<KbCategory[]> {
+    return db.select().from(kbCategories)
+      .where(eq(kbCategories.tenantId, tenantId))
+      .orderBy(asc(kbCategories.order), asc(kbCategories.name));
+  }
+
+  async getKbCategory(id: string): Promise<KbCategory | undefined> {
+    const [category] = await db.select().from(kbCategories).where(eq(kbCategories.id, id));
+    return category || undefined;
+  }
+
+  async createKbCategory(category: InsertKbCategory): Promise<KbCategory> {
+    const [result] = await db.insert(kbCategories).values(category).returning();
+    return result;
+  }
+
+  async updateKbCategory(id: string, updates: Partial<InsertKbCategory>): Promise<KbCategory | undefined> {
+    const [result] = await db.update(kbCategories).set(updates).where(eq(kbCategories.id, id)).returning();
+    return result || undefined;
+  }
+
+  async deleteKbCategory(id: string): Promise<void> {
+    await db.delete(kbCategories).where(eq(kbCategories.id, id));
+  }
+
+  // Knowledge Base Articles
+  async getKbArticles(tenantId: string, params?: { categoryId?: string; status?: string; search?: string; isPublic?: boolean }): Promise<KbArticleWithRelations[]> {
+    const conditions = [eq(kbArticles.tenantId, tenantId)];
+    
+    if (params?.categoryId) {
+      conditions.push(eq(kbArticles.categoryId, params.categoryId));
+    }
+    if (params?.status) {
+      conditions.push(eq(kbArticles.status, params.status));
+    }
+    if (params?.isPublic !== undefined) {
+      conditions.push(eq(kbArticles.isPublic, params.isPublic));
+    }
+    if (params?.search) {
+      conditions.push(
+        or(
+          ilike(kbArticles.title, `%${params.search}%`),
+          ilike(kbArticles.content, `%${params.search}%`)
+        )!
+      );
+    }
+
+    const articles = await db.select().from(kbArticles)
+      .where(and(...conditions))
+      .orderBy(desc(kbArticles.updatedAt));
+
+    return Promise.all(articles.map(async (article) => {
+      const [category, author] = await Promise.all([
+        article.categoryId ? db.select().from(kbCategories).where(eq(kbCategories.id, article.categoryId)).then(r => r[0]) : null,
+        article.authorId ? db.select().from(users).where(eq(users.id, article.authorId)).then(r => r[0]) : null,
+      ]);
+      const authorWithoutPassword = author ? { ...author, password: undefined } : null;
+      return { ...article, category: category || null, author: authorWithoutPassword };
+    }));
+  }
+
+  async getKbArticle(id: string): Promise<KbArticleWithRelations | undefined> {
+    const [article] = await db.select().from(kbArticles).where(eq(kbArticles.id, id));
+    if (!article) return undefined;
+
+    const [category, author, versions] = await Promise.all([
+      article.categoryId ? db.select().from(kbCategories).where(eq(kbCategories.id, article.categoryId)).then(r => r[0]) : null,
+      article.authorId ? db.select().from(users).where(eq(users.id, article.authorId)).then(r => r[0]) : null,
+      db.select().from(kbArticleVersions).where(eq(kbArticleVersions.articleId, id)).orderBy(desc(kbArticleVersions.version)),
+    ]);
+    const authorWithoutPassword = author ? { ...author, password: undefined } : null;
+    return { ...article, category: category || null, author: authorWithoutPassword, versions };
+  }
+
+  async getKbArticleBySlug(tenantId: string, slug: string): Promise<KbArticleWithRelations | undefined> {
+    const [article] = await db.select().from(kbArticles)
+      .where(and(eq(kbArticles.tenantId, tenantId), eq(kbArticles.slug, slug)));
+    if (!article) return undefined;
+
+    return this.getKbArticle(article.id);
+  }
+
+  async createKbArticle(article: InsertKbArticle): Promise<KbArticle> {
+    const [result] = await db.insert(kbArticles).values(article).returning();
+    return result;
+  }
+
+  async updateKbArticle(id: string, updates: Partial<InsertKbArticle>): Promise<KbArticle | undefined> {
+    const updateData: Record<string, unknown> = { ...updates, updatedAt: new Date() };
+    if (updates.status === "published") {
+      const current = await this.getKbArticle(id);
+      if (current && current.status !== "published") {
+        updateData.publishedAt = new Date();
+      }
+    }
+    const [result] = await db.update(kbArticles).set(updateData).where(eq(kbArticles.id, id)).returning();
+    return result || undefined;
+  }
+
+  async deleteKbArticle(id: string): Promise<void> {
+    await db.delete(kbArticleVersions).where(eq(kbArticleVersions.articleId, id));
+    await db.delete(ticketKbLinks).where(eq(ticketKbLinks.articleId, id));
+    await db.delete(kbArticles).where(eq(kbArticles.id, id));
+  }
+
+  async incrementKbArticleViewCount(id: string): Promise<void> {
+    await db.update(kbArticles).set({
+      viewCount: sql`${kbArticles.viewCount} + 1`
+    }).where(eq(kbArticles.id, id));
+  }
+
+  // Knowledge Base Article Versions
+  async getKbArticleVersions(articleId: string): Promise<KbArticleVersion[]> {
+    return db.select().from(kbArticleVersions)
+      .where(eq(kbArticleVersions.articleId, articleId))
+      .orderBy(desc(kbArticleVersions.version));
+  }
+
+  async createKbArticleVersion(version: InsertKbArticleVersion): Promise<KbArticleVersion> {
+    const [result] = await db.insert(kbArticleVersions).values(version).returning();
+    return result;
+  }
+
+  // Ticket KB Links
+  async getTicketKbLinks(ticketId: string): Promise<(TicketKbLink & { article?: KbArticle })[]> {
+    const links = await db.select().from(ticketKbLinks).where(eq(ticketKbLinks.ticketId, ticketId));
+    return Promise.all(links.map(async (link) => {
+      const [article] = link.articleId 
+        ? await db.select().from(kbArticles).where(eq(kbArticles.id, link.articleId))
+        : [null];
+      return { ...link, article: article || undefined };
+    }));
+  }
+
+  async createTicketKbLink(link: InsertTicketKbLink): Promise<TicketKbLink> {
+    const [result] = await db.insert(ticketKbLinks).values(link).returning();
+    return result;
+  }
+
+  async deleteTicketKbLink(id: string): Promise<void> {
+    await db.delete(ticketKbLinks).where(eq(ticketKbLinks.id, id));
   }
 }
 
