@@ -54,8 +54,8 @@ export interface IStorage {
   getTicket(id: string): Promise<TicketWithRelations | undefined>;
   getTickets(params: { tenantId?: string; userId?: string; status?: string[]; priority?: string[]; limit?: number }): Promise<TicketWithRelations[]>;
   createTicket(ticket: InsertTicket): Promise<Ticket>;
-  updateTicket(id: string, updates: Partial<InsertTicket>): Promise<Ticket | undefined>;
-  deleteTicket(id: string): Promise<void>;
+  updateTicket(id: string, updates: Partial<InsertTicket>, tenantId?: string): Promise<Ticket | undefined>;
+  deleteTicket(id: string, tenantId?: string): Promise<void>;
   getNextTicketNumber(tenantId: string): Promise<string>;
 
   // Ticket Types
@@ -157,7 +157,7 @@ export class DatabaseStorage implements IStorage {
     const [ticket] = await db.select().from(tickets).where(eq(tickets.id, id));
     if (!ticket) return undefined;
 
-    const [ticketType, createdBy, assigneesList, watchersList, commentsList, attachmentsList, areasList] = await Promise.all([
+    const [ticketType, createdByUser, assigneesList, watchersList, commentsList, attachmentsList, areasList] = await Promise.all([
       ticket.ticketTypeId ? db.select().from(ticketTypes).where(eq(ticketTypes.id, ticket.ticketTypeId)).then(r => r[0]) : null,
       ticket.createdById ? db.select().from(users).where(eq(users.id, ticket.createdById)).then(r => r[0]) : null,
       this.getTicketAssignees(id),
@@ -166,6 +166,9 @@ export class DatabaseStorage implements IStorage {
       this.getAttachments(id),
       db.select().from(ticketAreas).leftJoin(areas, eq(ticketAreas.areaId, areas.id)).where(eq(ticketAreas.ticketId, id)),
     ]);
+
+    // Remove password from user object
+    const createdBy = createdByUser ? { ...createdByUser, password: undefined } : null;
 
     return {
       ...ticket,
@@ -196,11 +199,14 @@ export class DatabaseStorage implements IStorage {
 
     const ticketsWithRelations = await Promise.all(
       ticketList.map(async (ticket) => {
-        const [ticketType, createdBy, assigneesList] = await Promise.all([
+        const [ticketType, createdByUser, assigneesList] = await Promise.all([
           ticket.ticketTypeId ? db.select().from(ticketTypes).where(eq(ticketTypes.id, ticket.ticketTypeId)).then(r => r[0]) : null,
           ticket.createdById ? db.select().from(users).where(eq(users.id, ticket.createdById)).then(r => r[0]) : null,
           this.getTicketAssignees(ticket.id),
         ]);
+
+        // Remove password from user object
+        const createdBy = createdByUser ? { ...createdByUser, password: undefined } : null;
 
         return {
           ...ticket,
@@ -220,7 +226,7 @@ export class DatabaseStorage implements IStorage {
     return ticket;
   }
 
-  async updateTicket(id: string, updates: Partial<InsertTicket>): Promise<Ticket | undefined> {
+  async updateTicket(id: string, updates: Partial<InsertTicket>, tenantId?: string): Promise<Ticket | undefined> {
     const updateData: Record<string, unknown> = { ...updates, updatedAt: new Date() };
     
     if (updates.status === "resolved") {
@@ -230,12 +236,22 @@ export class DatabaseStorage implements IStorage {
       updateData.closedAt = new Date();
     }
 
-    const [ticket] = await db.update(tickets).set(updateData).where(eq(tickets.id, id)).returning();
+    // Include tenantId in the where clause for safety
+    const whereClause = tenantId 
+      ? and(eq(tickets.id, id), eq(tickets.tenantId, tenantId))
+      : eq(tickets.id, id);
+
+    const [ticket] = await db.update(tickets).set(updateData).where(whereClause).returning();
     return ticket || undefined;
   }
 
-  async deleteTicket(id: string): Promise<void> {
-    await db.delete(tickets).where(eq(tickets.id, id));
+  async deleteTicket(id: string, tenantId?: string): Promise<void> {
+    // Include tenantId in the where clause for safety
+    const whereClause = tenantId 
+      ? and(eq(tickets.id, id), eq(tickets.tenantId, tenantId))
+      : eq(tickets.id, id);
+    
+    await db.delete(tickets).where(whereClause);
   }
 
   async getNextTicketNumber(tenantId: string): Promise<string> {
@@ -293,15 +309,18 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
-  async getTicketAssignees(ticketId: string): Promise<(TicketAssignee & { user?: User })[]> {
+  async getTicketAssignees(ticketId: string): Promise<(TicketAssignee & { user?: Omit<User, 'password'> })[]> {
     const result = await db.select().from(ticketAssignees)
       .leftJoin(users, eq(ticketAssignees.userId, users.id))
       .where(eq(ticketAssignees.ticketId, ticketId));
     
-    return result.map(r => ({
-      ...r.ticket_assignees,
-      user: r.users || undefined,
-    }));
+    return result.map(r => {
+      const user = r.users ? { ...r.users, password: undefined } : undefined;
+      return {
+        ...r.ticket_assignees,
+        user,
+      };
+    });
   }
 
   // Ticket Watchers
@@ -316,29 +335,35 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
-  async getTicketWatchers(ticketId: string): Promise<(TicketWatcher & { user?: User })[]> {
+  async getTicketWatchers(ticketId: string): Promise<(TicketWatcher & { user?: Omit<User, 'password'> })[]> {
     const result = await db.select().from(ticketWatchers)
       .leftJoin(users, eq(ticketWatchers.userId, users.id))
       .where(eq(ticketWatchers.ticketId, ticketId));
     
-    return result.map(r => ({
-      ...r.ticket_watchers,
-      user: r.users || undefined,
-    }));
+    return result.map(r => {
+      const user = r.users ? { ...r.users, password: undefined } : undefined;
+      return {
+        ...r.ticket_watchers,
+        user,
+      };
+    });
   }
 
   // Comments
-  async getComments(ticketId: string): Promise<(Comment & { author?: User; attachments?: Attachment[] })[]> {
+  async getComments(ticketId: string): Promise<(Comment & { author?: Omit<User, 'password'>; attachments?: Attachment[] })[]> {
     const result = await db.select().from(comments)
       .leftJoin(users, eq(comments.authorId, users.id))
       .where(eq(comments.ticketId, ticketId))
       .orderBy(asc(comments.createdAt));
     
-    return result.map(r => ({
-      ...r.comments,
-      author: r.users || undefined,
-      attachments: [],
-    }));
+    return result.map(r => {
+      const author = r.users ? { ...r.users, password: undefined } : undefined;
+      return {
+        ...r.comments,
+        author,
+        attachments: [],
+      };
+    });
   }
 
   async createComment(comment: InsertComment): Promise<Comment> {

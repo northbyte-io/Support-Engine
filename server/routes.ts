@@ -261,6 +261,10 @@ export async function registerRoutes(
       if (!ticket) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
+      // Enforce tenant isolation
+      if (ticket.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
       res.json(ticket);
     } catch (error) {
       console.error("Get ticket error:", error);
@@ -297,7 +301,8 @@ export async function registerRoutes(
 
   app.patch("/api/tickets/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const ticket = await storage.updateTicket(req.params.id, req.body);
+      // Update with tenant isolation enforced at storage level
+      const ticket = await storage.updateTicket(req.params.id, req.body, req.tenantId);
       if (!ticket) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
@@ -310,7 +315,8 @@ export async function registerRoutes(
 
   app.delete("/api/tickets/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.deleteTicket(req.params.id);
+      // Delete with tenant isolation enforced at storage level
+      await storage.deleteTicket(req.params.id, req.tenantId);
       res.status(204).send();
     } catch (error) {
       console.error("Delete ticket error:", error);
@@ -321,6 +327,15 @@ export async function registerRoutes(
   // Ticket Comments
   app.post("/api/tickets/:id/comments", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
+      // First check tenant isolation
+      const ticket = await storage.getTicket(req.params.id);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket nicht gefunden" });
+      }
+      if (ticket.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+
       const data = insertCommentSchema.parse({
         ...req.body,
         ticketId: req.params.id,
@@ -459,6 +474,11 @@ export async function registerRoutes(
       const ticket = await storage.getTicket(req.params.id);
       if (!ticket) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
+      }
+      
+      // Enforce tenant isolation
+      if (ticket.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
       }
       
       // Only allow access to own tickets for customers

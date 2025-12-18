@@ -48,12 +48,23 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    // Build URL from queryKey - first element is base URL, second (if object) contains params
-    let url = queryKey[0] as string;
-    
-    if (queryKey.length > 1 && queryKey[1] && typeof queryKey[1] === "object") {
+    // Build URL from queryKey
+    // Supports: ['/api/tickets'], ['/api/tickets', id], ['/api/tickets', { limit: 5 }]
+    const pathParts: string[] = [];
+    let queryParams: Record<string, unknown> | null = null;
+
+    for (const part of queryKey) {
+      if (typeof part === "string") {
+        pathParts.push(part);
+      } else if (part && typeof part === "object" && !Array.isArray(part)) {
+        queryParams = part as Record<string, unknown>;
+      }
+    }
+
+    let url = pathParts.join("/").replace(/\/+/g, "/");
+
+    if (queryParams) {
       const params = new URLSearchParams();
-      const queryParams = queryKey[1] as Record<string, unknown>;
       for (const [key, value] of Object.entries(queryParams)) {
         if (value !== undefined && value !== null) {
           params.append(key, String(value));
