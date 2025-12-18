@@ -1,0 +1,174 @@
+You are an expert full stack software engineer.
+
+Build a German language ticket system as a web application with a shared backend API that is also used by an iOS app.
+
+Technology stack
+— Backend: Node.js with Express
+— Database: PostgreSQL using an ORM
+— Web frontend: React
+— API: REST, JSON
+— Authentication: JWT and OAuth2
+— Data transfer: HTTPS only
+— Architecture: API first, multi tenant ready
+
+General requirements
+— All UI text and system messages in German
+— Modular, scalable code structure
+— Clear separation of backend, web frontend, and mobile API
+— One shared database for web app and iOS app
+— Role based access control
+— Tenant aware data isolation
+— Responsive web UI
+
+Implement the following features.
+
+Ticket management
+— Ticket management with freely configurable ticket types
+— Ticket forms with custom fields
+— Dynamic required fields per ticket status
+— Multi step ticket statuses
+— Priority control
+— Area based ticket assignment
+— Multiple parallel assignees per ticket
+— Supporters and watchers per ticket
+— Internal and external comments
+— Public and internal notes
+— File attachments per ticket and per comment
+
+Email integration
+— Email to ticket conversion
+— Automatic ticket creation from emails
+— Rule based automatic ticket assignment
+— Automatic categorization using keywords
+
+AI features
+— AI based ticket analysis
+— AI suggestions from knowledge base
+
+SLA management
+— SLA definitions
+— Reaction times
+— Resolution times
+— Escalation levels
+— Escalation notifications
+— Contract based SLA assignment
+
+Approval workflows
+— Approval workflows
+— Multi level approvals
+— Approvers per ticket type
+
+Customer portal
+— Customer portal
+— External ticket creation
+— External status tracking
+— External communication
+
+Multi tenancy and users
+— Multi tenant support
+— Customer and organization management
+— Contact management
+— Role and permission system
+— Unlimited users
+— Public and private areas
+— Cross area collaboration
+
+Operations
+— Dispatcher view
+— Workload overview per employee
+— Manual and rule based task distribution
+— Task management
+— To do lists
+— Follow ups
+— Appointment management
+— Recurring appointments
+— Calendar integration
+
+Microsoft integrations
+— Outlook integration
+— Microsoft 365 integration
+— Microsoft Teams integration
+— Microsoft Forms integration
+— Microsoft SharePoint integration
+— Microsoft Power Automate connector
+
+Project management
+— Project management
+— Planning boards
+— Kanban boards
+— Freely configurable columns
+— Ticket to project linking
+
+Collaboration
+— Mentions with notifications
+
+Knowledge base
+— Knowledge base module
+— Versioned knowledge articles
+— Attachments in articles
+— Ticket to article linking
+
+Documentation
+— Documentation module
+— Central technical documentation
+— Versioned documents
+— Customer specific documentation
+
+Asset management
+— Hardware assets
+— Software assets
+— License management
+— Contract assets
+— Custom asset types
+— Asset to ticket linking
+
+Time and billing
+— Time tracking
+— Billable services
+— Customer based billing
+— Project based billing
+
+Contract management
+— Service contracts
+— Contract durations
+— Contract limits
+— Contract based rules
+
+CRM features
+— Customer history
+— Sales tickets
+— Campaign tracking
+— Echobot integration
+
+Surveys
+— Survey module
+— Customer satisfaction surveys
+— Automatic sending after ticket closure
+
+Reporting
+— Standard reports
+— Custom reports
+— Dashboards
+— KPI analysis
+— Export functions
+
+API and security
+— REST API
+— API based ticket control
+— API based data access
+— Single sign on
+— Azure Entra ID integration
+— Custom branding
+— Tenant specific branding
+— Custom notifications
+— Encrypted data transmission
+
+Deliverables
+— Node.js backend with documented REST API
+— React web application
+— Database schema
+— Example seed data
+— Clear instructions to extend with an iOS app using the same API
+
+Build the system step by step.
+Start with core architecture, authentication, multi tenancy, and ticket basics.
