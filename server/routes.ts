@@ -10,7 +10,8 @@ import {
   agentMiddleware,
   type AuthenticatedRequest 
 } from "./auth";
-import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema } from "@shared/schema";
+import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyInvitationSchema, insertSurveyResponseSchema } from "@shared/schema";
+import crypto from "crypto";
 import { z } from "zod";
 
 // Seed default data for demo
@@ -321,11 +322,46 @@ export async function registerRoutes(
 
   app.patch("/api/tickets/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
+      // Get original ticket to check status change
+      const originalTicket = await storage.getTicket(req.params.id);
+      if (!originalTicket) {
+        return res.status(404).json({ message: "Ticket nicht gefunden" });
+      }
+      if (originalTicket.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+
+      const previousStatus = originalTicket.status;
+      
       // Update with tenant isolation enforced at storage level
       const ticket = await storage.updateTicket(req.params.id, req.body, req.tenantId);
       if (!ticket) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
+
+      // Check if status changed to "closed" - trigger survey
+      if (previousStatus !== "closed" && ticket.status === "closed") {
+        try {
+          const activeSurvey = await storage.getActiveSurvey(req.tenantId!);
+          if (activeSurvey && originalTicket.createdById) {
+            // Create survey invitation with unique token
+            const token = crypto.randomBytes(32).toString("hex");
+            await storage.createSurveyInvitation({
+              tenantId: req.tenantId!,
+              surveyId: activeSurvey.id,
+              ticketId: ticket.id,
+              userId: originalTicket.createdById,
+              token,
+              expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+            });
+            console.log(`Survey invitation created for ticket ${ticket.ticketNumber}`);
+          }
+        } catch (surveyError) {
+          console.error("Error creating survey invitation:", surveyError);
+          // Don't fail the ticket update if survey creation fails
+        }
+      }
+
       res.json(ticket);
     } catch (error) {
       console.error("Update ticket error:", error);
@@ -1270,6 +1306,264 @@ export async function registerRoutes(
       res.status(500).json({ message: "Interner Serverfehler" });
     }
   });
+
+  // ==================== SURVEYS (UMFRAGEN) ====================
+
+  // Get all surveys for tenant
+  app.get("/api/surveys", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const surveyList = await storage.getSurveys(req.tenantId!);
+      res.json(surveyList);
+    } catch (error) {
+      console.error("Get surveys error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Get single survey
+  app.get("/api/surveys/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const survey = await storage.getSurvey(req.params.id);
+      if (!survey) {
+        return res.status(404).json({ message: "Umfrage nicht gefunden" });
+      }
+      if (survey.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      res.json(survey);
+    } catch (error) {
+      console.error("Get survey error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Create survey
+  app.post("/api/surveys", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertSurveySchema.parse({
+        ...req.body,
+        tenantId: req.tenantId,
+      });
+      const survey = await storage.createSurvey(data);
+      res.status(201).json(survey);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create survey error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Update survey
+  app.patch("/api/surveys/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const existing = await storage.getSurvey(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Umfrage nicht gefunden" });
+      }
+      if (existing.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      const { tenantId, id, ...safeUpdates } = req.body;
+      const survey = await storage.updateSurvey(req.params.id, safeUpdates);
+      res.json(survey);
+    } catch (error) {
+      console.error("Update survey error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Delete survey
+  app.delete("/api/surveys/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const existing = await storage.getSurvey(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Umfrage nicht gefunden" });
+      }
+      if (existing.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      await storage.deleteSurvey(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete survey error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Survey Questions
+  app.get("/api/surveys/:surveyId/questions", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const survey = await storage.getSurvey(req.params.surveyId);
+      if (!survey) {
+        return res.status(404).json({ message: "Umfrage nicht gefunden" });
+      }
+      if (survey.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      const questions = await storage.getSurveyQuestions(req.params.surveyId);
+      res.json(questions);
+    } catch (error) {
+      console.error("Get survey questions error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/surveys/:surveyId/questions", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const survey = await storage.getSurvey(req.params.surveyId);
+      if (!survey) {
+        return res.status(404).json({ message: "Umfrage nicht gefunden" });
+      }
+      if (survey.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      
+      const data = insertSurveyQuestionSchema.parse({
+        ...req.body,
+        surveyId: req.params.surveyId,
+      });
+      const question = await storage.createSurveyQuestion(data);
+      res.status(201).json(question);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create survey question error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.patch("/api/survey-questions/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { surveyId, id, ...safeUpdates } = req.body;
+      const question = await storage.updateSurveyQuestion(req.params.id, safeUpdates);
+      if (!question) {
+        return res.status(404).json({ message: "Frage nicht gefunden" });
+      }
+      res.json(question);
+    } catch (error) {
+      console.error("Update survey question error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/survey-questions/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.deleteSurveyQuestion(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete survey question error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Survey Invitations
+  app.get("/api/surveys/:surveyId/invitations", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const survey = await storage.getSurvey(req.params.surveyId);
+      if (!survey) {
+        return res.status(404).json({ message: "Umfrage nicht gefunden" });
+      }
+      if (survey.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      const invitations = await storage.getSurveyInvitations(req.tenantId!, req.params.surveyId);
+      res.json(invitations);
+    } catch (error) {
+      console.error("Get survey invitations error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Survey Results Summary
+  app.get("/api/surveys/:surveyId/results", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const survey = await storage.getSurvey(req.params.surveyId);
+      if (!survey) {
+        return res.status(404).json({ message: "Umfrage nicht gefunden" });
+      }
+      if (survey.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      const summary = await storage.getSurveyResultSummary(req.tenantId!, req.params.surveyId);
+      res.json(summary);
+    } catch (error) {
+      console.error("Get survey results error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Public survey submission route (no auth required, uses token)
+  app.get("/api/public/survey/:token", async (req, res) => {
+    try {
+      const invitation = await storage.getSurveyInvitationByToken(req.params.token);
+      if (!invitation) {
+        return res.status(404).json({ message: "Umfrage nicht gefunden oder abgelaufen" });
+      }
+      if (invitation.completedAt) {
+        return res.status(400).json({ message: "Umfrage wurde bereits ausgefüllt" });
+      }
+      if (invitation.expiresAt && new Date(invitation.expiresAt) < new Date()) {
+        return res.status(400).json({ message: "Umfrage ist abgelaufen" });
+      }
+      res.json(invitation);
+    } catch (error) {
+      console.error("Get public survey error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/public/survey/:token/submit", async (req, res) => {
+    try {
+      const invitation = await storage.getSurveyInvitationByToken(req.params.token);
+      if (!invitation) {
+        return res.status(404).json({ message: "Umfrage nicht gefunden oder abgelaufen" });
+      }
+      if (invitation.completedAt) {
+        return res.status(400).json({ message: "Umfrage wurde bereits ausgefüllt" });
+      }
+      if (invitation.expiresAt && new Date(invitation.expiresAt) < new Date()) {
+        return res.status(400).json({ message: "Umfrage ist abgelaufen" });
+      }
+
+      const responses = req.body.responses as Array<{
+        questionId: string;
+        ratingValue?: number;
+        textValue?: string;
+        choiceValue?: string;
+      }>;
+
+      // Create responses for each question
+      for (const response of responses) {
+        const data = insertSurveyResponseSchema.parse({
+          invitationId: invitation.id,
+          questionId: response.questionId,
+          ratingValue: response.ratingValue,
+          textValue: response.textValue,
+          choiceValue: response.choiceValue,
+        });
+        await storage.createSurveyResponse(data);
+      }
+
+      // Mark invitation as completed
+      await storage.completeSurveyInvitation(invitation.id);
+
+      res.json({ message: "Vielen Dank für Ihr Feedback!" });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Submit survey error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // ==================== AUTO-SURVEY ON TICKET CLOSE ====================
+  // This logic is now in the ticket update endpoint
+  // When a ticket status changes to "closed", we check for an active survey
+  // and create an invitation if one exists
 
   return httpServer;
 }

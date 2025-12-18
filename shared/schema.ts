@@ -273,6 +273,58 @@ export const mentions = pgTable("mentions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Survey question type enum
+export const surveyQuestionTypeEnum = pgEnum("survey_question_type", ["rating", "text", "choice", "nps"]);
+
+// Surveys - define survey templates
+export const surveys = pgTable("surveys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  triggerOnClose: boolean("trigger_on_close").default(true), // Auto-send when ticket is closed
+  delayMinutes: integer("delay_minutes").default(0), // Delay before sending after ticket close
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Survey Questions
+export const surveyQuestions = pgTable("survey_questions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  surveyId: varchar("survey_id").references(() => surveys.id),
+  questionText: text("question_text").notNull(),
+  questionType: surveyQuestionTypeEnum("question_type").default("rating"),
+  options: jsonb("options"), // For choice type questions - array of strings
+  isRequired: boolean("is_required").default(true),
+  order: integer("order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Survey Invitations - tracks which surveys were sent to whom
+export const surveyInvitations = pgTable("survey_invitations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  surveyId: varchar("survey_id").references(() => surveys.id),
+  ticketId: varchar("ticket_id").references(() => tickets.id),
+  userId: varchar("user_id").references(() => users.id), // Customer who receives the survey
+  token: varchar("token").notNull().unique(), // Unique token for survey access
+  sentAt: timestamp("sent_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+  expiresAt: timestamp("expires_at"), // Optional expiration
+});
+
+// Survey Responses - individual answers to questions
+export const surveyResponses = pgTable("survey_responses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  invitationId: varchar("invitation_id").references(() => surveyInvitations.id),
+  questionId: varchar("question_id").references(() => surveyQuestions.id),
+  ratingValue: integer("rating_value"), // For rating/NPS questions (1-5 or 0-10)
+  textValue: text("text_value"), // For text questions
+  choiceValue: text("choice_value"), // For choice questions
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const tenantsRelations = relations(tenants, ({ many }) => ({
   users: many(users),
@@ -517,6 +569,54 @@ export const mentionsRelations = relations(mentions, ({ one }) => ({
   }),
 }));
 
+export const surveysRelations = relations(surveys, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [surveys.tenantId],
+    references: [tenants.id],
+  }),
+  questions: many(surveyQuestions),
+  invitations: many(surveyInvitations),
+}));
+
+export const surveyQuestionsRelations = relations(surveyQuestions, ({ one, many }) => ({
+  survey: one(surveys, {
+    fields: [surveyQuestions.surveyId],
+    references: [surveys.id],
+  }),
+  responses: many(surveyResponses),
+}));
+
+export const surveyInvitationsRelations = relations(surveyInvitations, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [surveyInvitations.tenantId],
+    references: [tenants.id],
+  }),
+  survey: one(surveys, {
+    fields: [surveyInvitations.surveyId],
+    references: [surveys.id],
+  }),
+  ticket: one(tickets, {
+    fields: [surveyInvitations.ticketId],
+    references: [tickets.id],
+  }),
+  user: one(users, {
+    fields: [surveyInvitations.userId],
+    references: [users.id],
+  }),
+  responses: many(surveyResponses),
+}));
+
+export const surveyResponsesRelations = relations(surveyResponses, ({ one }) => ({
+  invitation: one(surveyInvitations, {
+    fields: [surveyResponses.invitationId],
+    references: [surveyInvitations.id],
+  }),
+  question: one(surveyQuestions, {
+    fields: [surveyResponses.questionId],
+    references: [surveyQuestions.id],
+  }),
+}));
+
 // Insert Schemas
 export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, lastLoginAt: true });
@@ -538,6 +638,10 @@ export const insertTicketKbLinkSchema = createInsertSchema(ticketKbLinks).omit({
 export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true, readAt: true });
 export const insertMentionSchema = createInsertSchema(mentions).omit({ id: true, createdAt: true });
+export const insertSurveySchema = createInsertSchema(surveys).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertSurveyQuestionSchema = createInsertSchema(surveyQuestions).omit({ id: true, createdAt: true });
+export const insertSurveyInvitationSchema = createInsertSchema(surveyInvitations).omit({ id: true, sentAt: true, completedAt: true });
+export const insertSurveyResponseSchema = createInsertSchema(surveyResponses).omit({ id: true, createdAt: true });
 
 // Types
 export type Tenant = typeof tenants.$inferSelect;
@@ -580,6 +684,14 @@ export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Mention = typeof mentions.$inferSelect;
 export type InsertMention = z.infer<typeof insertMentionSchema>;
+export type Survey = typeof surveys.$inferSelect;
+export type InsertSurvey = z.infer<typeof insertSurveySchema>;
+export type SurveyQuestion = typeof surveyQuestions.$inferSelect;
+export type InsertSurveyQuestion = z.infer<typeof insertSurveyQuestionSchema>;
+export type SurveyInvitation = typeof surveyInvitations.$inferSelect;
+export type InsertSurveyInvitation = z.infer<typeof insertSurveyInvitationSchema>;
+export type SurveyResponse = typeof surveyResponses.$inferSelect;
+export type InsertSurveyResponse = z.infer<typeof insertSurveyResponseSchema>;
 
 // Extended types for API responses
 export type TicketWithRelations = Ticket & {
@@ -622,6 +734,36 @@ export type NotificationWithRelations = Notification & {
 export type MentionWithRelations = Mention & {
   comment?: Comment | null;
   mentionedUser?: User | null;
+};
+
+export type SurveyWithRelations = Survey & {
+  questions?: SurveyQuestion[];
+  invitations?: SurveyInvitation[];
+};
+
+export type SurveyInvitationWithRelations = SurveyInvitation & {
+  survey?: Survey | null;
+  ticket?: Ticket | null;
+  user?: User | null;
+  responses?: SurveyResponse[];
+};
+
+export type SurveyResultSummary = {
+  surveyId: string;
+  surveyName: string;
+  totalInvitations: number;
+  completedCount: number;
+  responseRate: number;
+  avgRating: number | null;
+  npsScore: number | null;
+  questionStats: {
+    questionId: string;
+    questionText: string;
+    questionType: string;
+    avgRating: number | null;
+    responseCount: number;
+    choiceDistribution?: Record<string, number>;
+  }[];
 };
 
 // Auth schemas

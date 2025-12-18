@@ -19,6 +19,7 @@ import PortalPage from "@/pages/portal";
 import SlaSettingsPage from "@/pages/sla-settings";
 import KnowledgeBasePage from "@/pages/knowledge-base";
 import TimeTrackingPage from "@/pages/time-tracking";
+import SurveysPage from "@/pages/surveys";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();

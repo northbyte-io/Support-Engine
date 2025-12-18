@@ -19,6 +19,10 @@ import {
   timeEntries,
   notifications,
   mentions,
+  surveys,
+  surveyQuestions,
+  surveyInvitations,
+  surveyResponses,
   type User,
   type InsertUser,
   type Tenant,
@@ -65,6 +69,17 @@ import {
   type Mention,
   type InsertMention,
   type MentionWithRelations,
+  type Survey,
+  type InsertSurvey,
+  type SurveyQuestion,
+  type InsertSurveyQuestion,
+  type SurveyInvitation,
+  type InsertSurveyInvitation,
+  type SurveyResponse,
+  type InsertSurveyResponse,
+  type SurveyWithRelations,
+  type SurveyInvitationWithRelations,
+  type SurveyResultSummary,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, ilike, or, count } from "drizzle-orm";
@@ -196,6 +211,32 @@ export interface IStorage {
   // Mentions
   createMention(mention: InsertMention): Promise<Mention>;
   getMentionsByComment(commentId: string): Promise<MentionWithRelations[]>;
+
+  // Surveys
+  getSurveys(tenantId: string): Promise<SurveyWithRelations[]>;
+  getSurvey(id: string): Promise<SurveyWithRelations | undefined>;
+  getActiveSurvey(tenantId: string): Promise<Survey | undefined>;
+  createSurvey(survey: InsertSurvey): Promise<Survey>;
+  updateSurvey(id: string, updates: Partial<InsertSurvey>): Promise<Survey | undefined>;
+  deleteSurvey(id: string): Promise<void>;
+
+  // Survey Questions
+  getSurveyQuestions(surveyId: string): Promise<SurveyQuestion[]>;
+  createSurveyQuestion(question: InsertSurveyQuestion): Promise<SurveyQuestion>;
+  updateSurveyQuestion(id: string, updates: Partial<InsertSurveyQuestion>): Promise<SurveyQuestion | undefined>;
+  deleteSurveyQuestion(id: string): Promise<void>;
+
+  // Survey Invitations
+  getSurveyInvitations(tenantId: string, surveyId?: string): Promise<SurveyInvitationWithRelations[]>;
+  getSurveyInvitation(id: string): Promise<SurveyInvitationWithRelations | undefined>;
+  getSurveyInvitationByToken(token: string): Promise<SurveyInvitationWithRelations | undefined>;
+  createSurveyInvitation(invitation: InsertSurveyInvitation): Promise<SurveyInvitation>;
+  completeSurveyInvitation(id: string): Promise<SurveyInvitation | undefined>;
+
+  // Survey Responses
+  getSurveyResponses(invitationId: string): Promise<SurveyResponse[]>;
+  createSurveyResponse(response: InsertSurveyResponse): Promise<SurveyResponse>;
+  getSurveyResultSummary(tenantId: string, surveyId: string): Promise<SurveyResultSummary | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -962,6 +1003,321 @@ export class DatabaseStorage implements IStorage {
     );
 
     return mentionsWithRelations;
+  }
+
+  // Surveys
+  async getSurveys(tenantId: string): Promise<SurveyWithRelations[]> {
+    const surveyResults = await db.select()
+      .from(surveys)
+      .where(eq(surveys.tenantId, tenantId))
+      .orderBy(desc(surveys.createdAt));
+
+    const surveysWithRelations: SurveyWithRelations[] = await Promise.all(
+      surveyResults.map(async (survey) => {
+        const questions = await db.select()
+          .from(surveyQuestions)
+          .where(eq(surveyQuestions.surveyId, survey.id))
+          .orderBy(asc(surveyQuestions.order));
+
+        return {
+          ...survey,
+          questions,
+        };
+      })
+    );
+
+    return surveysWithRelations;
+  }
+
+  async getSurvey(id: string): Promise<SurveyWithRelations | undefined> {
+    const [survey] = await db.select()
+      .from(surveys)
+      .where(eq(surveys.id, id));
+
+    if (!survey) return undefined;
+
+    const questions = await db.select()
+      .from(surveyQuestions)
+      .where(eq(surveyQuestions.surveyId, id))
+      .orderBy(asc(surveyQuestions.order));
+
+    return {
+      ...survey,
+      questions,
+    };
+  }
+
+  async getActiveSurvey(tenantId: string): Promise<Survey | undefined> {
+    const [survey] = await db.select()
+      .from(surveys)
+      .where(and(
+        eq(surveys.tenantId, tenantId),
+        eq(surveys.isActive, true),
+        eq(surveys.triggerOnClose, true)
+      ))
+      .limit(1);
+
+    return survey || undefined;
+  }
+
+  async createSurvey(survey: InsertSurvey): Promise<Survey> {
+    const [result] = await db.insert(surveys).values(survey).returning();
+    return result;
+  }
+
+  async updateSurvey(id: string, updates: Partial<InsertSurvey>): Promise<Survey | undefined> {
+    const [result] = await db.update(surveys)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(surveys.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteSurvey(id: string): Promise<void> {
+    await db.delete(surveyQuestions).where(eq(surveyQuestions.surveyId, id));
+    await db.delete(surveys).where(eq(surveys.id, id));
+  }
+
+  // Survey Questions
+  async getSurveyQuestions(surveyId: string): Promise<SurveyQuestion[]> {
+    return db.select()
+      .from(surveyQuestions)
+      .where(eq(surveyQuestions.surveyId, surveyId))
+      .orderBy(asc(surveyQuestions.order));
+  }
+
+  async createSurveyQuestion(question: InsertSurveyQuestion): Promise<SurveyQuestion> {
+    const [result] = await db.insert(surveyQuestions).values(question).returning();
+    return result;
+  }
+
+  async updateSurveyQuestion(id: string, updates: Partial<InsertSurveyQuestion>): Promise<SurveyQuestion | undefined> {
+    const [result] = await db.update(surveyQuestions)
+      .set(updates)
+      .where(eq(surveyQuestions.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteSurveyQuestion(id: string): Promise<void> {
+    await db.delete(surveyQuestions).where(eq(surveyQuestions.id, id));
+  }
+
+  // Survey Invitations
+  async getSurveyInvitations(tenantId: string, surveyId?: string): Promise<SurveyInvitationWithRelations[]> {
+    let query = db.select()
+      .from(surveyInvitations)
+      .where(eq(surveyInvitations.tenantId, tenantId))
+      .orderBy(desc(surveyInvitations.sentAt));
+
+    if (surveyId) {
+      query = db.select()
+        .from(surveyInvitations)
+        .where(and(
+          eq(surveyInvitations.tenantId, tenantId),
+          eq(surveyInvitations.surveyId, surveyId)
+        ))
+        .orderBy(desc(surveyInvitations.sentAt));
+    }
+
+    const results = await query;
+
+    const invitationsWithRelations: SurveyInvitationWithRelations[] = await Promise.all(
+      results.map(async (invitation) => {
+        const [survey, ticket, user, responses] = await Promise.all([
+          invitation.surveyId ? db.select().from(surveys).where(eq(surveys.id, invitation.surveyId)).then(r => r[0]) : null,
+          invitation.ticketId ? db.select().from(tickets).where(eq(tickets.id, invitation.ticketId)).then(r => r[0]) : null,
+          invitation.userId ? db.select().from(users).where(eq(users.id, invitation.userId)).then(r => r[0]) : null,
+          db.select().from(surveyResponses).where(eq(surveyResponses.invitationId, invitation.id)),
+        ]);
+
+        return {
+          ...invitation,
+          survey: survey || null,
+          ticket: ticket || null,
+          user: user ? { ...user, password: undefined } : null,
+          responses,
+        } as SurveyInvitationWithRelations;
+      })
+    );
+
+    return invitationsWithRelations;
+  }
+
+  async getSurveyInvitation(id: string): Promise<SurveyInvitationWithRelations | undefined> {
+    const [invitation] = await db.select()
+      .from(surveyInvitations)
+      .where(eq(surveyInvitations.id, id));
+
+    if (!invitation) return undefined;
+
+    const [survey, ticket, user, responses] = await Promise.all([
+      invitation.surveyId ? db.select().from(surveys).where(eq(surveys.id, invitation.surveyId)).then(r => r[0]) : null,
+      invitation.ticketId ? db.select().from(tickets).where(eq(tickets.id, invitation.ticketId)).then(r => r[0]) : null,
+      invitation.userId ? db.select().from(users).where(eq(users.id, invitation.userId)).then(r => r[0]) : null,
+      db.select().from(surveyResponses).where(eq(surveyResponses.invitationId, invitation.id)),
+    ]);
+
+    return {
+      ...invitation,
+      survey: survey || null,
+      ticket: ticket || null,
+      user: user ? { ...user, password: undefined } : null,
+      responses,
+    } as SurveyInvitationWithRelations;
+  }
+
+  async getSurveyInvitationByToken(token: string): Promise<SurveyInvitationWithRelations | undefined> {
+    const [invitation] = await db.select()
+      .from(surveyInvitations)
+      .where(eq(surveyInvitations.token, token));
+
+    if (!invitation) return undefined;
+
+    const [survey, ticket, user, responses] = await Promise.all([
+      invitation.surveyId ? db.select().from(surveys).where(eq(surveys.id, invitation.surveyId)).then(r => r[0]) : null,
+      invitation.ticketId ? db.select().from(tickets).where(eq(tickets.id, invitation.ticketId)).then(r => r[0]) : null,
+      invitation.userId ? db.select().from(users).where(eq(users.id, invitation.userId)).then(r => r[0]) : null,
+      db.select().from(surveyResponses).where(eq(surveyResponses.invitationId, invitation.id)),
+    ]);
+
+    // Also get questions for the survey
+    const questions = survey ? await db.select()
+      .from(surveyQuestions)
+      .where(eq(surveyQuestions.surveyId, survey.id))
+      .orderBy(asc(surveyQuestions.order)) : [];
+
+    return {
+      ...invitation,
+      survey: survey ? { ...survey, questions } : null,
+      ticket: ticket || null,
+      user: user ? { ...user, password: undefined } : null,
+      responses,
+    } as SurveyInvitationWithRelations;
+  }
+
+  async createSurveyInvitation(invitation: InsertSurveyInvitation): Promise<SurveyInvitation> {
+    const [result] = await db.insert(surveyInvitations).values(invitation).returning();
+    return result;
+  }
+
+  async completeSurveyInvitation(id: string): Promise<SurveyInvitation | undefined> {
+    const [result] = await db.update(surveyInvitations)
+      .set({ completedAt: new Date() })
+      .where(eq(surveyInvitations.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  // Survey Responses
+  async getSurveyResponses(invitationId: string): Promise<SurveyResponse[]> {
+    return db.select()
+      .from(surveyResponses)
+      .where(eq(surveyResponses.invitationId, invitationId));
+  }
+
+  async createSurveyResponse(response: InsertSurveyResponse): Promise<SurveyResponse> {
+    const [result] = await db.insert(surveyResponses).values(response).returning();
+    return result;
+  }
+
+  async getSurveyResultSummary(tenantId: string, surveyId: string): Promise<SurveyResultSummary | undefined> {
+    const survey = await this.getSurvey(surveyId);
+    if (!survey) return undefined;
+
+    // Get all invitations for this survey
+    const invitations = await db.select()
+      .from(surveyInvitations)
+      .where(and(
+        eq(surveyInvitations.tenantId, tenantId),
+        eq(surveyInvitations.surveyId, surveyId)
+      ));
+
+    const totalInvitations = invitations.length;
+    const completedInvitations = invitations.filter(i => i.completedAt);
+    const completedCount = completedInvitations.length;
+    const responseRate = totalInvitations > 0 ? (completedCount / totalInvitations) * 100 : 0;
+
+    // Get all responses for completed invitations
+    const completedInvitationIds = completedInvitations.map(i => i.id);
+    let allResponses: SurveyResponse[] = [];
+    if (completedInvitationIds.length > 0) {
+      for (const invId of completedInvitationIds) {
+        const responses = await db.select()
+          .from(surveyResponses)
+          .where(eq(surveyResponses.invitationId, invId));
+        allResponses = [...allResponses, ...responses];
+      }
+    }
+
+    // Calculate question stats
+    const questions = survey.questions || [];
+    const questionStats = questions.map(question => {
+      const questionResponses = allResponses.filter(r => r.questionId === question.id);
+      const responseCount = questionResponses.length;
+
+      let avgRating: number | null = null;
+      let choiceDistribution: Record<string, number> | undefined;
+
+      if (question.questionType === "rating" || question.questionType === "nps") {
+        const ratingValues = questionResponses
+          .filter(r => r.ratingValue !== null)
+          .map(r => r.ratingValue as number);
+        if (ratingValues.length > 0) {
+          avgRating = ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length;
+        }
+      }
+
+      if (question.questionType === "choice") {
+        choiceDistribution = {};
+        questionResponses.forEach(r => {
+          if (r.choiceValue) {
+            choiceDistribution![r.choiceValue] = (choiceDistribution![r.choiceValue] || 0) + 1;
+          }
+        });
+      }
+
+      return {
+        questionId: question.id,
+        questionText: question.questionText,
+        questionType: question.questionType || "rating",
+        avgRating,
+        responseCount,
+        choiceDistribution,
+      };
+    });
+
+    // Calculate overall average rating (from rating questions)
+    const ratingQuestions = questionStats.filter(q => q.questionType === "rating" && q.avgRating !== null);
+    const avgRating = ratingQuestions.length > 0
+      ? ratingQuestions.reduce((sum, q) => sum + (q.avgRating || 0), 0) / ratingQuestions.length
+      : null;
+
+    // Calculate NPS score (from NPS questions)
+    const npsQuestions = questionStats.filter(q => q.questionType === "nps");
+    let npsScore: number | null = null;
+    if (npsQuestions.length > 0) {
+      const npsResponses = allResponses.filter(r => {
+        const q = questions.find(q => q.id === r.questionId);
+        return q?.questionType === "nps" && r.ratingValue !== null;
+      });
+      if (npsResponses.length > 0) {
+        const promoters = npsResponses.filter(r => r.ratingValue! >= 9).length;
+        const detractors = npsResponses.filter(r => r.ratingValue! <= 6).length;
+        npsScore = ((promoters - detractors) / npsResponses.length) * 100;
+      }
+    }
+
+    return {
+      surveyId,
+      surveyName: survey.name,
+      totalInvitations,
+      completedCount,
+      responseRate,
+      avgRating,
+      npsScore,
+      questionStats,
+    };
   }
 }
 

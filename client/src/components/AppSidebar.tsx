@@ -10,6 +10,7 @@ import {
   Clock,
   Timer,
   BookOpen,
+  ClipboardList,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
