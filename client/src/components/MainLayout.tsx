@@ -1,8 +1,7 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { NotificationDropdown } from "@/components/NotificationDropdown";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -32,9 +31,7 @@ export function MainLayout({ children, title, actions }: MainLayoutProps) {
             </div>
             <div className="flex items-center gap-2">
               {actions}
-              <Button variant="ghost" size="icon" data-testid="button-notifications">
-                <Bell className="h-5 w-5" />
-              </Button>
+              <NotificationDropdown />
               <ThemeToggle />
             </div>
           </header>

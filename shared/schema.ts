@@ -249,6 +249,30 @@ export const ticketAreas = pgTable("ticket_areas", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Notifications for users
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  userId: varchar("user_id").references(() => users.id),
+  type: text("type").notNull(), // mention, assignment, comment, status_change, sla_warning
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  ticketId: varchar("ticket_id").references(() => tickets.id),
+  commentId: varchar("comment_id").references(() => comments.id),
+  actorId: varchar("actor_id").references(() => users.id), // User who triggered the notification
+  isRead: boolean("is_read").default(false),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Mentions in comments (tracks @mentions)
+export const mentions = pgTable("mentions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  commentId: varchar("comment_id").references(() => comments.id),
+  mentionedUserId: varchar("mentioned_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const tenantsRelations = relations(tenants, ({ many }) => ({
   users: many(users),
@@ -459,6 +483,40 @@ export const ticketAreasRelations = relations(ticketAreas, ({ one }) => ({
   }),
 }));
 
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [notifications.tenantId],
+    references: [tenants.id],
+  }),
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+  ticket: one(tickets, {
+    fields: [notifications.ticketId],
+    references: [tickets.id],
+  }),
+  comment: one(comments, {
+    fields: [notifications.commentId],
+    references: [comments.id],
+  }),
+  actor: one(users, {
+    fields: [notifications.actorId],
+    references: [users.id],
+  }),
+}));
+
+export const mentionsRelations = relations(mentions, ({ one }) => ({
+  comment: one(comments, {
+    fields: [mentions.commentId],
+    references: [comments.id],
+  }),
+  mentionedUser: one(users, {
+    fields: [mentions.mentionedUserId],
+    references: [users.id],
+  }),
+}));
+
 // Insert Schemas
 export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, lastLoginAt: true });
@@ -478,6 +536,8 @@ export const insertKbArticleSchema = createInsertSchema(kbArticles).omit({ id: t
 export const insertKbArticleVersionSchema = createInsertSchema(kbArticleVersions).omit({ id: true, createdAt: true });
 export const insertTicketKbLinkSchema = createInsertSchema(ticketKbLinks).omit({ id: true, createdAt: true });
 export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true, readAt: true });
+export const insertMentionSchema = createInsertSchema(mentions).omit({ id: true, createdAt: true });
 
 // Types
 export type Tenant = typeof tenants.$inferSelect;
@@ -516,6 +576,10 @@ export type TicketKbLink = typeof ticketKbLinks.$inferSelect;
 export type InsertTicketKbLink = z.infer<typeof insertTicketKbLinkSchema>;
 export type TimeEntry = typeof timeEntries.$inferSelect;
 export type InsertTimeEntry = z.infer<typeof insertTimeEntrySchema>;
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Mention = typeof mentions.$inferSelect;
+export type InsertMention = z.infer<typeof insertMentionSchema>;
 
 // Extended types for API responses
 export type TicketWithRelations = Ticket & {
@@ -546,6 +610,18 @@ export type KbArticleWithRelations = KbArticle & {
 export type TimeEntryWithRelations = TimeEntry & {
   user?: User | null;
   ticket?: Ticket | null;
+};
+
+export type NotificationWithRelations = Notification & {
+  user?: User | null;
+  ticket?: Ticket | null;
+  actor?: User | null;
+  comment?: Comment | null;
+};
+
+export type MentionWithRelations = Mention & {
+  comment?: Comment | null;
+  mentionedUser?: User | null;
 };
 
 // Auth schemas

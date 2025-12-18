@@ -363,6 +363,44 @@ export async function registerRoutes(
       });
 
       const comment = await storage.createComment(data);
+
+      // Parse @mentions from comment content
+      const mentionPattern = /@(\S+@\S+\.\S+|\w+)/g;
+      const mentionMatches = data.content.match(mentionPattern) || [];
+      const tenantUsers = await storage.getUsers(req.tenantId);
+      
+      for (const mention of mentionMatches) {
+        const mentionText = mention.substring(1); // Remove @ prefix
+        
+        // Find user by email or by first name
+        const mentionedUser = tenantUsers.find(u => 
+          u.email.toLowerCase() === mentionText.toLowerCase() ||
+          u.firstName.toLowerCase() === mentionText.toLowerCase() ||
+          `${u.firstName}${u.lastName}`.toLowerCase() === mentionText.toLowerCase()
+        );
+        
+        if (mentionedUser && mentionedUser.id !== req.user!.id) {
+          // Create mention record
+          await storage.createMention({
+            commentId: comment.id,
+            mentionedUserId: mentionedUser.id,
+          });
+          
+          // Create notification for mentioned user
+          await storage.createNotification({
+            tenantId: req.tenantId!,
+            userId: mentionedUser.id,
+            type: "mention",
+            title: "Sie wurden erwähnt",
+            message: `${req.user!.firstName} ${req.user!.lastName} hat Sie in Ticket #${ticket.ticketNumber} erwähnt`,
+            ticketId: ticket.id,
+            commentId: comment.id,
+            actorId: req.user!.id,
+            isRead: false,
+          });
+        }
+      }
+
       res.status(201).json(comment);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1149,6 +1187,86 @@ export async function registerRoutes(
       res.json(summary);
     } catch (error) {
       console.error("Get ticket time summary error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // ==================== NOTIFICATIONS ====================
+
+  // Get notifications for current user
+  app.get("/api/notifications", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const unreadOnly = req.query.unreadOnly === "true";
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      
+      const notificationsList = await storage.getNotifications(
+        req.tenantId!,
+        req.user!.id,
+        { unreadOnly, limit }
+      );
+      res.json(notificationsList);
+    } catch (error) {
+      console.error("Get notifications error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Get unread notification count
+  app.get("/api/notifications/unread-count", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const count = await storage.getUnreadNotificationCount(req.tenantId!, req.user!.id);
+      res.json({ count });
+    } catch (error) {
+      console.error("Get unread count error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Mark notification as read
+  app.patch("/api/notifications/:id/read", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const notification = await storage.getNotification(req.params.id);
+      if (!notification) {
+        return res.status(404).json({ message: "Benachrichtigung nicht gefunden" });
+      }
+      if (notification.tenantId !== req.tenantId || notification.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      
+      const updated = await storage.markNotificationAsRead(req.params.id);
+      res.json(updated);
+    } catch (error) {
+      console.error("Mark notification read error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Mark all notifications as read
+  app.patch("/api/notifications/read-all", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.markAllNotificationsAsRead(req.tenantId!, req.user!.id);
+      res.json({ message: "Alle Benachrichtigungen als gelesen markiert" });
+    } catch (error) {
+      console.error("Mark all read error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Delete notification
+  app.delete("/api/notifications/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const notification = await storage.getNotification(req.params.id);
+      if (!notification) {
+        return res.status(404).json({ message: "Benachrichtigung nicht gefunden" });
+      }
+      if (notification.tenantId !== req.tenantId || notification.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      
+      await storage.deleteNotification(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete notification error:", error);
       res.status(500).json({ message: "Interner Serverfehler" });
     }
   });

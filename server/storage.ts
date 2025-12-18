@@ -17,6 +17,8 @@ import {
   kbArticleVersions,
   ticketKbLinks,
   timeEntries,
+  notifications,
+  mentions,
   type User,
   type InsertUser,
   type Tenant,
@@ -57,6 +59,12 @@ import {
   type TimeEntry,
   type InsertTimeEntry,
   type TimeEntryWithRelations,
+  type Notification,
+  type InsertNotification,
+  type NotificationWithRelations,
+  type Mention,
+  type InsertMention,
+  type MentionWithRelations,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, ilike, or, count } from "drizzle-orm";
@@ -175,6 +183,19 @@ export interface IStorage {
   updateTimeEntry(id: string, updates: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined>;
   deleteTimeEntry(id: string): Promise<void>;
   getTimeEntrySummary(tenantId: string, params?: { ticketId?: string; userId?: string; startDate?: Date; endDate?: Date }): Promise<{ totalMinutes: number; billableMinutes: number; totalAmount: number }>;
+
+  // Notifications
+  getNotifications(tenantId: string, userId: string, params?: { unreadOnly?: boolean; limit?: number }): Promise<NotificationWithRelations[]>;
+  getNotification(id: string): Promise<Notification | undefined>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(id: string): Promise<Notification | undefined>;
+  markAllNotificationsAsRead(tenantId: string, userId: string): Promise<void>;
+  deleteNotification(id: string): Promise<void>;
+  getUnreadNotificationCount(tenantId: string, userId: string): Promise<number>;
+
+  // Mentions
+  createMention(mention: InsertMention): Promise<Mention>;
+  getMentionsByComment(commentId: string): Promise<MentionWithRelations[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -829,6 +850,118 @@ export class DatabaseStorage implements IStorage {
     }
 
     return { totalMinutes, billableMinutes, totalAmount };
+  }
+
+  // Notifications
+  async getNotifications(tenantId: string, userId: string, params?: { unreadOnly?: boolean; limit?: number }): Promise<NotificationWithRelations[]> {
+    const conditions = [
+      eq(notifications.tenantId, tenantId),
+      eq(notifications.userId, userId),
+    ];
+
+    if (params?.unreadOnly) {
+      conditions.push(eq(notifications.isRead, false));
+    }
+
+    const results = await db.select()
+      .from(notifications)
+      .where(and(...conditions))
+      .orderBy(desc(notifications.createdAt))
+      .limit(params?.limit || 50);
+
+    // Fetch related data
+    const notificationsWithRelations: NotificationWithRelations[] = await Promise.all(
+      results.map(async (notification) => {
+        const [user, ticket, actor, comment] = await Promise.all([
+          notification.userId ? db.select().from(users).where(eq(users.id, notification.userId)).then(r => r[0]) : null,
+          notification.ticketId ? db.select().from(tickets).where(eq(tickets.id, notification.ticketId)).then(r => r[0]) : null,
+          notification.actorId ? db.select().from(users).where(eq(users.id, notification.actorId)).then(r => r[0]) : null,
+          notification.commentId ? db.select().from(comments).where(eq(comments.id, notification.commentId)).then(r => r[0]) : null,
+        ]);
+
+        return {
+          ...notification,
+          user: user ? { ...user, password: undefined } : null,
+          ticket: ticket || null,
+          actor: actor ? { ...actor, password: undefined } : null,
+          comment: comment || null,
+        } as NotificationWithRelations;
+      })
+    );
+
+    return notificationsWithRelations;
+  }
+
+  async getNotification(id: string): Promise<Notification | undefined> {
+    const [result] = await db.select().from(notifications).where(eq(notifications.id, id));
+    return result || undefined;
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [result] = await db.insert(notifications).values(notification).returning();
+    return result;
+  }
+
+  async markNotificationAsRead(id: string): Promise<Notification | undefined> {
+    const [result] = await db.update(notifications)
+      .set({ isRead: true, readAt: new Date() })
+      .where(eq(notifications.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async markAllNotificationsAsRead(tenantId: string, userId: string): Promise<void> {
+    await db.update(notifications)
+      .set({ isRead: true, readAt: new Date() })
+      .where(and(
+        eq(notifications.tenantId, tenantId),
+        eq(notifications.userId, userId),
+        eq(notifications.isRead, false)
+      ));
+  }
+
+  async deleteNotification(id: string): Promise<void> {
+    await db.delete(notifications).where(eq(notifications.id, id));
+  }
+
+  async getUnreadNotificationCount(tenantId: string, userId: string): Promise<number> {
+    const result = await db.select({ count: count() })
+      .from(notifications)
+      .where(and(
+        eq(notifications.tenantId, tenantId),
+        eq(notifications.userId, userId),
+        eq(notifications.isRead, false)
+      ));
+    return result[0]?.count || 0;
+  }
+
+  // Mentions
+  async createMention(mention: InsertMention): Promise<Mention> {
+    const [result] = await db.insert(mentions).values(mention).returning();
+    return result;
+  }
+
+  async getMentionsByComment(commentId: string): Promise<MentionWithRelations[]> {
+    const results = await db.select()
+      .from(mentions)
+      .where(eq(mentions.commentId, commentId));
+
+    const mentionsWithRelations: MentionWithRelations[] = await Promise.all(
+      results.map(async (mention) => {
+        const [comment, mentionedUser] = await Promise.all([
+          mention.commentId ? db.select().from(comments).where(eq(comments.id, mention.commentId)).then(r => r[0]) : null,
+          mention.mentionedUserId ? db.select().from(users).where(eq(users.id, mention.mentionedUserId)).then(r => r[0]) : null,
+        ]);
+
+        return {
+          ...mention,
+          comment: comment || null,
+          mentionedUser: mentionedUser ? { ...mentionedUser, password: undefined } : null,
+        } as MentionWithRelations;
+      })
+    );
+
+    return mentionsWithRelations;
   }
 }
 
