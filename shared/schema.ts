@@ -1151,6 +1151,95 @@ export type ContactWithRelations = Contact & {
   user?: User | null;
 };
 
+// ========================================
+// TLS/SSL Certificate Management
+// ========================================
+
+export const certificateStatusEnum = pgEnum("certificate_status", [
+  "pending",      // Zertifikat wird angefordert
+  "active",       // Zertifikat ist aktiv und gültig
+  "expired",      // Zertifikat ist abgelaufen
+  "failed",       // Zertifikatsanforderung fehlgeschlagen
+  "revoked"       // Zertifikat wurde widerrufen
+]);
+
+export const challengeTypeEnum = pgEnum("challenge_type", ["http-01", "dns-01"]);
+export const caTypeEnum = pgEnum("ca_type", ["production", "staging"]);
+
+// TLS Certificate Settings (global system settings)
+export const tlsSettings = pgTable("tls_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Let's Encrypt Konfiguration
+  acmeEmail: text("acme_email"),
+  acmeAgreedToTos: boolean("acme_agreed_to_tos").default(false),
+  caType: caTypeEnum("ca_type").default("staging"),
+  challengeType: challengeTypeEnum("challenge_type").default("http-01"),
+  // HTTPS Einstellungen
+  httpsEnabled: boolean("https_enabled").default(false),
+  httpRedirect: boolean("http_redirect").default(true),
+  // Automatische Erneuerung
+  autoRenewEnabled: boolean("auto_renew_enabled").default(true),
+  renewDaysBeforeExpiry: integer("renew_days_before_expiry").default(30),
+  // Account Key (verschlüsselt gespeichert)
+  accountKeyPem: text("account_key_pem"),
+  // Status
+  lastError: text("last_error"),
+  lastErrorAt: timestamp("last_error_at"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// TLS Certificates
+export const tlsCertificates = pgTable("tls_certificates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  domain: text("domain").notNull(),
+  altNames: text("alt_names").array(),
+  status: certificateStatusEnum("status").default("pending"),
+  caType: caTypeEnum("ca_type").notNull(),
+  // Zertifikatsdaten (nur Fingerprints, keine Keys)
+  certificatePem: text("certificate_pem"),
+  chainPem: text("chain_pem"),
+  privateKeyPem: text("private_key_pem"), // Verschlüsselt speichern
+  // Zeitstempel
+  issuedAt: timestamp("issued_at"),
+  expiresAt: timestamp("expires_at"),
+  // Erneuerung
+  lastRenewalAt: timestamp("last_renewal_at"),
+  nextRenewalAt: timestamp("next_renewal_at"),
+  renewalAttempts: integer("renewal_attempts").default(0),
+  // Aktiv Flag
+  isActive: boolean("is_active").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// TLS Certificate Actions Log
+export const tlsCertificateActions = pgTable("tls_certificate_actions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  certificateId: varchar("certificate_id").references(() => tlsCertificates.id),
+  action: text("action").notNull(), // request, renew, revoke, install, error
+  status: text("status").notNull(), // success, failed, pending
+  message: text("message"),
+  details: jsonb("details"),
+  performedById: varchar("performed_by_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// TLS Insert schemas
+export const insertTlsSettingsSchema = createInsertSchema(tlsSettings).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateTlsSettingsSchema = insertTlsSettingsSchema.partial();
+export const insertTlsCertificateSchema = createInsertSchema(tlsCertificates).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTlsCertificateActionSchema = createInsertSchema(tlsCertificateActions).omit({ id: true, createdAt: true });
+
+// TLS Types
+export type TlsSettings = typeof tlsSettings.$inferSelect;
+export type InsertTlsSettings = z.infer<typeof insertTlsSettingsSchema>;
+export type UpdateTlsSettings = z.infer<typeof updateTlsSettingsSchema>;
+export type TlsCertificate = typeof tlsCertificates.$inferSelect;
+export type InsertTlsCertificate = z.infer<typeof insertTlsCertificateSchema>;
+export type TlsCertificateAction = typeof tlsCertificateActions.$inferSelect;
+export type InsertTlsCertificateAction = z.infer<typeof insertTlsCertificateActionSchema>;
+
 // Auth schemas
 export const loginSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),

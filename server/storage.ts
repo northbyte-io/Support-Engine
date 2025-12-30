@@ -133,6 +133,16 @@ import {
   type InsertTicketContact,
   type CustomerActivity,
   type InsertCustomerActivity,
+  tlsSettings,
+  tlsCertificates,
+  tlsCertificateActions,
+  type TlsSettings,
+  type InsertTlsSettings,
+  type UpdateTlsSettings,
+  type TlsCertificate,
+  type InsertTlsCertificate,
+  type TlsCertificateAction,
+  type InsertTlsCertificateAction,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, ilike, or, count } from "drizzle-orm";
@@ -393,6 +403,19 @@ export interface IStorage {
   // CRM - Customer Activities
   getCustomerActivities(tenantId: string, params?: { customerId?: string; contactId?: string; ticketId?: string; limit?: number }): Promise<(CustomerActivity & { createdBy?: User })[]>;
   createCustomerActivity(activity: InsertCustomerActivity, tenantId: string): Promise<CustomerActivity>;
+
+  // TLS Certificate Management
+  getTlsSettings(): Promise<TlsSettings | undefined>;
+  createTlsSettings(settings: InsertTlsSettings): Promise<TlsSettings>;
+  updateTlsSettings(updates: UpdateTlsSettings): Promise<TlsSettings | undefined>;
+  getTlsCertificates(): Promise<TlsCertificate[]>;
+  getTlsCertificate(id: string): Promise<TlsCertificate | undefined>;
+  getActiveTlsCertificate(): Promise<TlsCertificate | undefined>;
+  createTlsCertificate(cert: InsertTlsCertificate): Promise<TlsCertificate>;
+  updateTlsCertificate(id: string, updates: Partial<InsertTlsCertificate>): Promise<TlsCertificate | undefined>;
+  deleteTlsCertificate(id: string): Promise<void>;
+  getTlsCertificateActions(certificateId?: string, limit?: number): Promise<(TlsCertificateAction & { performedBy?: User })[]>;
+  createTlsCertificateAction(action: InsertTlsCertificateAction): Promise<TlsCertificateAction>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2499,6 +2522,90 @@ export class DatabaseStorage implements IStorage {
 
   async createCustomerActivity(activity: InsertCustomerActivity, tenantId: string): Promise<CustomerActivity> {
     const [result] = await db.insert(customerActivities).values({ ...activity, tenantId }).returning();
+    return result;
+  }
+
+  // ============================================
+  // TLS Certificate Management
+  // ============================================
+
+  async getTlsSettings(): Promise<TlsSettings | undefined> {
+    const [settings] = await db.select().from(tlsSettings).limit(1);
+    return settings;
+  }
+
+  async createTlsSettings(settings: InsertTlsSettings): Promise<TlsSettings> {
+    const [result] = await db.insert(tlsSettings).values(settings).returning();
+    return result;
+  }
+
+  async updateTlsSettings(updates: UpdateTlsSettings): Promise<TlsSettings | undefined> {
+    let settings = await this.getTlsSettings();
+    if (!settings) {
+      settings = await this.createTlsSettings(updates as InsertTlsSettings);
+      return settings;
+    }
+    const [result] = await db.update(tlsSettings)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(tlsSettings.id, settings.id))
+      .returning();
+    return result;
+  }
+
+  async getTlsCertificates(): Promise<TlsCertificate[]> {
+    return db.select().from(tlsCertificates).orderBy(desc(tlsCertificates.createdAt));
+  }
+
+  async getTlsCertificate(id: string): Promise<TlsCertificate | undefined> {
+    const [cert] = await db.select().from(tlsCertificates).where(eq(tlsCertificates.id, id));
+    return cert;
+  }
+
+  async getActiveTlsCertificate(): Promise<TlsCertificate | undefined> {
+    const [cert] = await db.select().from(tlsCertificates)
+      .where(and(eq(tlsCertificates.isActive, true), eq(tlsCertificates.status, "active")))
+      .limit(1);
+    return cert;
+  }
+
+  async createTlsCertificate(cert: InsertTlsCertificate): Promise<TlsCertificate> {
+    const [result] = await db.insert(tlsCertificates).values(cert).returning();
+    return result;
+  }
+
+  async updateTlsCertificate(id: string, updates: Partial<InsertTlsCertificate>): Promise<TlsCertificate | undefined> {
+    const [result] = await db.update(tlsCertificates)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(tlsCertificates.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteTlsCertificate(id: string): Promise<void> {
+    await db.delete(tlsCertificateActions).where(eq(tlsCertificateActions.certificateId, id));
+    await db.delete(tlsCertificates).where(eq(tlsCertificates.id, id));
+  }
+
+  async getTlsCertificateActions(certificateId?: string, limit?: number): Promise<(TlsCertificateAction & { performedBy?: User })[]> {
+    let query = db.select().from(tlsCertificateActions);
+    if (certificateId) {
+      query = query.where(eq(tlsCertificateActions.certificateId, certificateId)) as typeof query;
+    }
+    query = query.orderBy(desc(tlsCertificateActions.createdAt)) as typeof query;
+    const actions = limit ? await query.limit(limit) : await query;
+
+    const result: (TlsCertificateAction & { performedBy?: User })[] = [];
+    for (const action of actions) {
+      const user = action.performedById 
+        ? (await db.select().from(users).where(eq(users.id, action.performedById)))[0] 
+        : null;
+      result.push({ ...action, performedBy: user || undefined });
+    }
+    return result;
+  }
+
+  async createTlsCertificateAction(action: InsertTlsCertificateAction): Promise<TlsCertificateAction> {
+    const [result] = await db.insert(tlsCertificateActions).values(action).returning();
     return result;
   }
 }
