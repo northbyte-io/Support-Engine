@@ -1,11 +1,30 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
+import {
+  DndContext,
+  DragOverlay,
+  closestCorners,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  DragStartEvent,
+  DragEndEvent,
+  DragOverEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
@@ -14,7 +33,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -29,11 +47,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Plus, MoreHorizontal, Ticket, GripVertical, Settings, Users, ExternalLink } from "lucide-react";
+import { ArrowLeft, Plus, MoreHorizontal, Users, ExternalLink, GripVertical } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
-import type { Project, BoardColumn, TicketWithRelations, Ticket as TicketType } from "@shared/schema";
+import type { Project, BoardColumn, TicketWithRelations } from "@shared/schema";
 
 interface BoardData {
   project: Project;
@@ -55,16 +72,46 @@ function PriorityBadge({ priority }: { priority: string }) {
   return <Badge variant={config.variant} className="text-xs">{config.label}</Badge>;
 }
 
-function TicketCard({ ticket, onStatusChange }: { ticket: TicketWithRelations; onStatusChange: (newStatus: string) => void }) {
+function SortableTicketCard({
+  ticket,
+  onStatusChange,
+}: {
+  ticket: TicketWithRelations;
+  onStatusChange: (newStatus: string) => void;
+}) {
   const [, setLocation] = useLocation();
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: ticket.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
 
   return (
     <Card
+      ref={setNodeRef}
+      style={style}
       className="mb-2 hover-elevate cursor-pointer"
       data-testid={`card-ticket-${ticket.id}`}
     >
       <CardContent className="p-3">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2">
+          <div
+            {...attributes}
+            {...listeners}
+            className="mt-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="w-4 h-4" />
+          </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs text-muted-foreground font-mono">
@@ -87,7 +134,7 @@ function TicketCard({ ticket, onStatusChange }: { ticket: TicketWithRelations; o
             )}
           </div>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
               <Button variant="ghost" size="icon" className="h-6 w-6">
                 <MoreHorizontal className="w-3 h-3" />
               </Button>
@@ -113,7 +160,7 @@ function TicketCard({ ticket, onStatusChange }: { ticket: TicketWithRelations; o
           </DropdownMenu>
         </div>
         {ticket.assignees && ticket.assignees.length > 0 && (
-          <div className="flex items-center gap-1 mt-2">
+          <div className="flex items-center gap-1 mt-2 ml-6">
             <Users className="w-3 h-3 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">
               {ticket.assignees[0]?.user?.firstName} {ticket.assignees[0]?.user?.lastName}
@@ -125,7 +172,23 @@ function TicketCard({ ticket, onStatusChange }: { ticket: TicketWithRelations; o
   );
 }
 
-function BoardColumnComponent({
+function TicketCardOverlay({ ticket }: { ticket: TicketWithRelations }) {
+  return (
+    <Card className="w-64 shadow-lg rotate-3">
+      <CardContent className="p-3">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xs text-muted-foreground font-mono">
+            {ticket.ticketNumber}
+          </span>
+          <PriorityBadge priority={ticket.priority || "medium"} />
+        </div>
+        <h4 className="text-sm font-medium line-clamp-2">{ticket.title}</h4>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DroppableColumn({
   column,
   tickets,
   onAddTicket,
@@ -136,13 +199,26 @@ function BoardColumnComponent({
   onAddTicket: () => void;
   onStatusChange: (ticketId: string, newStatus: string) => void;
 }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `column-${column.status}`,
+    data: {
+      type: "column",
+      status: column.status,
+    },
+  });
+
   const ticketCount = tickets.length;
   const isOverWipLimit = column.wipLimit && ticketCount > column.wipLimit;
+  const ticketIds = tickets.map((t) => t.id);
 
   return (
     <div
-      className="flex-shrink-0 w-72 bg-muted/30 rounded-lg p-3"
+      ref={setNodeRef}
+      className={`flex-shrink-0 w-72 rounded-lg p-3 transition-colors ${
+        isOver ? "bg-primary/10 ring-2 ring-primary/20" : "bg-muted/30"
+      }`}
       data-testid={`column-${column.id}`}
+      data-column-status={column.status}
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -164,20 +240,24 @@ function BoardColumnComponent({
         </Button>
       </div>
       <ScrollArea className="h-[calc(100vh-16rem)]">
-        <div className="space-y-2 pr-2">
-          {tickets.map((ticket) => (
-            <TicketCard
-              key={ticket.id}
-              ticket={ticket}
-              onStatusChange={(newStatus) => onStatusChange(ticket.id, newStatus)}
-            />
-          ))}
-          {tickets.length === 0 && (
-            <div className="text-center py-8 text-sm text-muted-foreground">
-              Keine Tickets
-            </div>
-          )}
-        </div>
+        <SortableContext items={ticketIds} strategy={verticalListSortingStrategy}>
+          <div className="space-y-2 pr-2 min-h-[100px]">
+            {tickets.map((ticket) => (
+              <SortableTicketCard
+                key={ticket.id}
+                ticket={ticket}
+                onStatusChange={(newStatus) => onStatusChange(ticket.id, newStatus)}
+              />
+            ))}
+            {tickets.length === 0 && (
+              <div className={`text-center py-8 text-sm text-muted-foreground border-2 border-dashed rounded-lg ${
+                isOver ? "border-primary/50 bg-primary/5" : "border-muted"
+              }`}>
+                Tickets hierher ziehen
+              </div>
+            )}
+          </div>
+        </SortableContext>
       </ScrollArea>
     </div>
   );
@@ -280,8 +360,20 @@ export default function ProjectBoardPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [addTicketOpen, setAddTicketOpen] = useState(false);
+  const [activeTicket, setActiveTicket] = useState<TicketWithRelations | null>(null);
 
-  const { data: boardData, isLoading, refetch } = useQuery<BoardData>({
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const { data: boardData, isLoading } = useQuery<BoardData>({
     queryKey: [`/api/projects/${params.id}/board`],
     enabled: !!params.id,
   });
@@ -307,6 +399,42 @@ export default function ProjectBoardPage() {
       });
     },
   });
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const ticket = allTickets?.find((t) => t.id === active.id);
+    if (ticket) {
+      setActiveTicket(ticket);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveTicket(null);
+
+    if (!over || !boardData) return;
+
+    const activeTicketId = active.id as string;
+    let targetStatus: string | null = null;
+
+    if (over.data?.current?.type === "column") {
+      targetStatus = over.data.current.status as string;
+    } else {
+      const overTicketId = over.id as string;
+      for (const columnData of boardData.board) {
+        const ticketInColumn = columnData.tickets.find((t) => t.ticketId === overTicketId);
+        if (ticketInColumn) {
+          targetStatus = columnData.column.status;
+          break;
+        }
+      }
+    }
+
+    const currentTicket = allTickets?.find((t) => t.id === activeTicketId);
+    if (targetStatus && currentTicket && currentTicket.status !== targetStatus) {
+      updateTicketStatusMutation.mutate({ ticketId: activeTicketId, status: targetStatus });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -368,27 +496,37 @@ export default function ProjectBoardPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto pb-4">
-        <div className="flex gap-4 min-w-max">
-          {board.map((columnData) => (
-            <BoardColumnComponent
-              key={columnData.column.id}
-              column={columnData.column}
-              tickets={getTicketsForColumn(columnData.tickets)}
-              onAddTicket={() => setAddTicketOpen(true)}
-              onStatusChange={(ticketId, newStatus) =>
-                updateTicketStatusMutation.mutate({ ticketId, status: newStatus })
-              }
-            />
-          ))}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="overflow-x-auto pb-4">
+          <div className="flex gap-4 min-w-max">
+            {board.map((columnData) => (
+              <DroppableColumn
+                key={columnData.column.id}
+                column={columnData.column}
+                tickets={getTicketsForColumn(columnData.tickets)}
+                onAddTicket={() => setAddTicketOpen(true)}
+                onStatusChange={(ticketId, newStatus) =>
+                  updateTicketStatusMutation.mutate({ ticketId, status: newStatus })
+                }
+              />
+            ))}
+          </div>
         </div>
-      </div>
+        <DragOverlay>
+          {activeTicket && <TicketCardOverlay ticket={activeTicket} />}
+        </DragOverlay>
+      </DndContext>
 
       <AddTicketDialog
         projectId={params.id!}
         open={addTicketOpen}
         onOpenChange={setAddTicketOpen}
-        onAdded={() => refetch()}
+        onAdded={() => queryClient.invalidateQueries({ queryKey: [`/api/projects/${params.id}/board`] })}
         existingTicketIds={allProjectTicketIds}
       />
     </MainLayout>

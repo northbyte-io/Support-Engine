@@ -16,6 +16,8 @@ import {
   Lock,
   Unlock,
   Trash2,
+  Folder,
+  X,
 } from "lucide-react";
 import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -49,7 +51,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { format, formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
-import type { TicketWithRelations, Comment, User as UserType } from "@shared/schema";
+import type { TicketWithRelations, Comment, User as UserType, Project } from "@shared/schema";
 
 export default function TicketDetailPage() {
   const params = useParams<{ id: string }>();
@@ -58,9 +60,19 @@ export default function TicketDetailPage() {
   const [newComment, setNewComment] = useState("");
   const [isInternalComment, setIsInternalComment] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
 
   const { data: ticket, isLoading } = useQuery<TicketWithRelations>({
     queryKey: ["/api/tickets", params.id],
+  });
+
+  const { data: projects } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
+  });
+
+  const { data: ticketProjects } = useQuery<{ projectId: string; project: Project }[]>({
+    queryKey: [`/api/tickets/${params.id}/projects`],
+    enabled: !!params.id,
   });
 
   const updateStatusMutation = useMutation({
@@ -100,6 +112,33 @@ export default function TicketDetailPage() {
     },
     onError: () => {
       toast({ title: "Fehler beim Hinzufügen", variant: "destructive" });
+    },
+  });
+
+  const addToProjectMutation = useMutation({
+    mutationFn: async (projectId: string) => {
+      return apiRequest("POST", `/api/tickets/${params.id}/projects`, { projectId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tickets/${params.id}/projects`] });
+      setSelectedProjectId("");
+      toast({ title: "Projekt zugeordnet" });
+    },
+    onError: () => {
+      toast({ title: "Fehler beim Zuordnen", variant: "destructive" });
+    },
+  });
+
+  const removeFromProjectMutation = useMutation({
+    mutationFn: async (projectId: string) => {
+      return apiRequest("DELETE", `/api/tickets/${params.id}/projects/${projectId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tickets/${params.id}/projects`] });
+      toast({ title: "Projektzuordnung entfernt" });
+    },
+    onError: () => {
+      toast({ title: "Fehler beim Entfernen", variant: "destructive" });
     },
   });
 
@@ -537,6 +576,79 @@ export default function TicketDetailPage() {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Folder className="w-4 h-4" />
+                  Projekte
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {ticketProjects && ticketProjects.length > 0 && (
+                  <div className="space-y-2">
+                    {ticketProjects.map((tp) => (
+                      <div
+                        key={tp.projectId}
+                        className="flex items-center justify-between gap-2 p-2 rounded-lg bg-muted/50"
+                        data-testid={`project-${tp.projectId}`}
+                      >
+                        <div
+                          className="flex items-center gap-2 cursor-pointer hover:underline"
+                          onClick={() => setLocation(`/projects/${tp.projectId}`)}
+                        >
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: tp.project?.color || "#3B82F6" }}
+                          />
+                          <span className="text-sm font-medium">{tp.project?.name}</span>
+                          <Badge variant="outline" className="text-xs">{tp.project?.key}</Badge>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => removeFromProjectMutation.mutate(tp.projectId)}
+                          data-testid={`button-remove-project-${tp.projectId}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                    <SelectTrigger className="flex-1" data-testid="select-project">
+                      <SelectValue placeholder="Projekt auswählen..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects
+                        ?.filter((p) => !ticketProjects?.some((tp) => tp.projectId === p.id))
+                        .map((project) => (
+                          <SelectItem key={project.id} value={project.id}>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-2 h-2 rounded-full"
+                                style={{ backgroundColor: project.color || "#3B82F6" }}
+                              />
+                              <span>{project.name}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    onClick={() => selectedProjectId && addToProjectMutation.mutate(selectedProjectId)}
+                    disabled={!selectedProjectId || addToProjectMutation.isPending}
+                    data-testid="button-add-project"
+                  >
+                    Hinzufügen
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
