@@ -162,6 +162,12 @@ function Router() {
         </AdminRoute>
       </Route>
 
+      <Route path="/surveys">
+        <AdminRoute>
+          <SurveysPage />
+        </AdminRoute>
+      </Route>
+
       <Route component={NotFound} />
     </Switch>
   );

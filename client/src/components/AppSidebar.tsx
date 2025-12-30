@@ -70,6 +70,11 @@ const adminNavItems = [
     icon: Users,
   },
   {
+    title: "Umfragen",
+    url: "/surveys",
+    icon: ClipboardList,
+  },
+  {
     title: "SLA-Verwaltung",
     url: "/settings/sla",
     icon: Clock,
