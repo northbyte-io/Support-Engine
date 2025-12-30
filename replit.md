@@ -2,11 +2,19 @@
 
 ## Overview
 
-A German-language ticket management system (Helpdesk) built as a full-stack web application with a shared backend API designed for both web and iOS app consumption. The system provides multi-tenant support, role-based access control, and comprehensive ticket lifecycle management including custom fields, assignments, comments, and file attachments.
+A German-language ticket management system (Helpdesk) built as a full-stack web application with a shared backend API designed for both web and iOS app consumption. The system provides multi-tenant support, role-based access control, and comprehensive ticket lifecycle management including custom fields, assignments, comments, file attachments, CRM functionality, and enterprise-grade logging.
 
 ## User Preferences
 
-Preferred communication style: Simple, everyday language.
+Preferred communication style: Simple, everyday language (German).
+
+## Recent Changes
+
+- **December 2024**: Added comprehensive CRM module (Organizations, Customers, Contacts, Locations, Activity Tracking)
+- **December 2024**: Implemented System-Logging with Winston (color-coded output, log rotation, sensitive data masking)
+- **December 2024**: Added Admin-only Logs UI page with filtering, search, pagination, and export (TXT, CSV, JSON)
+- **December 2024**: Fixed Select component issues preventing form submissions
+- **December 2024**: Auto-generated customer numbers (KD-XXXXX format)
 
 ## System Architecture
 
@@ -18,12 +26,14 @@ Preferred communication style: Simple, everyday language.
 - **Styling**: Tailwind CSS with CSS variables for theming (light/dark mode support)
 - **Forms**: React Hook Form with Zod validation
 - **Design System**: Linear-inspired utility-focused design with Inter font
+- **Layout**: Consistent MainLayout component for all pages with sidebar navigation
 
 ### Backend Architecture
 - **Runtime**: Node.js with Express
 - **API Design**: REST with JSON, API-first approach
 - **Authentication**: JWT tokens with bcrypt password hashing
 - **Middleware**: Custom auth middleware for protected routes with role-based access (admin, agent, customer)
+- **Logging**: Winston-based logging with daily rotation, sensitive data masking
 - **Static Serving**: Vite for development, static file serving for production
 
 ### Data Layer
@@ -37,36 +47,107 @@ Preferred communication style: Simple, everyday language.
 - **API-First**: Backend designed as a REST API consumable by both web and mobile clients
 - **Role-Based Access**: Three user roles (admin, agent, customer) with middleware enforcement
 - **Component Architecture**: Reusable UI components with consistent design patterns (StatusBadge, PriorityBadge, etc.)
+- **MainLayout Pattern**: All pages use MainLayout component for consistent header, sidebar, and navigation
 
 ### Build System
 - **Development**: Vite dev server with HMR, TSX for server
 - **Production**: esbuild bundles server code, Vite builds client to `dist/public`
 - **Path Aliases**: `@/*` for client source, `@shared/*` for shared code, `@assets/*` for attached assets
 
+## Key Features
+
+### Ticket Management
+- Ticket CRUD with status workflow (open, in_progress, waiting, resolved, closed)
+- Priority levels (low, medium, high, urgent)
+- Ticket types with custom fields
+- Multiple assignees per ticket
+- Comments (internal/public) and file attachments
+- Automatic ticket numbers (TKT-XXXXX)
+
+### CRM Module
+- **Organizations**: Company groups with legal name, industry, contact info
+- **Customers**: Auto-numbered (KD-XXXXX), organization assignment, account manager
+- **Locations**: Multiple locations per customer with primary flag
+- **Contacts**: Contact persons with position, department, communication channels
+- **Activity Tracking**: Call, email, meeting, note logging
+
+### SLA Management
+- SLA definitions per priority
+- Response and resolution time tracking
+- Escalation rules
+- Visual SLA status indicators
+
+### Knowledge Base
+- Article management with versioning
+- Categories and full-text search
+- Ticket-article linking
+
+### Asset Management
+- Categories: Hardware, Software, Licenses, Contracts
+- Asset-ticket linking
+- Change history tracking
+
+### Projects & Kanban
+- Project management with members
+- Kanban board with drag-and-drop (dnd-kit)
+- WIP limits per column
+- Ticket-project associations
+
+### Surveys
+- Multiple question types (rating, yes/no, text, NPS)
+- Automatic sending after ticket closure
+- Results dashboard
+
+### System Logging
+- Log levels: debug, info, warn, error, security, performance
+- Sources: api, auth, ticket, sla, crm, email, integration, database, system
+- Features: Color-coded console, daily rotation (2GB max), 7-day retention
+- Sensitive data masking (passwords, API keys, tokens, emails)
+- Admin UI with filtering, search, pagination, export
+
 ## External Dependencies
 
 ### Database
 - PostgreSQL (connection via `DATABASE_URL` environment variable)
 - Drizzle ORM for query building and schema management
-- connect-pg-simple for session storage (available but JWT is primary auth)
 
 ### Authentication
 - jsonwebtoken for JWT token generation/verification
 - bcryptjs for password hashing
 - Session secret via `SESSION_SECRET` environment variable
 
+### Logging
+- Winston for structured logging
+- winston-daily-rotate-file for log rotation
+- Chalk for colored console output
+
 ### UI Framework
 - Radix UI primitives (dialog, dropdown, tabs, etc.)
 - Tailwind CSS for styling
 - Lucide React for icons
 - date-fns with German locale for date formatting
+- dnd-kit for drag-and-drop functionality
 
 ### Form Handling
 - React Hook Form for form state
 - Zod for schema validation
 - @hookform/resolvers for Zod integration
 
-### Development Tools
-- Vite with React plugin
-- TypeScript with strict mode
-- Replit-specific plugins (runtime error overlay, cartographer, dev banner)
+## Important Files
+
+- `shared/schema.ts` - All database tables and Zod schemas
+- `server/routes.ts` - All API endpoints
+- `server/storage.ts` - Database access layer
+- `server/logger.ts` - Logging system
+- `server/auth.ts` - Authentication middleware
+- `client/src/components/MainLayout.tsx` - Main page layout
+- `client/src/components/AppSidebar.tsx` - Navigation sidebar
+- `design_guidelines.md` - Design system documentation
+
+## Demo Credentials
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | admin@demo.de | admin123 |
+| Agent | agent@demo.de | agent123 |
+| Customer | kunde@demo.de | kunde123 |
