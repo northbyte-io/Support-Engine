@@ -2172,7 +2172,13 @@ export async function registerRoutes(
 
   app.post("/api/customers", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const data = insertCustomerSchema.parse(req.body);
+      // Auto-generate customer number if not provided
+      const existingCustomers = await storage.getCustomers(req.user!.tenantId!, {});
+      const nextNumber = existingCustomers.length + 1;
+      const customerNumber = `KD-${String(nextNumber).padStart(5, '0')}`;
+      
+      const dataWithNumber = { ...req.body, customerNumber };
+      const data = insertCustomerSchema.parse(dataWithNumber);
       const customer = await storage.createCustomer(data, req.user!.tenantId!);
       res.status(201).json(customer);
     } catch (error) {

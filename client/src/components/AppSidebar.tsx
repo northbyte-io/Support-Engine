@@ -15,6 +15,7 @@ import {
   Kanban,
   Building2,
   Contact,
+  Landmark,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
@@ -84,6 +85,11 @@ const mainNavItems = [
     title: "Kontakte",
     url: "/contacts",
     icon: Contact,
+  },
+  {
+    title: "Organisationen",
+    url: "/organizations",
+    icon: Landmark,
   },
 ];
 
