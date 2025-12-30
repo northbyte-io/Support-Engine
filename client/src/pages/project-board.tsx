@@ -212,6 +212,7 @@ function AddTicketDialog({
       toast({ title: "Ticket hinzugefügt", description: "Das Ticket wurde dem Projekt hinzugefügt." });
       setSelectedTicketId("");
       onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/board`] });
       onAdded();
     },
     onError: (error) => {
@@ -281,14 +282,7 @@ export default function ProjectBoardPage() {
   const [addTicketOpen, setAddTicketOpen] = useState(false);
 
   const { data: boardData, isLoading, refetch } = useQuery<BoardData>({
-    queryKey: ["/api/projects", params.id, "board"],
-    queryFn: async () => {
-      const response = await fetch(`/api/projects/${params.id}/board`, {
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error("Failed to fetch board");
-      return response.json();
-    },
+    queryKey: [`/api/projects/${params.id}/board`],
     enabled: !!params.id,
   });
 
@@ -302,8 +296,8 @@ export default function ProjectBoardPage() {
     },
     onSuccess: () => {
       toast({ title: "Status aktualisiert" });
-      refetch();
       queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${params.id}/board`] });
     },
     onError: (error) => {
       toast({
