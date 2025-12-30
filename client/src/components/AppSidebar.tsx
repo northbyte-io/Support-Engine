@@ -7,7 +7,6 @@ import {
   LogOut,
   FolderKanban,
   CircleUser,
-  Clock,
   Timer,
   BookOpen,
   ClipboardList,
@@ -16,9 +15,6 @@ import {
   Building2,
   Contact,
   Landmark,
-  ScrollText,
-  Palette,
-  Shield,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useBranding } from "@/lib/branding";
@@ -108,26 +104,6 @@ const adminNavItems = [
     title: "Umfragen",
     url: "/surveys",
     icon: ClipboardList,
-  },
-  {
-    title: "System-Logs",
-    url: "/logs",
-    icon: ScrollText,
-  },
-  {
-    title: "Branding",
-    url: "/branding",
-    icon: Palette,
-  },
-  {
-    title: "TLS-Zertifikate",
-    url: "/tls-certificates",
-    icon: Shield,
-  },
-  {
-    title: "SLA-Verwaltung",
-    url: "/settings/sla",
-    icon: Clock,
   },
   {
     title: "Einstellungen",

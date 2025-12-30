@@ -1,8 +1,7 @@
 import { useLocation } from "wouter";
 import { MainLayout } from "@/components/MainLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Clock, Palette, Bell, Shield, Building } from "lucide-react";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Clock, Palette, Bell, Shield, Building, ScrollText, Lock } from "lucide-react";
 
 interface SettingItem {
   title: string;
@@ -21,11 +20,25 @@ const settingItems: SettingItem[] = [
     available: true,
   },
   {
-    title: "Mandanten-Branding",
+    title: "Branding",
     description: "Logo, Farben und Erscheinungsbild anpassen",
     icon: Palette,
-    url: "/settings/branding",
-    available: false,
+    url: "/branding",
+    available: true,
+  },
+  {
+    title: "System-Logs",
+    description: "Systemprotokolle einsehen, filtern und exportieren",
+    icon: ScrollText,
+    url: "/logs",
+    available: true,
+  },
+  {
+    title: "TLS-Zertifikate",
+    description: "SSL/TLS-Zertifikate mit Let's Encrypt verwalten",
+    icon: Lock,
+    url: "/tls-certificates",
+    available: true,
   },
   {
     title: "Benachrichtigungen",
