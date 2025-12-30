@@ -136,6 +136,16 @@ Das **German Ticket System** ist eine moderne Helpdesk-Lösung, die speziell fü
   - ⚠️ SLA-Warnungen
   - 📋 Umfrage-Einladungen
 
+#### 📋 Projektmanagement & Kanban
+
+- ✅ Projekte erstellen und verwalten
+- ✅ Kanban-Board mit Drag-and-Drop
+- ✅ Spalten pro Status: Offen, In Bearbeitung, Gelöst, Geschlossen
+- ✅ WIP-Limits (Work in Progress)
+- ✅ Tickets per Drag-and-Drop zwischen Spalten verschieben
+- ✅ Mehrfache Projektzuordnung pro Ticket
+- ✅ Automatische Board-Synchronisation bei Statusänderungen
+
 #### 🎨 Design & UX
 
 - ✅ Dark/Light Mode
@@ -152,7 +162,7 @@ Das **German Ticket System** ist eine moderne Helpdesk-Lösung, die speziell fü
 
 | Feature | Status | Beschreibung |
 |---------|--------|--------------|
-| 📋 Projektmanagement | 🔜 Geplant | Kanban-Board, Projekt-Tracking |
+| 📋 Projektmanagement | ✅ Fertig | Kanban-Board, Projekt-Tracking |
 | 📊 Erweiterte Berichte | 🔜 Geplant | Report Builder, CSV/PDF Export |
 | ✅ Genehmigungsworkflows | 🔜 Geplant | Multi-Step-Approval |
 | 🎨 Mandanten-Branding | 🔜 Geplant | Logo, Farben, E-Mail-Templates |
@@ -283,6 +293,14 @@ Das **German Ticket System** ist eine moderne Helpdesk-Lösung, die speziell fü
 | 📋 `assetContracts` | Verträge |
 | 🔗 `ticketAssets` | Verknüpfungen |
 | 📜 `assetHistory` | Historie |
+
+### 📋 Projektmanagement
+
+| Tabelle | Beschreibung |
+|---------|--------------|
+| 📁 `projects` | Projekte |
+| 📊 `boardColumns` | Kanban-Spalten |
+| 🔗 `ticketProjects` | Ticket-Projekt-Zuordnungen |
 
 ---
 
