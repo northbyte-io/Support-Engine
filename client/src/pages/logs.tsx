@@ -19,6 +19,7 @@ import {
   FileSpreadsheet,
   FileJson,
 } from "lucide-react";
+import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -218,48 +219,46 @@ export default function LogsPage() {
   }, {} as Record<string, number>) || {};
 
   return (
-    <div className="flex-1 overflow-auto p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-semibold" data-testid="text-page-title">System-Logs</h1>
-            <p className="text-muted-foreground">Uberwachen Sie Systemereignisse und analysieren Sie Fehler</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => refetch()}
-              disabled={isFetching}
-              data-testid="button-refresh-logs"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
-              Aktualisieren
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" data-testid="button-export-logs">
-                  <Download className="w-4 h-4 mr-2" />
-                  Exportieren
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleExport("txt")} data-testid="export-txt">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Als TXT exportieren
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport("csv")} data-testid="export-csv">
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Als CSV exportieren
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport("json")} data-testid="export-json">
-                  <FileJson className="w-4 h-4 mr-2" />
-                  Als JSON exportieren
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+    <MainLayout
+      title="System-Logs"
+      actions={
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => refetch()}
+            disabled={isFetching}
+            data-testid="button-refresh-logs"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
+            Aktualisieren
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" data-testid="button-export-logs">
+                <Download className="w-4 h-4 mr-2" />
+                Exportieren
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport("txt")} data-testid="export-txt">
+                <FileText className="w-4 h-4 mr-2" />
+                Als TXT exportieren
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("csv")} data-testid="export-csv">
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Als CSV exportieren
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("json")} data-testid="export-json">
+                <FileJson className="w-4 h-4 mr-2" />
+                Als JSON exportieren
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
+      }
+    >
+      <div className="max-w-7xl mx-auto space-y-6">
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {Object.entries(levelConfig).map(([level, config]) => {
@@ -389,6 +388,6 @@ export default function LogsPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </MainLayout>
   );
 }
