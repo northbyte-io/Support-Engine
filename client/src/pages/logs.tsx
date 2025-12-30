@@ -185,7 +185,15 @@ export default function LogsPage() {
       if (sourceFilter !== "all") params.set("source", sourceFilter);
       params.set("limit", limit.toString());
       params.set("offset", offset.toString());
-      const res = await fetch(`/api/logs?${params.toString()}`, { credentials: "include" });
+      const token = localStorage.getItem("token");
+      const headers: HeadersInit = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const res = await fetch(`/api/logs?${params.toString()}`, { 
+        headers,
+        credentials: "include" 
+      });
       if (!res.ok) throw new Error("Failed to fetch logs");
       return res.json();
     },
@@ -204,13 +212,34 @@ export default function LogsPage() {
     });
   };
 
-  const handleExport = (format: "txt" | "csv" | "json") => {
+  const handleExport = async (format: "txt" | "csv" | "json") => {
     const params = new URLSearchParams();
     params.set("format", format);
     if (searchQuery) params.set("search", searchQuery);
     if (levelFilter !== "all") params.set("level", levelFilter);
     if (sourceFilter !== "all") params.set("source", sourceFilter);
-    window.open(`/api/logs/export?${params.toString()}`, "_blank");
+    
+    const token = localStorage.getItem("token");
+    const headers: HeadersInit = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    
+    try {
+      const res = await fetch(`/api/logs/export?${params.toString()}`, { headers });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `logs-export.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Export error:", error);
+    }
   };
 
   const levelCounts = data?.logs.reduce((acc, log) => {
