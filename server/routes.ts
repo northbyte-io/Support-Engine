@@ -2936,7 +2936,7 @@ export async function registerRoutes(
   // HTTP-01 Challenge endpoint for Let's Encrypt validation
   app.get("/.well-known/acme-challenge/:token", async (req, res) => {
     const { getHttpChallenge } = await import("./tls-service");
-    const keyAuth = getHttpChallenge(req.params.token);
+    const keyAuth = await getHttpChallenge(req.params.token);
     if (keyAuth) {
       res.type("text/plain").send(keyAuth);
     } else {

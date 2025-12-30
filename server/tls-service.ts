@@ -176,6 +176,21 @@ export class TlsService {
         solution: "Prüfen Sie die Domain-Einstellungen und DNS-Konfiguration"
       });
 
+      // Update certificate status to failed if it was created
+      const existingCerts = await storage.getTlsCertificates();
+      const failedCert = existingCerts.find(c => c.domain === domain && c.status === "pending");
+      if (failedCert) {
+        await storage.updateTlsCertificate(failedCert.id, { status: "failed" });
+        await storage.createTlsCertificateAction({
+          certificateId: failedCert.id,
+          action: "requested",
+          status: "failed",
+          performedById: userId,
+          message: error.message,
+          details: { domain, error: error.message }
+        });
+      }
+
       return { success: false, error: error.message };
     }
   }
