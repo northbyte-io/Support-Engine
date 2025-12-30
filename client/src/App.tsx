@@ -25,6 +25,7 @@ import AssetsPage from "@/pages/assets";
 import ProjectsPage from "@/pages/projects";
 import ProjectBoardPage from "@/pages/project-board";
 import CustomersPage from "@/pages/customers";
+import CustomerDetailPage from "@/pages/customer-detail";
 import ContactsPage from "@/pages/contacts";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -201,6 +202,12 @@ function Router() {
       <Route path="/customers">
         <AgentRoute>
           <CustomersPage />
+        </AgentRoute>
+      </Route>
+
+      <Route path="/customers/:id">
+        <AgentRoute>
+          <CustomerDetailPage />
         </AgentRoute>
       </Route>
 

@@ -18,6 +18,9 @@ import {
   Trash2,
   Folder,
   X,
+  Building2,
+  Mail,
+  Phone,
 } from "lucide-react";
 import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -51,7 +54,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { format, formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
-import type { TicketWithRelations, Comment, User as UserType, Project } from "@shared/schema";
+import type { TicketWithRelations, Comment, User as UserType, Project, CustomerWithRelations } from "@shared/schema";
 
 export default function TicketDetailPage() {
   const params = useParams<{ id: string }>();
@@ -73,6 +76,25 @@ export default function TicketDetailPage() {
   const { data: ticketProjects } = useQuery<{ projectId: string; project: Project }[]>({
     queryKey: [`/api/tickets/${params.id}/projects`],
     enabled: !!params.id,
+  });
+
+  const { data: customers } = useQuery<CustomerWithRelations[]>({
+    queryKey: ["/api/customers"],
+  });
+
+  const updateCustomerMutation = useMutation({
+    mutationFn: async (customerId: string | null) => {
+      return apiRequest("PATCH", `/api/tickets/${params.id}`, { customerId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets", params.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      toast({ title: "Kunde aktualisiert" });
+    },
+    onError: () => {
+      toast({ title: "Fehler beim Aktualisieren", variant: "destructive" });
+    },
   });
 
   const updateStatusMutation = useMutation({
@@ -535,6 +557,98 @@ export default function TicketDetailPage() {
                       Fälligkeitsdatum
                     </Label>
                     <p className="mt-1 text-sm">{formatDate(ticket.dueDate)}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  Kunde
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {ticket.customer ? (
+                  <div className="space-y-3">
+                    <div 
+                      className="p-3 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
+                      onClick={() => setLocation(`/customers/${ticket.customer.id}`)}
+                      data-testid="link-customer-detail"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium text-sm">{ticket.customer.name}</p>
+                          <p className="text-xs text-muted-foreground">{ticket.customer.customerNumber}</p>
+                        </div>
+                      </div>
+                      {ticket.customer.organization && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {ticket.customer.organization.name}
+                        </p>
+                      )}
+                    </div>
+                    {ticket.customer.contacts && ticket.customer.contacts.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground font-medium">Kontakte</p>
+                        {ticket.customer.contacts.slice(0, 2).map((contact) => (
+                          <div key={contact.id} className="text-sm space-y-1">
+                            <p className="font-medium">
+                              {contact.firstName} {contact.lastName}
+                            </p>
+                            {contact.email && (
+                              <a 
+                                href={`mailto:${contact.email}`} 
+                                className="flex items-center gap-1 text-xs text-muted-foreground hover:underline"
+                              >
+                                <Mail className="w-3 h-3" />
+                                {contact.email}
+                              </a>
+                            )}
+                            {contact.phone && (
+                              <a 
+                                href={`tel:${contact.phone}`} 
+                                className="flex items-center gap-1 text-xs text-muted-foreground hover:underline"
+                              >
+                                <Phone className="w-3 h-3" />
+                                {contact.phone}
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full text-xs"
+                      onClick={() => updateCustomerMutation.mutate(null)}
+                      data-testid="button-remove-customer"
+                    >
+                      <X className="w-3 h-3 mr-1" />
+                      Kunde entfernen
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Select onValueChange={(value) => updateCustomerMutation.mutate(value)}>
+                      <SelectTrigger data-testid="select-customer">
+                        <SelectValue placeholder="Kunde zuweisen..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers?.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            <div className="flex items-center gap-2">
+                              <Building2 className="w-3 h-3" />
+                              <span>{customer.name}</span>
+                              <span className="text-xs text-muted-foreground">({customer.customerNumber})</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
               </CardContent>

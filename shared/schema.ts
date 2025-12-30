@@ -705,6 +705,7 @@ export type TicketWithRelations = Ticket & {
   comments?: (Comment & { author?: User; attachments?: Attachment[] })[];
   attachments?: Attachment[];
   areas?: (TicketArea & { area?: Area })[];
+  customer?: (Customer & { contacts?: Contact[]; organization?: Organization | null }) | null;
 };
 
 export type SlaDefinitionWithEscalations = SlaDefinition & {

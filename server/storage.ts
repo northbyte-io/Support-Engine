@@ -455,6 +455,25 @@ export class DatabaseStorage implements IStorage {
     // Remove password from user object
     const createdBy = createdByUser ? { ...createdByUser, password: undefined } : null;
 
+    // Fetch customer with contacts if ticket has customerId
+    let customer = null;
+    if (ticket.customerId && ticket.tenantId) {
+      const [customerData] = await db.select().from(customers)
+        .where(and(eq(customers.id, ticket.customerId), eq(customers.tenantId, ticket.tenantId)));
+      if (customerData) {
+        const customerContacts = await db.select().from(contacts)
+          .where(and(eq(contacts.customerId, customerData.id), eq(contacts.tenantId, ticket.tenantId)));
+        const org = customerData.organizationId 
+          ? (await db.select().from(organizations).where(and(eq(organizations.id, customerData.organizationId), eq(organizations.tenantId, ticket.tenantId))))[0] 
+          : null;
+        customer = {
+          ...customerData,
+          contacts: customerContacts,
+          organization: org || null,
+        };
+      }
+    }
+
     return {
       ...ticket,
       ticketType,
@@ -464,6 +483,7 @@ export class DatabaseStorage implements IStorage {
       comments: commentsList,
       attachments: attachmentsList,
       areas: areasList.map(r => ({ ...r.ticket_areas, area: r.areas || undefined })),
+      customer,
     };
   }
 
@@ -2138,13 +2158,13 @@ export class DatabaseStorage implements IStorage {
       }
 
       const org = customer.organizationId 
-        ? (await db.select().from(organizations).where(eq(organizations.id, customer.organizationId)))[0] 
+        ? (await db.select().from(organizations).where(and(eq(organizations.id, customer.organizationId), eq(organizations.tenantId, tenantId))))[0] 
         : null;
       const manager = customer.accountManagerId 
-        ? (await db.select().from(users).where(eq(users.id, customer.accountManagerId)))[0] 
+        ? (await db.select().from(users).where(and(eq(users.id, customer.accountManagerId), eq(users.tenantId, tenantId))))[0] 
         : null;
       const sla = customer.slaDefinitionId 
-        ? (await db.select().from(slaDefinitions).where(eq(slaDefinitions.id, customer.slaDefinitionId)))[0] 
+        ? (await db.select().from(slaDefinitions).where(and(eq(slaDefinitions.id, customer.slaDefinitionId), eq(slaDefinitions.tenantId, tenantId))))[0] 
         : null;
       const locs = await db.select().from(customerLocations)
         .where(eq(customerLocations.customerId, customer.id));
@@ -2169,13 +2189,13 @@ export class DatabaseStorage implements IStorage {
     if (!customer) return undefined;
 
     const org = customer.organizationId 
-      ? (await db.select().from(organizations).where(eq(organizations.id, customer.organizationId)))[0] 
+      ? (await db.select().from(organizations).where(and(eq(organizations.id, customer.organizationId), eq(organizations.tenantId, tenantId))))[0] 
       : null;
     const manager = customer.accountManagerId 
-      ? (await db.select().from(users).where(eq(users.id, customer.accountManagerId)))[0] 
+      ? (await db.select().from(users).where(and(eq(users.id, customer.accountManagerId), eq(users.tenantId, tenantId))))[0] 
       : null;
     const sla = customer.slaDefinitionId 
-      ? (await db.select().from(slaDefinitions).where(eq(slaDefinitions.id, customer.slaDefinitionId)))[0] 
+      ? (await db.select().from(slaDefinitions).where(and(eq(slaDefinitions.id, customer.slaDefinitionId), eq(slaDefinitions.tenantId, tenantId))))[0] 
       : null;
     const locs = await db.select().from(customerLocations)
       .where(eq(customerLocations.customerId, customer.id));
@@ -2313,13 +2333,13 @@ export class DatabaseStorage implements IStorage {
       }
 
       const customer = contact.customerId 
-        ? (await db.select().from(customers).where(eq(customers.id, contact.customerId)))[0] 
+        ? (await db.select().from(customers).where(and(eq(customers.id, contact.customerId), eq(customers.tenantId, tenantId))))[0] 
         : null;
       const org = contact.organizationId 
-        ? (await db.select().from(organizations).where(eq(organizations.id, contact.organizationId)))[0] 
+        ? (await db.select().from(organizations).where(and(eq(organizations.id, contact.organizationId), eq(organizations.tenantId, tenantId))))[0] 
         : null;
       const user = contact.userId 
-        ? (await db.select().from(users).where(eq(users.id, contact.userId)))[0] 
+        ? (await db.select().from(users).where(and(eq(users.id, contact.userId), eq(users.tenantId, tenantId))))[0] 
         : null;
 
       result.push({
@@ -2338,13 +2358,13 @@ export class DatabaseStorage implements IStorage {
     if (!contact) return undefined;
 
     const customer = contact.customerId 
-      ? (await db.select().from(customers).where(eq(customers.id, contact.customerId)))[0] 
+      ? (await db.select().from(customers).where(and(eq(customers.id, contact.customerId), eq(customers.tenantId, tenantId))))[0] 
       : null;
     const org = contact.organizationId 
-      ? (await db.select().from(organizations).where(eq(organizations.id, contact.organizationId)))[0] 
+      ? (await db.select().from(organizations).where(and(eq(organizations.id, contact.organizationId), eq(organizations.tenantId, tenantId))))[0] 
       : null;
     const user = contact.userId 
-      ? (await db.select().from(users).where(eq(users.id, contact.userId)))[0] 
+      ? (await db.select().from(users).where(and(eq(users.id, contact.userId), eq(users.tenantId, tenantId))))[0] 
       : null;
 
     return {
