@@ -10,7 +10,7 @@ import {
   agentMiddleware,
   type AuthenticatedRequest 
 } from "./auth";
-import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyInvitationSchema, insertSurveyResponseSchema, insertAssetCategorySchema, insertAssetSchema, insertAssetLicenseSchema, insertAssetContractSchema, insertTicketAssetSchema, insertAssetHistorySchema } from "@shared/schema";
+import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyInvitationSchema, insertSurveyResponseSchema, insertAssetCategorySchema, insertAssetSchema, insertAssetLicenseSchema, insertAssetContractSchema, insertTicketAssetSchema, insertAssetHistorySchema, insertProjectSchema, insertProjectMemberSchema, insertBoardColumnSchema, insertTicketProjectSchema } from "@shared/schema";
 import crypto from "crypto";
 import { z } from "zod";
 
@@ -1829,6 +1829,249 @@ export async function registerRoutes(
       res.json(history);
     } catch (error) {
       console.error("Get asset history error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // =================== Projects API ===================
+
+  // List all projects
+  app.get("/api/projects", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const projects = await storage.getProjects(req.user!.tenantId!);
+      res.json(projects);
+    } catch (error) {
+      console.error("Get projects error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Get single project
+  app.get("/api/projects/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const project = await storage.getProject(req.params.id, req.user!.tenantId!);
+      if (!project) {
+        return res.status(404).json({ message: "Projekt nicht gefunden" });
+      }
+      res.json(project);
+    } catch (error) {
+      console.error("Get project error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Create project
+  app.post("/api/projects", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertProjectSchema.parse(req.body);
+      const project = await storage.createProject(data, req.user!.tenantId!);
+      res.status(201).json(project);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create project error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Update project
+  app.patch("/api/projects/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const project = await storage.getProject(req.params.id, req.user!.tenantId!);
+      if (!project) {
+        return res.status(404).json({ message: "Projekt nicht gefunden" });
+      }
+      const updated = await storage.updateProject(req.params.id, req.body, req.user!.tenantId!);
+      res.json(updated);
+    } catch (error) {
+      console.error("Update project error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Delete project
+  app.delete("/api/projects/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const project = await storage.getProject(req.params.id, req.user!.tenantId!);
+      if (!project) {
+        return res.status(404).json({ message: "Projekt nicht gefunden" });
+      }
+      await storage.deleteProject(req.params.id, req.user!.tenantId!);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete project error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Project members
+  app.get("/api/projects/:projectId/members", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const members = await storage.getProjectMembers(req.params.projectId, req.user!.tenantId!);
+      res.json(members);
+    } catch (error) {
+      console.error("Get project members error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/projects/:projectId/members", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertProjectMemberSchema.parse({
+        projectId: req.params.projectId,
+        userId: req.body.userId,
+        role: req.body.role,
+      });
+      const member = await storage.addProjectMember(data, req.user!.tenantId!);
+      res.status(201).json(member);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      if (error instanceof Error && error.message.includes("gehört nicht zum Mandanten")) {
+        return res.status(404).json({ message: "Projekt nicht gefunden" });
+      }
+      console.error("Add project member error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/projects/:projectId/members/:userId", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.removeProjectMember(req.params.projectId, req.params.userId, req.user!.tenantId!);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Remove project member error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Board columns
+  app.get("/api/projects/:projectId/columns", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const columns = await storage.getBoardColumns(req.params.projectId, req.user!.tenantId!);
+      res.json(columns);
+    } catch (error) {
+      console.error("Get board columns error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/projects/:projectId/columns", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertBoardColumnSchema.parse({
+        projectId: req.params.projectId,
+        ...req.body,
+      });
+      const column = await storage.createBoardColumn(data, req.user!.tenantId!);
+      res.status(201).json(column);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create board column error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.patch("/api/board-columns/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const column = await storage.updateBoardColumn(req.params.id, req.body, req.user!.tenantId!);
+      if (!column) {
+        return res.status(404).json({ message: "Spalte nicht gefunden" });
+      }
+      res.json(column);
+    } catch (error) {
+      console.error("Update board column error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/board-columns/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.deleteBoardColumn(req.params.id, req.user!.tenantId!);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete board column error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/projects/:projectId/columns/reorder", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.reorderBoardColumns(req.params.projectId, req.body.columnIds, req.user!.tenantId!);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Reorder board columns error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Ticket-Project assignments
+  app.get("/api/tickets/:ticketId/projects", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const ticketProjects = await storage.getTicketProjects(req.params.ticketId, req.user!.tenantId!);
+      res.json(ticketProjects);
+    } catch (error) {
+      console.error("Get ticket projects error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/tickets/:ticketId/projects", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertTicketProjectSchema.parse({
+        ticketId: req.params.ticketId,
+        projectId: req.body.projectId,
+        boardOrder: req.body.boardOrder || 0,
+      });
+      const link = await storage.addTicketToProject(data, req.user!.tenantId!);
+      res.status(201).json(link);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      if (error instanceof Error && error.message.includes("gehört nicht zum Mandanten")) {
+        return res.status(404).json({ message: "Ticket oder Projekt nicht gefunden" });
+      }
+      console.error("Add ticket to project error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/tickets/:ticketId/projects/:projectId", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.removeTicketFromProject(req.params.ticketId, req.params.projectId, req.user!.tenantId!);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Remove ticket from project error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Project board view (tickets grouped by column)
+  app.get("/api/projects/:projectId/board", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId, req.user!.tenantId!);
+      if (!project) {
+        return res.status(404).json({ message: "Projekt nicht gefunden" });
+      }
+      const board = await storage.getProjectTickets(req.params.projectId, req.user!.tenantId!);
+      res.json({ project, board });
+    } catch (error) {
+      console.error("Get project board error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Update ticket board order (for drag-drop)
+  app.patch("/api/projects/:projectId/tickets/:ticketId/order", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.updateTicketBoardOrder(req.params.ticketId, req.params.projectId, req.body.boardOrder, req.user!.tenantId!);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Update ticket board order error:", error);
       res.status(500).json({ message: "Interner Serverfehler" });
     }
   });
