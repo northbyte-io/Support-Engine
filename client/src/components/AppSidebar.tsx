@@ -13,6 +13,8 @@ import {
   ClipboardList,
   Package,
   Kanban,
+  Building2,
+  Contact,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
@@ -72,6 +74,16 @@ const mainNavItems = [
     title: "Projekte",
     url: "/projects",
     icon: Kanban,
+  },
+  {
+    title: "Kunden",
+    url: "/customers",
+    icon: Building2,
+  },
+  {
+    title: "Kontakte",
+    url: "/contacts",
+    icon: Contact,
   },
 ];
 

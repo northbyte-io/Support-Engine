@@ -112,6 +112,27 @@ import {
   type TicketProject,
   type InsertTicketProject,
   type ProjectWithRelations,
+  organizations,
+  customers,
+  customerLocations,
+  contacts,
+  ticketContacts,
+  customerActivities,
+  type Organization,
+  type InsertOrganization,
+  type OrganizationWithRelations,
+  type Customer,
+  type InsertCustomer,
+  type CustomerWithRelations,
+  type CustomerLocation,
+  type InsertCustomerLocation,
+  type Contact,
+  type InsertContact,
+  type ContactWithRelations,
+  type TicketContact,
+  type InsertTicketContact,
+  type CustomerActivity,
+  type InsertCustomerActivity,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, ilike, or, count } from "drizzle-orm";
@@ -332,6 +353,43 @@ export interface IStorage {
   removeTicketFromProject(ticketId: string, projectId: string, tenantId: string): Promise<void>;
   getProjectTickets(projectId: string, tenantId: string): Promise<{ column: BoardColumn; tickets: TicketProject[] }[]>;
   updateTicketBoardOrder(ticketId: string, projectId: string, boardOrder: number, tenantId: string): Promise<void>;
+
+  // CRM - Organizations
+  getOrganizations(tenantId: string, params?: { search?: string }): Promise<OrganizationWithRelations[]>;
+  getOrganization(id: string, tenantId: string): Promise<OrganizationWithRelations | undefined>;
+  createOrganization(org: InsertOrganization, tenantId: string): Promise<Organization>;
+  updateOrganization(id: string, updates: Partial<InsertOrganization>, tenantId: string): Promise<Organization | undefined>;
+  deleteOrganization(id: string, tenantId: string): Promise<void>;
+
+  // CRM - Customers
+  getCustomers(tenantId: string, params?: { organizationId?: string; search?: string }): Promise<CustomerWithRelations[]>;
+  getCustomer(id: string, tenantId: string): Promise<CustomerWithRelations | undefined>;
+  createCustomer(customer: InsertCustomer, tenantId: string): Promise<Customer>;
+  updateCustomer(id: string, updates: Partial<InsertCustomer>, tenantId: string): Promise<Customer | undefined>;
+  deleteCustomer(id: string, tenantId: string): Promise<void>;
+  getNextCustomerNumber(tenantId: string): Promise<string>;
+
+  // CRM - Customer Locations
+  getCustomerLocations(customerId: string, tenantId: string): Promise<CustomerLocation[]>;
+  createCustomerLocation(location: InsertCustomerLocation, tenantId: string): Promise<CustomerLocation>;
+  updateCustomerLocation(id: string, updates: Partial<InsertCustomerLocation>, tenantId: string): Promise<CustomerLocation | undefined>;
+  deleteCustomerLocation(id: string, tenantId: string): Promise<void>;
+
+  // CRM - Contacts
+  getContacts(tenantId: string, params?: { customerId?: string; organizationId?: string; search?: string }): Promise<ContactWithRelations[]>;
+  getContact(id: string, tenantId: string): Promise<ContactWithRelations | undefined>;
+  createContact(contact: InsertContact, tenantId: string): Promise<Contact>;
+  updateContact(id: string, updates: Partial<InsertContact>, tenantId: string): Promise<Contact | undefined>;
+  deleteContact(id: string, tenantId: string): Promise<void>;
+
+  // CRM - Ticket Contacts
+  getTicketContacts(ticketId: string, tenantId: string): Promise<(TicketContact & { contact?: Contact })[]>;
+  addTicketContact(link: InsertTicketContact, tenantId: string): Promise<TicketContact>;
+  removeTicketContact(id: string, tenantId: string): Promise<void>;
+
+  // CRM - Customer Activities
+  getCustomerActivities(tenantId: string, params?: { customerId?: string; contactId?: string; ticketId?: string; limit?: number }): Promise<(CustomerActivity & { createdBy?: User })[]>;
+  createCustomerActivity(activity: InsertCustomerActivity, tenantId: string): Promise<CustomerActivity>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1975,6 +2033,430 @@ export class DatabaseStorage implements IStorage {
     await db.update(ticketProjects)
       .set({ boardOrder })
       .where(and(eq(ticketProjects.ticketId, ticketId), eq(ticketProjects.projectId, projectId)));
+  }
+
+  // ============================================
+  // CRM - Organizations
+  // ============================================
+
+  async getOrganizations(tenantId: string, params?: { search?: string }): Promise<OrganizationWithRelations[]> {
+    let query = db.select().from(organizations).where(eq(organizations.tenantId, tenantId));
+    
+    const orgs = await query.orderBy(asc(organizations.name));
+    
+    const result: OrganizationWithRelations[] = [];
+    for (const org of orgs) {
+      if (params?.search) {
+        const searchLower = params.search.toLowerCase();
+        if (!org.name.toLowerCase().includes(searchLower)) continue;
+      }
+      
+      const orgCustomers = await db.select().from(customers)
+        .where(and(eq(customers.organizationId, org.id), eq(customers.tenantId, tenantId)));
+      const orgContacts = await db.select().from(contacts)
+        .where(and(eq(contacts.organizationId, org.id), eq(contacts.tenantId, tenantId)));
+      const parentOrg = org.parentId 
+        ? (await db.select().from(organizations).where(eq(organizations.id, org.parentId)))[0] 
+        : null;
+      
+      result.push({
+        ...org,
+        customers: orgCustomers,
+        contacts: orgContacts,
+        parentOrganization: parentOrg || null,
+      });
+    }
+    return result;
+  }
+
+  async getOrganization(id: string, tenantId: string): Promise<OrganizationWithRelations | undefined> {
+    const [org] = await db.select().from(organizations)
+      .where(and(eq(organizations.id, id), eq(organizations.tenantId, tenantId)));
+    if (!org) return undefined;
+
+    const orgCustomers = await db.select().from(customers)
+      .where(and(eq(customers.organizationId, org.id), eq(customers.tenantId, tenantId)));
+    const orgContacts = await db.select().from(contacts)
+      .where(and(eq(contacts.organizationId, org.id), eq(contacts.tenantId, tenantId)));
+    const parentOrg = org.parentId 
+      ? (await db.select().from(organizations).where(eq(organizations.id, org.parentId)))[0] 
+      : null;
+
+    return {
+      ...org,
+      customers: orgCustomers,
+      contacts: orgContacts,
+      parentOrganization: parentOrg || null,
+    };
+  }
+
+  async createOrganization(org: InsertOrganization, tenantId: string): Promise<Organization> {
+    const [result] = await db.insert(organizations).values({ ...org, tenantId }).returning();
+    return result;
+  }
+
+  async updateOrganization(id: string, updates: Partial<InsertOrganization>, tenantId: string): Promise<Organization | undefined> {
+    const [existing] = await db.select().from(organizations)
+      .where(and(eq(organizations.id, id), eq(organizations.tenantId, tenantId)));
+    if (!existing) return undefined;
+
+    const [result] = await db.update(organizations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(organizations.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteOrganization(id: string, tenantId: string): Promise<void> {
+    const [existing] = await db.select().from(organizations)
+      .where(and(eq(organizations.id, id), eq(organizations.tenantId, tenantId)));
+    if (!existing) return;
+
+    await db.delete(organizations).where(eq(organizations.id, id));
+  }
+
+  // ============================================
+  // CRM - Customers
+  // ============================================
+
+  async getCustomers(tenantId: string, params?: { organizationId?: string; search?: string }): Promise<CustomerWithRelations[]> {
+    let conditions = [eq(customers.tenantId, tenantId)];
+    if (params?.organizationId) {
+      conditions.push(eq(customers.organizationId, params.organizationId));
+    }
+
+    const customersList = await db.select().from(customers)
+      .where(and(...conditions))
+      .orderBy(asc(customers.name));
+
+    const result: CustomerWithRelations[] = [];
+    for (const customer of customersList) {
+      if (params?.search) {
+        const searchLower = params.search.toLowerCase();
+        if (!customer.name.toLowerCase().includes(searchLower) && 
+            !customer.customerNumber.toLowerCase().includes(searchLower)) continue;
+      }
+
+      const org = customer.organizationId 
+        ? (await db.select().from(organizations).where(eq(organizations.id, customer.organizationId)))[0] 
+        : null;
+      const manager = customer.accountManagerId 
+        ? (await db.select().from(users).where(eq(users.id, customer.accountManagerId)))[0] 
+        : null;
+      const sla = customer.slaDefinitionId 
+        ? (await db.select().from(slaDefinitions).where(eq(slaDefinitions.id, customer.slaDefinitionId)))[0] 
+        : null;
+      const locs = await db.select().from(customerLocations)
+        .where(eq(customerLocations.customerId, customer.id));
+      const customerContacts = await db.select().from(contacts)
+        .where(and(eq(contacts.customerId, customer.id), eq(contacts.tenantId, tenantId)));
+
+      result.push({
+        ...customer,
+        organization: org || null,
+        accountManager: manager || null,
+        slaDefinition: sla || null,
+        locations: locs,
+        contacts: customerContacts,
+      });
+    }
+    return result;
+  }
+
+  async getCustomer(id: string, tenantId: string): Promise<CustomerWithRelations | undefined> {
+    const [customer] = await db.select().from(customers)
+      .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)));
+    if (!customer) return undefined;
+
+    const org = customer.organizationId 
+      ? (await db.select().from(organizations).where(eq(organizations.id, customer.organizationId)))[0] 
+      : null;
+    const manager = customer.accountManagerId 
+      ? (await db.select().from(users).where(eq(users.id, customer.accountManagerId)))[0] 
+      : null;
+    const sla = customer.slaDefinitionId 
+      ? (await db.select().from(slaDefinitions).where(eq(slaDefinitions.id, customer.slaDefinitionId)))[0] 
+      : null;
+    const locs = await db.select().from(customerLocations)
+      .where(eq(customerLocations.customerId, customer.id));
+    const customerContacts = await db.select().from(contacts)
+      .where(and(eq(contacts.customerId, customer.id), eq(contacts.tenantId, tenantId)));
+    const customerTickets = await db.select().from(tickets)
+      .where(and(eq(tickets.customerId, customer.id), eq(tickets.tenantId, tenantId)))
+      .orderBy(desc(tickets.createdAt));
+    const activities = await db.select().from(customerActivities)
+      .where(and(eq(customerActivities.customerId, customer.id), eq(customerActivities.tenantId, tenantId)))
+      .orderBy(desc(customerActivities.createdAt));
+
+    return {
+      ...customer,
+      organization: org || null,
+      accountManager: manager || null,
+      slaDefinition: sla || null,
+      locations: locs,
+      contacts: customerContacts,
+      tickets: customerTickets,
+      activities: activities,
+    };
+  }
+
+  async createCustomer(customer: InsertCustomer, tenantId: string): Promise<Customer> {
+    const customerNumber = await this.getNextCustomerNumber(tenantId);
+    const [result] = await db.insert(customers).values({ ...customer, tenantId, customerNumber }).returning();
+    return result;
+  }
+
+  async updateCustomer(id: string, updates: Partial<InsertCustomer>, tenantId: string): Promise<Customer | undefined> {
+    const [existing] = await db.select().from(customers)
+      .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)));
+    if (!existing) return undefined;
+
+    const [result] = await db.update(customers)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(customers.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteCustomer(id: string, tenantId: string): Promise<void> {
+    const [existing] = await db.select().from(customers)
+      .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)));
+    if (!existing) return;
+
+    await db.delete(customers).where(eq(customers.id, id));
+  }
+
+  async getNextCustomerNumber(tenantId: string): Promise<string> {
+    const [result] = await db.select({ count: count() }).from(customers)
+      .where(eq(customers.tenantId, tenantId));
+    const num = (result?.count || 0) + 1;
+    return `KD-${num.toString().padStart(5, '0')}`;
+  }
+
+  // ============================================
+  // CRM - Customer Locations
+  // ============================================
+
+  async getCustomerLocations(customerId: string, tenantId: string): Promise<CustomerLocation[]> {
+    const [customer] = await db.select().from(customers)
+      .where(and(eq(customers.id, customerId), eq(customers.tenantId, tenantId)));
+    if (!customer) return [];
+
+    return db.select().from(customerLocations)
+      .where(eq(customerLocations.customerId, customerId))
+      .orderBy(desc(customerLocations.isPrimary), asc(customerLocations.name));
+  }
+
+  async createCustomerLocation(location: InsertCustomerLocation, tenantId: string): Promise<CustomerLocation> {
+    const [customer] = await db.select().from(customers)
+      .where(and(eq(customers.id, location.customerId!), eq(customers.tenantId, tenantId)));
+    if (!customer) {
+      throw new Error("Kunde gehört nicht zum Mandanten");
+    }
+
+    const [result] = await db.insert(customerLocations).values(location).returning();
+    return result;
+  }
+
+  async updateCustomerLocation(id: string, updates: Partial<InsertCustomerLocation>, tenantId: string): Promise<CustomerLocation | undefined> {
+    const [existing] = await db.select().from(customerLocations)
+      .where(eq(customerLocations.id, id));
+    if (!existing) return undefined;
+
+    const [customer] = await db.select().from(customers)
+      .where(and(eq(customers.id, existing.customerId!), eq(customers.tenantId, tenantId)));
+    if (!customer) return undefined;
+
+    const [result] = await db.update(customerLocations)
+      .set(updates)
+      .where(eq(customerLocations.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteCustomerLocation(id: string, tenantId: string): Promise<void> {
+    const [existing] = await db.select().from(customerLocations)
+      .where(eq(customerLocations.id, id));
+    if (!existing) return;
+
+    const [customer] = await db.select().from(customers)
+      .where(and(eq(customers.id, existing.customerId!), eq(customers.tenantId, tenantId)));
+    if (!customer) return;
+
+    await db.delete(customerLocations).where(eq(customerLocations.id, id));
+  }
+
+  // ============================================
+  // CRM - Contacts
+  // ============================================
+
+  async getContacts(tenantId: string, params?: { customerId?: string; organizationId?: string; search?: string }): Promise<ContactWithRelations[]> {
+    let conditions = [eq(contacts.tenantId, tenantId)];
+    if (params?.customerId) {
+      conditions.push(eq(contacts.customerId, params.customerId));
+    }
+    if (params?.organizationId) {
+      conditions.push(eq(contacts.organizationId, params.organizationId));
+    }
+
+    const contactsList = await db.select().from(contacts)
+      .where(and(...conditions))
+      .orderBy(asc(contacts.lastName), asc(contacts.firstName));
+
+    const result: ContactWithRelations[] = [];
+    for (const contact of contactsList) {
+      if (params?.search) {
+        const searchLower = params.search.toLowerCase();
+        const fullName = `${contact.firstName} ${contact.lastName}`.toLowerCase();
+        if (!fullName.includes(searchLower) && 
+            !(contact.email?.toLowerCase().includes(searchLower))) continue;
+      }
+
+      const customer = contact.customerId 
+        ? (await db.select().from(customers).where(eq(customers.id, contact.customerId)))[0] 
+        : null;
+      const org = contact.organizationId 
+        ? (await db.select().from(organizations).where(eq(organizations.id, contact.organizationId)))[0] 
+        : null;
+      const user = contact.userId 
+        ? (await db.select().from(users).where(eq(users.id, contact.userId)))[0] 
+        : null;
+
+      result.push({
+        ...contact,
+        customer: customer || null,
+        organization: org || null,
+        user: user || null,
+      });
+    }
+    return result;
+  }
+
+  async getContact(id: string, tenantId: string): Promise<ContactWithRelations | undefined> {
+    const [contact] = await db.select().from(contacts)
+      .where(and(eq(contacts.id, id), eq(contacts.tenantId, tenantId)));
+    if (!contact) return undefined;
+
+    const customer = contact.customerId 
+      ? (await db.select().from(customers).where(eq(customers.id, contact.customerId)))[0] 
+      : null;
+    const org = contact.organizationId 
+      ? (await db.select().from(organizations).where(eq(organizations.id, contact.organizationId)))[0] 
+      : null;
+    const user = contact.userId 
+      ? (await db.select().from(users).where(eq(users.id, contact.userId)))[0] 
+      : null;
+
+    return {
+      ...contact,
+      customer: customer || null,
+      organization: org || null,
+      user: user || null,
+    };
+  }
+
+  async createContact(contact: InsertContact, tenantId: string): Promise<Contact> {
+    const [result] = await db.insert(contacts).values({ ...contact, tenantId }).returning();
+    return result;
+  }
+
+  async updateContact(id: string, updates: Partial<InsertContact>, tenantId: string): Promise<Contact | undefined> {
+    const [existing] = await db.select().from(contacts)
+      .where(and(eq(contacts.id, id), eq(contacts.tenantId, tenantId)));
+    if (!existing) return undefined;
+
+    const [result] = await db.update(contacts)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(contacts.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteContact(id: string, tenantId: string): Promise<void> {
+    const [existing] = await db.select().from(contacts)
+      .where(and(eq(contacts.id, id), eq(contacts.tenantId, tenantId)));
+    if (!existing) return;
+
+    await db.delete(contacts).where(eq(contacts.id, id));
+  }
+
+  // ============================================
+  // CRM - Ticket Contacts
+  // ============================================
+
+  async getTicketContacts(ticketId: string, tenantId: string): Promise<(TicketContact & { contact?: Contact })[]> {
+    const [ticket] = await db.select().from(tickets)
+      .where(and(eq(tickets.id, ticketId), eq(tickets.tenantId, tenantId)));
+    if (!ticket) return [];
+
+    const links = await db.select().from(ticketContacts).where(eq(ticketContacts.ticketId, ticketId));
+    const result: (TicketContact & { contact?: Contact })[] = [];
+    for (const link of links) {
+      const [contact] = await db.select().from(contacts).where(eq(contacts.id, link.contactId!));
+      result.push({ ...link, contact: contact || undefined });
+    }
+    return result;
+  }
+
+  async addTicketContact(link: InsertTicketContact, tenantId: string): Promise<TicketContact> {
+    const [ticket] = await db.select().from(tickets)
+      .where(and(eq(tickets.id, link.ticketId!), eq(tickets.tenantId, tenantId)));
+    if (!ticket) {
+      throw new Error("Ticket gehört nicht zum Mandanten");
+    }
+
+    const [result] = await db.insert(ticketContacts).values(link).returning();
+    return result;
+  }
+
+  async removeTicketContact(id: string, tenantId: string): Promise<void> {
+    const [existing] = await db.select().from(ticketContacts).where(eq(ticketContacts.id, id));
+    if (!existing) return;
+
+    const [ticket] = await db.select().from(tickets)
+      .where(and(eq(tickets.id, existing.ticketId!), eq(tickets.tenantId, tenantId)));
+    if (!ticket) return;
+
+    await db.delete(ticketContacts).where(eq(ticketContacts.id, id));
+  }
+
+  // ============================================
+  // CRM - Customer Activities
+  // ============================================
+
+  async getCustomerActivities(tenantId: string, params?: { customerId?: string; contactId?: string; ticketId?: string; limit?: number }): Promise<(CustomerActivity & { createdBy?: User })[]> {
+    let conditions = [eq(customerActivities.tenantId, tenantId)];
+    if (params?.customerId) {
+      conditions.push(eq(customerActivities.customerId, params.customerId));
+    }
+    if (params?.contactId) {
+      conditions.push(eq(customerActivities.contactId, params.contactId));
+    }
+    if (params?.ticketId) {
+      conditions.push(eq(customerActivities.ticketId, params.ticketId));
+    }
+
+    let query = db.select().from(customerActivities)
+      .where(and(...conditions))
+      .orderBy(desc(customerActivities.createdAt));
+
+    const activities = params?.limit 
+      ? await query.limit(params.limit) 
+      : await query;
+
+    const result: (CustomerActivity & { createdBy?: User })[] = [];
+    for (const activity of activities) {
+      const user = activity.createdById 
+        ? (await db.select().from(users).where(eq(users.id, activity.createdById)))[0] 
+        : null;
+      result.push({ ...activity, createdBy: user || undefined });
+    }
+    return result;
+  }
+
+  async createCustomerActivity(activity: InsertCustomerActivity, tenantId: string): Promise<CustomerActivity> {
+    const [result] = await db.insert(customerActivities).values({ ...activity, tenantId }).returning();
+    return result;
   }
 }
 

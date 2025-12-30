@@ -10,7 +10,7 @@ import {
   agentMiddleware,
   type AuthenticatedRequest 
 } from "./auth";
-import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyInvitationSchema, insertSurveyResponseSchema, insertAssetCategorySchema, insertAssetSchema, insertAssetLicenseSchema, insertAssetContractSchema, insertTicketAssetSchema, insertAssetHistorySchema, insertProjectSchema, insertProjectMemberSchema, insertBoardColumnSchema, insertTicketProjectSchema } from "@shared/schema";
+import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyInvitationSchema, insertSurveyResponseSchema, insertAssetCategorySchema, insertAssetSchema, insertAssetLicenseSchema, insertAssetContractSchema, insertTicketAssetSchema, insertAssetHistorySchema, insertProjectSchema, insertProjectMemberSchema, insertBoardColumnSchema, insertTicketProjectSchema, insertOrganizationSchema, insertCustomerSchema, insertCustomerLocationSchema, insertContactSchema, insertTicketContactSchema, insertCustomerActivitySchema } from "@shared/schema";
 import crypto from "crypto";
 import { z } from "zod";
 
@@ -2072,6 +2072,338 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error) {
       console.error("Update ticket board order error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // ============================================
+  // CRM - Organizations
+  // ============================================
+
+  app.get("/api/organizations", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const search = req.query.search as string | undefined;
+      const orgs = await storage.getOrganizations(req.user!.tenantId!, { search });
+      res.json(orgs);
+    } catch (error) {
+      console.error("Get organizations error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.get("/api/organizations/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const org = await storage.getOrganization(req.params.id, req.user!.tenantId!);
+      if (!org) {
+        return res.status(404).json({ message: "Organisation nicht gefunden" });
+      }
+      res.json(org);
+    } catch (error) {
+      console.error("Get organization error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/organizations", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertOrganizationSchema.parse(req.body);
+      const org = await storage.createOrganization(data, req.user!.tenantId!);
+      res.status(201).json(org);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create organization error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.patch("/api/organizations/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const org = await storage.updateOrganization(req.params.id, req.body, req.user!.tenantId!);
+      if (!org) {
+        return res.status(404).json({ message: "Organisation nicht gefunden" });
+      }
+      res.json(org);
+    } catch (error) {
+      console.error("Update organization error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/organizations/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.deleteOrganization(req.params.id, req.user!.tenantId!);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete organization error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // ============================================
+  // CRM - Customers
+  // ============================================
+
+  app.get("/api/customers", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const search = req.query.search as string | undefined;
+      const organizationId = req.query.organizationId as string | undefined;
+      const customers = await storage.getCustomers(req.user!.tenantId!, { search, organizationId });
+      res.json(customers);
+    } catch (error) {
+      console.error("Get customers error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.get("/api/customers/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const customer = await storage.getCustomer(req.params.id, req.user!.tenantId!);
+      if (!customer) {
+        return res.status(404).json({ message: "Kunde nicht gefunden" });
+      }
+      res.json(customer);
+    } catch (error) {
+      console.error("Get customer error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/customers", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertCustomerSchema.parse(req.body);
+      const customer = await storage.createCustomer(data, req.user!.tenantId!);
+      res.status(201).json(customer);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create customer error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.patch("/api/customers/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const customer = await storage.updateCustomer(req.params.id, req.body, req.user!.tenantId!);
+      if (!customer) {
+        return res.status(404).json({ message: "Kunde nicht gefunden" });
+      }
+      res.json(customer);
+    } catch (error) {
+      console.error("Update customer error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/customers/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.deleteCustomer(req.params.id, req.user!.tenantId!);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete customer error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Customer locations
+  app.get("/api/customers/:customerId/locations", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const locations = await storage.getCustomerLocations(req.params.customerId, req.user!.tenantId!);
+      res.json(locations);
+    } catch (error) {
+      console.error("Get customer locations error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/customers/:customerId/locations", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertCustomerLocationSchema.parse({
+        customerId: req.params.customerId,
+        ...req.body,
+      });
+      const location = await storage.createCustomerLocation(data, req.user!.tenantId!);
+      res.status(201).json(location);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      if (error instanceof Error && error.message.includes("gehört nicht zum Mandanten")) {
+        return res.status(404).json({ message: "Kunde nicht gefunden" });
+      }
+      console.error("Create customer location error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.patch("/api/customer-locations/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const location = await storage.updateCustomerLocation(req.params.id, req.body, req.user!.tenantId!);
+      if (!location) {
+        return res.status(404).json({ message: "Standort nicht gefunden" });
+      }
+      res.json(location);
+    } catch (error) {
+      console.error("Update customer location error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/customer-locations/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.deleteCustomerLocation(req.params.id, req.user!.tenantId!);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete customer location error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // ============================================
+  // CRM - Contacts
+  // ============================================
+
+  app.get("/api/contacts", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const search = req.query.search as string | undefined;
+      const customerId = req.query.customerId as string | undefined;
+      const organizationId = req.query.organizationId as string | undefined;
+      const contacts = await storage.getContacts(req.user!.tenantId!, { search, customerId, organizationId });
+      res.json(contacts);
+    } catch (error) {
+      console.error("Get contacts error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.get("/api/contacts/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const contact = await storage.getContact(req.params.id, req.user!.tenantId!);
+      if (!contact) {
+        return res.status(404).json({ message: "Kontakt nicht gefunden" });
+      }
+      res.json(contact);
+    } catch (error) {
+      console.error("Get contact error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/contacts", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertContactSchema.parse(req.body);
+      const contact = await storage.createContact(data, req.user!.tenantId!);
+      res.status(201).json(contact);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create contact error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.patch("/api/contacts/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const contact = await storage.updateContact(req.params.id, req.body, req.user!.tenantId!);
+      if (!contact) {
+        return res.status(404).json({ message: "Kontakt nicht gefunden" });
+      }
+      res.json(contact);
+    } catch (error) {
+      console.error("Update contact error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/contacts/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.deleteContact(req.params.id, req.user!.tenantId!);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete contact error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // ============================================
+  // CRM - Ticket Contacts
+  // ============================================
+
+  app.get("/api/tickets/:ticketId/contacts", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const ticketContacts = await storage.getTicketContacts(req.params.ticketId, req.user!.tenantId!);
+      res.json(ticketContacts);
+    } catch (error) {
+      console.error("Get ticket contacts error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/tickets/:ticketId/contacts", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertTicketContactSchema.parse({
+        ticketId: req.params.ticketId,
+        contactId: req.body.contactId,
+        role: req.body.role || "requester",
+      });
+      const link = await storage.addTicketContact(data, req.user!.tenantId!);
+      res.status(201).json(link);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      if (error instanceof Error && error.message.includes("gehört nicht zum Mandanten")) {
+        return res.status(404).json({ message: "Ticket nicht gefunden" });
+      }
+      console.error("Add ticket contact error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/ticket-contacts/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.removeTicketContact(req.params.id, req.user!.tenantId!);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Remove ticket contact error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // ============================================
+  // CRM - Customer Activities
+  // ============================================
+
+  app.get("/api/customer-activities", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const customerId = req.query.customerId as string | undefined;
+      const contactId = req.query.contactId as string | undefined;
+      const ticketId = req.query.ticketId as string | undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const activities = await storage.getCustomerActivities(req.user!.tenantId!, { customerId, contactId, ticketId, limit });
+      res.json(activities);
+    } catch (error) {
+      console.error("Get customer activities error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/customer-activities", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertCustomerActivitySchema.parse({
+        ...req.body,
+        createdById: req.user!.id,
+      });
+      const activity = await storage.createCustomerActivity(data, req.user!.tenantId!);
+      res.status(201).json(activity);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create customer activity error:", error);
       res.status(500).json({ message: "Interner Serverfehler" });
     }
   });
