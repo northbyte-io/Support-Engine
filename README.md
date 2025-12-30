@@ -1,411 +1,435 @@
-# German Ticket System – Helpdesk Management
+# 🎫 German Ticket System – Helpdesk Management
 
 Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und Helpdesk-Management mit Multi-Tenant-Architektur, REST-API für Web und iOS, sowie umfangreichen Enterprise-Features.
 
-## Über das Projekt
+---
 
-Das German Ticket System ist eine moderne Helpdesk-Lösung, die speziell für deutschsprachige Unternehmen entwickelt wurde. Die Anwendung bietet:
+## 📑 Inhaltsverzeichnis
 
-- **Multi-Tenant-Architektur**: Vollständige Datenisolierung zwischen Mandanten
-- **Rollenbasierte Zugriffskontrolle**: Admin, Agent und Kunden-Rollen
-- **API-First-Design**: REST-API für Web- und Mobile-Anwendungen (iOS)
-- **Moderne UI**: Linear-inspiriertes Design mit Dark/Light Mode
-- **Vollständig deutschsprachig**: Alle UI-Texte und Systemmeldungen auf Deutsch
+- [🎯 Über das Projekt](#-über-das-projekt)
+- [✨ Funktionen](#-funktionen)
+  - [✅ Implementierte Features](#-implementierte-features)
+  - [🚀 Roadmap](#-roadmap)
+- [🛠️ Tech Stack](#️-tech-stack)
+- [🏗️ Architektur](#️-architektur)
+- [💾 Datenbank-Schema](#-datenbank-schema)
+- [🔌 API-Design](#-api-design)
+- [⚡ Installation & Setup](#-installation--setup)
+- [👥 Benutzerrollen & Berechtigungen](#-benutzerrollen--berechtigungen)
+- [🔒 Sicherheit](#-sicherheit)
+- [📄 Lizenz](#-lizenz)
 
-## Funktionen
+---
 
-### Implementiert (Aktueller Stand)
+## 🎯 Über das Projekt
 
-#### Authentifizierung & Benutzerverwaltung
-- **JWT-basierte Authentifizierung**: Sichere Token-basierte Anmeldung
-- **Passwort-Hashing**: bcrypt für sichere Passwortspeicherung
-- **Session-Management**: Persistente Sessions mit automatischer Verlängerung
-- **Multi-Tenancy**: Jeder Mandant hat isolierte Daten
-- **Benutzerrollen**: 
-  - **Admin**: Voller Zugriff auf alle Funktionen
-  - **Agent**: Ticket-Bearbeitung und Wissensdatenbank
-  - **Kunde**: Ticket-Erstellung und eigene Tickets einsehen
+Das **German Ticket System** ist eine moderne Helpdesk-Lösung, die speziell für deutschsprachige Unternehmen entwickelt wurde.
 
-#### Ticket-Management
-- **Ticket-Erstellung**: Titel, Beschreibung, Priorität, Typ
-- **Status-Workflow**: Offen → In Bearbeitung → Gelöst → Geschlossen
-- **Prioritätsstufen**: Niedrig, Mittel, Hoch, Dringend
-- **Ticket-Typen**: Konfigurierbare Tickettypen mit benutzerdefinierten Feldern
-- **Zuweisung**: Mehrere Bearbeiter pro Ticket möglich
-- **Ticket-Nummern**: Automatische Generierung (TKT-XXXXX)
-- **Kommentarsystem**: Interne und öffentliche Kommentare
-- **Dateianhänge**: Upload und Verwaltung von Anhängen
+### Kernfunktionen auf einen Blick:
 
-#### SLA-Management
-- **SLA-Definitionen**: Reaktions- und Lösungszeiten je Priorität
-- **SLA-Tracking**: Automatische Überwachung der Einhaltung
-- **Eskalationen**: Automatische Eskalation bei SLA-Verletzung
-- **SLA-Anzeige**: Visueller Status auf Ticket-Details
+| Feature | Beschreibung |
+|---------|--------------|
+| 🏢 **Multi-Tenant** | Vollständige Datenisolierung zwischen Mandanten |
+| 🔐 **Rollenbasiert** | Admin, Agent und Kunden-Rollen mit feingranularen Berechtigungen |
+| 📱 **API-First** | REST-API für Web- und Mobile-Anwendungen (iOS) |
+| 🎨 **Modernes Design** | Linear-inspiriertes UI mit Dark/Light Mode |
+| 🇩🇪 **Deutschsprachig** | Alle UI-Texte und Systemmeldungen auf Deutsch |
 
-#### Wissensmanagement (Knowledge Base)
-- **Artikel-Verwaltung**: CRUD für Wissensbasis-Artikel
-- **Versionierung**: Vollständige Versionshistorie
-- **Kategorien**: Strukturierte Organisation
-- **Suche**: Volltextsuche in Artikeln
-- **Ticket-Verknüpfung**: Artikel mit Tickets verlinken
-- **Rich-Text-Editor**: Formatierte Artikelinhalte
+---
 
-#### Zeiterfassung
-- **Zeiteinträge**: Erfassung pro Ticket
-- **Abrechnungsstatus**: Abrechenbar/Nicht abrechenbar
-- **Beschreibungen**: Detaillierte Tätigkeitsbeschreibungen
-- **Berichte**: Auswertungen nach Projekt/Kunde
-- **Stundensätze**: Konfigurierbare Stundensätze
+## ✨ Funktionen
 
-#### Erweiterte Collaboration
-- **@Mention-System**: Benutzer in Kommentaren erwähnen
-- **Benachrichtigungen**: Automatische Alerts bei Erwähnungen
-- **Beobachter**: Tickets folgen ohne Zuweisung
-- **Aktivitätsprotokoll**: Vollständige Änderungshistorie
+### ✅ Implementierte Features
 
-#### Umfragen (Surveys)
-- **Umfrage-Erstellung**: Verschiedene Fragetypen
-  - Bewertungsskala (1-5 oder 1-10)
-  - Ja/Nein-Fragen
-  - Freitext
-  - NPS (Net Promoter Score)
-- **Automatischer Versand**: Nach Ticket-Schließung
-- **Einladungs-Management**: Tracking von Einladungen
-- **Ergebnis-Dashboard**: 
-  - Antwortrate
-  - Durchschnittsbewertung
-  - NPS-Score
-  - Detaillierte Statistiken pro Frage
+#### 🔑 Authentifizierung & Benutzerverwaltung
 
-#### Asset-Management
-- **Asset-Kategorien**: Hardware, Software, Lizenzen, Verträge
-- **Asset-Typen**:
-  - **Hardware**: Seriennummer, Kaufdatum, Garantie
-  - **Software**: Lizenzinformationen, Ablaufdatum
-  - **Lizenzen**: Lizenzschlüssel, Typ, Ablauf
-  - **Verträge**: Vertragsnummer, Laufzeit, Kündigungsfrist
-- **Asset-Verknüpfung**: Assets mit Tickets verbinden
-- **Änderungshistorie**: Vollständiges Audit-Log pro Asset
-- **Mandantentrennung**: Sichere Isolierung aller Asset-Daten
+- ✅ JWT-basierte Authentifizierung
+- ✅ Sichere Passwortspeicherung mit bcrypt
+- ✅ Session-Management mit automatischer Verlängerung
+- ✅ Multi-Tenancy mit isolierten Mandanten
+- ✅ Drei Benutzerrollen: Admin, Agent, Kunde
 
-#### Dashboard & Analytics
-- **Statistik-Karten**:
-  - Offene Tickets
-  - In Bearbeitung
-  - Heute gelöst
-  - Durchschnittliche Reaktionszeit
-- **Workload-Übersicht**: Ticket-Verteilung pro Agent
-- **Echtzeit-Updates**: Automatische Aktualisierung
-- **Trend-Analyse**: Ticket-Entwicklung über Zeit
+#### 🎫 Ticket-Management
 
-#### Benachrichtigungssystem
-- **In-App-Benachrichtigungen**: Echtzeit-Alerts
-- **Ungelesene Zähler**: Badge mit Anzahl ungelesener Nachrichten
-- **Benachrichtigungstypen**:
-  - Ticket-Zuweisung
-  - Neue Kommentare
-  - @Mentions
-  - SLA-Warnungen
-  - Umfrage-Einladungen
+- ✅ Ticket-Erstellung mit Titel, Beschreibung, Priorität
+- ✅ Status-Workflow: `Offen` → `In Bearbeitung` → `Gelöst` → `Geschlossen`
+- ✅ Prioritätsstufen: Niedrig, Mittel, Hoch, Dringend
+- ✅ Konfigurierbare Tickettypen mit benutzerdefinierten Feldern
+- ✅ Mehrfachzuweisung an Bearbeiter
+- ✅ Automatische Ticket-Nummern (TKT-XXXXX)
+- ✅ Interne & öffentliche Kommentare
+- ✅ Dateianhänge
 
-#### Design & UX
-- **Dark/Light Mode**: Vollständige Theme-Unterstützung
-- **Responsive Design**: Optimiert für alle Bildschirmgrößen
-- **Sidebar-Navigation**: Shadcn UI Sidebar-Komponente
-- **Inter Font**: Moderne, gut lesbare Typografie
-- **Linear-Design**: Utility-fokussiertes, modernes Design
-- **Loading States**: Skeleton-Loader für bessere UX
-- **Toast-Benachrichtigungen**: Feedback für Benutzeraktionen
+#### ⏱️ SLA-Management
 
-### Roadmap (Geplante Features)
+- ✅ SLA-Definitionen pro Priorität
+- ✅ Automatisches Tracking von Reaktions- & Lösungszeiten
+- ✅ Eskalationsregeln bei SLA-Verletzung
+- ✅ Visueller SLA-Status auf Ticket-Details
 
-#### Projektmanagement
-- Projekt-Tabellen mit Kanban-Ansicht
-- Konfigurierbare Spalten
-- Ticket-zu-Projekt-Verknüpfung
-- Projektfortschritt-Tracking
+#### 📚 Wissensmanagement (Knowledge Base)
 
-#### Erweiterte Berichte
-- Custom Report Builder
-- Export zu CSV/PDF
-- Erweiterte Dashboard-Charts
-- Zeitraum-Filter
+- ✅ Artikel-Verwaltung mit CRUD-Operationen
+- ✅ Vollständige Versionierung
+- ✅ Kategorisierung
+- ✅ Volltextsuche
+- ✅ Ticket-Artikel-Verknüpfung
+- ✅ Rich-Text-Editor
 
-#### Genehmigungsworkflows
-- Approval-Workflow-Schema
-- Multi-Step-Genehmigung pro Tickettyp
-- Eskalationspfade
+#### ⏰ Zeiterfassung
 
-#### Mandantenspezifisches Branding
-- Logo-Upload
-- Farbschema-Anpassung
-- E-Mail-Templates
-- Benutzerdefinierte Benachrichtigungen
+- ✅ Zeiteinträge pro Ticket
+- ✅ Abrechenbar/Nicht abrechenbar Status
+- ✅ Detaillierte Tätigkeitsbeschreibungen
+- ✅ Berichte nach Projekt/Kunde
+- ✅ Konfigurierbare Stundensätze
 
-#### Microsoft-Integrationen
-- Azure AD / SSO
-- Microsoft Teams-Integration
-- Outlook-Kalender-Sync
+#### 💬 Erweiterte Collaboration
 
-#### AI-Funktionen
-- Automatische Ticket-Kategorisierung
-- Antwortvorschläge
-- Sentiment-Analyse
-- Wissensbasis-Empfehlungen
+- ✅ @Mention-System in Kommentaren
+- ✅ Automatische Benachrichtigungen
+- ✅ Beobachter-Funktion für Tickets
+- ✅ Vollständiges Aktivitätsprotokoll
 
-#### CRM-Features
-- Erweiterte Kundenverwaltung
-- Kontakthistorie
-- Account-Management
+#### 📊 Umfragen (Surveys)
 
-## Tech Stack
+- ✅ Verschiedene Fragetypen:
+  - ⭐ Bewertungsskala (1-5 oder 1-10)
+  - ✅ Ja/Nein-Fragen
+  - 📝 Freitext
+  - 📈 NPS (Net Promoter Score)
+- ✅ Automatischer Versand nach Ticket-Schließung
+- ✅ Einladungs-Management
+- ✅ Ergebnis-Dashboard mit Statistiken
+
+#### 🖥️ Asset-Management
+
+- ✅ Asset-Kategorien: Hardware, Software, Lizenzen, Verträge
+- ✅ Detaillierte Asset-Informationen:
+  - 💻 Hardware: Seriennummer, Kaufdatum, Garantie
+  - 📦 Software: Lizenzinfos, Ablaufdatum
+  - 🔑 Lizenzen: Schlüssel, Typ, Ablauf
+  - 📋 Verträge: Laufzeit, Kündigungsfrist
+- ✅ Asset-Ticket-Verknüpfung
+- ✅ Vollständige Änderungshistorie
+- ✅ Sichere Mandantentrennung
+
+#### 📈 Dashboard & Analytics
+
+- ✅ Statistik-Karten:
+  - 📊 Offene Tickets
+  - 🔄 In Bearbeitung
+  - ✅ Heute gelöst
+  - ⏱️ Durchschnittliche Reaktionszeit
+- ✅ Workload-Übersicht pro Agent
+- ✅ Echtzeit-Updates
+- ✅ Trend-Analyse
+
+#### 🔔 Benachrichtigungssystem
+
+- ✅ In-App-Benachrichtigungen
+- ✅ Ungelesene-Zähler Badge
+- ✅ Benachrichtigungstypen:
+  - 👤 Ticket-Zuweisung
+  - 💬 Neue Kommentare
+  - 📢 @Mentions
+  - ⚠️ SLA-Warnungen
+  - 📋 Umfrage-Einladungen
+
+#### 🎨 Design & UX
+
+- ✅ Dark/Light Mode
+- ✅ Responsive Design
+- ✅ Shadcn UI Sidebar
+- ✅ Inter Font
+- ✅ Linear-inspiriertes Design
+- ✅ Skeleton-Loader
+- ✅ Toast-Benachrichtigungen
+
+---
+
+### 🚀 Roadmap
+
+| Feature | Status | Beschreibung |
+|---------|--------|--------------|
+| 📋 Projektmanagement | 🔜 Geplant | Kanban-Board, Projekt-Tracking |
+| 📊 Erweiterte Berichte | 🔜 Geplant | Report Builder, CSV/PDF Export |
+| ✅ Genehmigungsworkflows | 🔜 Geplant | Multi-Step-Approval |
+| 🎨 Mandanten-Branding | 🔜 Geplant | Logo, Farben, E-Mail-Templates |
+| 🔗 Microsoft-Integration | 📅 Später | Azure AD, Teams, Outlook |
+| 🤖 AI-Funktionen | 📅 Später | Auto-Kategorisierung, Vorschläge |
+| 👥 CRM-Features | 📅 Später | Erweiterte Kundenverwaltung |
+
+---
+
+## 🛠️ Tech Stack
 
 ### Frontend
 
-| Technologie | Version | Beschreibung |
-|-------------|---------|--------------|
-| React | 18.x | UI-Framework mit TypeScript |
-| Vite | 6.x | Build-Tool mit HMR |
-| TailwindCSS | 4.x | Utility-First CSS Framework |
-| Shadcn UI | Latest | Komponenten-Bibliothek (Radix UI) |
-| React Hook Form | 7.x | Formular-Verwaltung |
-| Zod | 3.x | Schema-Validierung |
-| TanStack Query | 5.x | Server State Management |
-| Wouter | 3.x | Leichtgewichtiges Routing |
-| Lucide React | Latest | Icon-Bibliothek |
-| Framer Motion | 11.x | Animationen |
-| date-fns | 4.x | Datums-Formatierung (DE Locale) |
+| Technologie | Beschreibung |
+|-------------|--------------|
+| ⚛️ React 18 | UI-Framework mit TypeScript |
+| ⚡ Vite 6 | Build-Tool mit HMR |
+| 🎨 TailwindCSS 4 | Utility-First CSS |
+| 🧩 Shadcn UI | Komponenten (Radix UI) |
+| 📝 React Hook Form | Formular-Verwaltung |
+| ✅ Zod | Schema-Validierung |
+| 🔄 TanStack Query 5 | Server State |
+| 🛤️ Wouter | Routing |
+| 🎯 Lucide React | Icons |
+| 🎬 Framer Motion | Animationen |
 
 ### Backend
 
-| Technologie | Version | Beschreibung |
-|-------------|---------|--------------|
-| Node.js | 20.x | JavaScript Runtime |
-| Express | 4.x | HTTP-Server Framework |
-| TypeScript | 5.x | Type Safety |
-| bcryptjs | 2.x | Passwort-Hashing |
-| jsonwebtoken | 9.x | JWT-Authentifizierung |
-| express-session | 1.x | Session-Management |
-| Zod | 3.x | API-Validierung |
+| Technologie | Beschreibung |
+|-------------|--------------|
+| 🟢 Node.js 20 | JavaScript Runtime |
+| 🚂 Express 4 | HTTP-Server |
+| 📘 TypeScript 5 | Type Safety |
+| 🔐 bcryptjs | Passwort-Hashing |
+| 🎫 jsonwebtoken | JWT-Auth |
+| 🗃️ express-session | Sessions |
+| ✅ Zod | API-Validierung |
 
 ### Datenbank
 
-| Technologie | Version | Beschreibung |
-|-------------|---------|--------------|
-| PostgreSQL | 16.x | Relationale Datenbank |
-| Drizzle ORM | 0.38.x | Type-safe ORM |
-| Drizzle Kit | 0.30.x | Schema-Management |
-| connect-pg-simple | 10.x | Session Store |
+| Technologie | Beschreibung |
+|-------------|--------------|
+| 🐘 PostgreSQL 16 | Relationale DB |
+| 🌿 Drizzle ORM | Type-safe ORM |
+| 🔧 Drizzle Kit | Schema-Management |
 
-### Entwicklungswerkzeuge
+---
 
-| Tool | Beschreibung |
-|------|--------------|
-| TSX | TypeScript-Ausführung |
-| esbuild | Production Build |
-| Replit Plugins | Dev Banner, Error Modal, Cartographer |
+## 🏗️ Architektur
 
-## Architektur
-
-### Projektstruktur
+### 📁 Projektstruktur
 
 ```
-├── client/                 # Frontend-Anwendung
-│   ├── src/
-│   │   ├── components/     # Wiederverwendbare UI-Komponenten
-│   │   │   └── ui/         # Shadcn UI Komponenten
-│   │   ├── hooks/          # Custom React Hooks
-│   │   ├── lib/            # Utility-Funktionen
-│   │   ├── pages/          # Seiten-Komponenten
-│   │   └── App.tsx         # Haupt-App mit Routing
-│   └── index.html
-├── server/                 # Backend-Anwendung
-│   ├── auth.ts             # Authentifizierung & Middleware
-│   ├── routes.ts           # API-Routen
-│   ├── storage.ts          # Datenbank-Zugriff (Storage Interface)
-│   ├── vite.ts             # Vite-Integration
-│   └── index.ts            # Server-Einstiegspunkt
-├── shared/                 # Geteilter Code
-│   └── schema.ts           # Drizzle-Schema & Zod-Typen
-└── design_guidelines.md    # Design-Richtlinien
+📦 german-ticket-system
+├── 📂 client/                 # Frontend
+│   ├── 📂 src/
+│   │   ├── 📂 components/     # UI-Komponenten
+│   │   │   └── 📂 ui/         # Shadcn UI
+│   │   ├── 📂 hooks/          # Custom Hooks
+│   │   ├── 📂 lib/            # Utilities
+│   │   ├── 📂 pages/          # Seiten
+│   │   └── 📄 App.tsx         # Haupt-App
+│   └── 📄 index.html
+├── 📂 server/                 # Backend
+│   ├── 📄 auth.ts             # Authentifizierung
+│   ├── 📄 routes.ts           # API-Routen
+│   ├── 📄 storage.ts          # Datenbankzugriff
+│   └── 📄 index.ts            # Server-Start
+├── 📂 shared/                 # Geteilter Code
+│   └── 📄 schema.ts           # Drizzle-Schema
+└── 📄 design_guidelines.md    # Design-System
 ```
 
-### Datenbank-Schema
+---
 
-#### Kern-Tabellen
+## 💾 Datenbank-Schema
 
-| Tabelle | Beschreibung |
-|---------|--------------|
-| `tenants` | Mandanten/Unternehmen |
-| `users` | Benutzerkonten |
-| `tickets` | Tickets/Anfragen |
-| `ticketTypes` | Tickettypen mit benutzerdefinierten Feldern |
-| `ticketAssignees` | Ticket-Zuweisungen |
-| `ticketComments` | Kommentare |
-| `ticketAttachments` | Dateianhänge |
-
-#### SLA & Eskalation
+### 🗄️ Kern-Tabellen
 
 | Tabelle | Beschreibung |
 |---------|--------------|
-| `slaDefinitions` | SLA-Definitionen |
-| `slaEscalations` | Eskalationsregeln |
+| 🏢 `tenants` | Mandanten/Unternehmen |
+| 👤 `users` | Benutzerkonten |
+| 🎫 `tickets` | Tickets/Anfragen |
+| 📋 `ticketTypes` | Tickettypen |
+| 👥 `ticketAssignees` | Zuweisungen |
+| 💬 `ticketComments` | Kommentare |
+| 📎 `ticketAttachments` | Anhänge |
 
-#### Wissensmanagement
-
-| Tabelle | Beschreibung |
-|---------|--------------|
-| `kbArticles` | Wissensbasis-Artikel |
-| `kbArticleVersions` | Artikel-Versionen |
-| `kbCategories` | Kategorien |
-| `ticketArticleLinks` | Ticket-Artikel-Verknüpfungen |
-
-#### Zeiterfassung
+### ⏱️ SLA & Eskalation
 
 | Tabelle | Beschreibung |
 |---------|--------------|
-| `timeEntries` | Zeiteinträge |
+| ⏰ `slaDefinitions` | SLA-Definitionen |
+| 🚨 `slaEscalations` | Eskalationsregeln |
 
-#### Umfragen
-
-| Tabelle | Beschreibung |
-|---------|--------------|
-| `surveys` | Umfragen |
-| `surveyQuestions` | Umfrage-Fragen |
-| `surveyInvitations` | Einladungen |
-| `surveyResponses` | Antworten |
-
-#### Asset-Management
+### 📚 Wissensmanagement
 
 | Tabelle | Beschreibung |
 |---------|--------------|
-| `assetCategories` | Asset-Kategorien |
-| `assets` | Assets (Hardware, Software, etc.) |
-| `assetLicenses` | Lizenzinformationen |
-| `assetContracts` | Vertragsinformationen |
-| `ticketAssets` | Ticket-Asset-Verknüpfungen |
-| `assetHistory` | Änderungshistorie |
+| 📄 `kbArticles` | Artikel |
+| 📝 `kbArticleVersions` | Versionen |
+| 📁 `kbCategories` | Kategorien |
+| 🔗 `ticketArticleLinks` | Verknüpfungen |
 
-#### Benachrichtigungen
+### ⏰ Zeiterfassung
 
 | Tabelle | Beschreibung |
 |---------|--------------|
-| `notifications` | Benutzerbenachrichtigungen |
+| ⏱️ `timeEntries` | Zeiteinträge |
 
-### API-Design
+### 📊 Umfragen
 
-Die REST-API folgt einem konsistenten Design-Pattern:
+| Tabelle | Beschreibung |
+|---------|--------------|
+| 📋 `surveys` | Umfragen |
+| ❓ `surveyQuestions` | Fragen |
+| 📧 `surveyInvitations` | Einladungen |
+| ✅ `surveyResponses` | Antworten |
 
-```
-GET    /api/[resource]          # Liste abrufen
-GET    /api/[resource]/:id      # Einzelnes Element
-POST   /api/[resource]          # Erstellen
-PATCH  /api/[resource]/:id      # Aktualisieren
-DELETE /api/[resource]/:id      # Löschen
+### 🖥️ Asset-Management
+
+| Tabelle | Beschreibung |
+|---------|--------------|
+| 📁 `assetCategories` | Kategorien |
+| 💻 `assets` | Assets |
+| 🔑 `assetLicenses` | Lizenzen |
+| 📋 `assetContracts` | Verträge |
+| 🔗 `ticketAssets` | Verknüpfungen |
+| 📜 `assetHistory` | Historie |
+
+---
+
+## 🔌 API-Design
+
+### REST-Endpunkte
+
+```http
+GET    /api/[resource]          # 📋 Liste abrufen
+GET    /api/[resource]/:id      # 🔍 Einzelnes Element
+POST   /api/[resource]          # ➕ Erstellen
+PATCH  /api/[resource]/:id      # ✏️ Aktualisieren
+DELETE /api/[resource]/:id      # 🗑️ Löschen
 ```
 
-#### Authentifizierung
+### 🔐 Authentifizierung
 
-Alle API-Endpunkte (außer `/api/auth/*`) erfordern einen gültigen JWT-Token:
-
-```
-Authorization: Bearer <token>
+```http
+Authorization: Bearer <jwt-token>
 ```
 
-#### Mandantentrennung
+### 🏢 Mandantentrennung
 
-Alle Datenbankabfragen werden automatisch nach `tenantId` gefiltert. Die Storage-Schicht erzwingt Tenant-Isolation mit Defense-in-Depth:
+Alle API-Abfragen werden automatisch nach `tenantId` gefiltert:
 
 1. **Route-Layer**: Extrahiert `tenantId` aus JWT
-2. **Storage-Layer**: Validiert Tenant-Existenz und filtert alle Queries
+2. **Storage-Layer**: Validiert und filtert alle Queries
 
-## Installation & Setup
+---
 
-### Voraussetzungen
+## ⚡ Installation & Setup
 
-- Node.js 20.x oder höher
-- PostgreSQL 16.x
-- npm oder yarn
+### 📋 Voraussetzungen
 
-### Umgebungsvariablen
+- ✅ Node.js 20.x oder höher
+- ✅ PostgreSQL 16.x
+- ✅ npm oder yarn
+
+### 🔧 Umgebungsvariablen
 
 ```env
 DATABASE_URL=postgresql://user:password@host:port/database
 SESSION_SECRET=your-secure-session-secret
 ```
 
-### Entwicklungsserver starten
+### 🚀 Schnellstart
 
 ```bash
-# Abhängigkeiten installieren
+# 1️⃣ Abhängigkeiten installieren
 npm install
 
-# Datenbank-Schema synchronisieren
+# 2️⃣ Datenbank-Schema synchronisieren
 npm run db:push
 
-# Entwicklungsserver starten
+# 3️⃣ Entwicklungsserver starten
 npm run dev
 ```
 
 Die Anwendung ist dann unter `http://localhost:5000` verfügbar.
 
-### Demo-Zugangsdaten
+### 🔑 Demo-Zugangsdaten
 
 | Rolle | E-Mail | Passwort |
 |-------|--------|----------|
-| Admin | admin@demo.de | admin123 |
-| Agent | agent@demo.de | agent123 |
-| Kunde | kunde@demo.de | kunde123 |
+| 👑 Admin | admin@demo.de | admin123 |
+| 👷 Agent | agent@demo.de | agent123 |
+| 👤 Kunde | kunde@demo.de | kunde123 |
 
-## Benutzerrollen & Berechtigungen
+---
 
-### Admin
-- Vollzugriff auf alle Funktionen
-- Benutzerverwaltung
-- Mandanten-Einstellungen
-- Asset-Management
-- Umfragen erstellen und verwalten
-- SLA-Definitionen
+## 👥 Benutzerrollen & Berechtigungen
 
-### Agent
-- Tickets bearbeiten und zuweisen
-- Wissensbasis-Artikel erstellen
-- Zeiteinträge erfassen
-- Assets einsehen und verwalten
-- Interne Kommentare
+### 👑 Admin
 
-### Kunde
-- Eigene Tickets erstellen
-- Ticket-Status einsehen
-- Öffentliche Kommentare
-- Wissensbasis durchsuchen
-- Umfragen beantworten
+| Berechtigung | Status |
+|--------------|--------|
+| Alle Funktionen | ✅ |
+| Benutzerverwaltung | ✅ |
+| Mandanten-Einstellungen | ✅ |
+| Asset-Management | ✅ |
+| Umfragen verwalten | ✅ |
+| SLA-Definitionen | ✅ |
 
-## Sicherheit
+### 👷 Agent
 
-### Implementierte Sicherheitsmaßnahmen
+| Berechtigung | Status |
+|--------------|--------|
+| Tickets bearbeiten | ✅ |
+| Tickets zuweisen | ✅ |
+| KB-Artikel erstellen | ✅ |
+| Zeiteinträge erfassen | ✅ |
+| Assets verwalten | ✅ |
+| Interne Kommentare | ✅ |
 
-- **JWT-Authentifizierung**: Sichere Token-basierte Auth
-- **Passwort-Hashing**: bcrypt mit Salt
-- **Mandantentrennung**: Vollständige Datenisolierung
-- **Input-Validierung**: Zod-Schemas auf Frontend und Backend
-- **SQL-Injection-Schutz**: Drizzle ORM mit Prepared Statements
-- **XSS-Schutz**: React's automatisches Escaping
-- **CORS-Konfiguration**: Restriktive Origin-Policies
+### 👤 Kunde
 
-### Tenant-Isolation
+| Berechtigung | Status |
+|--------------|--------|
+| Eigene Tickets erstellen | ✅ |
+| Ticket-Status einsehen | ✅ |
+| Öffentliche Kommentare | ✅ |
+| Wissensbasis durchsuchen | ✅ |
+| Umfragen beantworten | ✅ |
 
-Die Storage-Schicht implementiert Defense-in-Depth für Mandantentrennung:
+---
 
-1. **Create-Operationen**: Validieren Tenant-Existenz, strippen tenantId aus Payload
-2. **Update-Operationen**: Strippen tenantId und id aus Updates
-3. **Query-Filter**: Alle Abfragen filtern nach tenantId
-4. **Fremdschlüssel-Schutz**: Lizenz/Vertrag-Updates verhindern Asset-Neuzuweisung
+## 🔒 Sicherheit
 
-## Lizenz
+### ✅ Implementierte Maßnahmen
+
+| Maßnahme | Beschreibung |
+|----------|--------------|
+| 🔐 JWT-Auth | Token-basierte Authentifizierung |
+| 🔑 bcrypt | Passwort-Hashing mit Salt |
+| 🏢 Tenant-Isolation | Vollständige Datentrennung |
+| ✅ Zod-Validierung | Input-Prüfung Frontend & Backend |
+| 🛡️ SQL-Injection | Schutz durch Drizzle ORM |
+| 🔒 XSS-Schutz | React's automatisches Escaping |
+| 🌐 CORS | Restriktive Origin-Policies |
+
+### 🏢 Defense-in-Depth Tenant-Isolation
+
+```
+┌─────────────────────────────────────────────┐
+│  1️⃣  JWT-Authentifizierung                  │
+│      └─ Verifiziert User-Identität          │
+├─────────────────────────────────────────────┤
+│  2️⃣  Route-Layer                            │
+│      └─ Extrahiert tenantId aus JWT         │
+├─────────────────────────────────────────────┤
+│  3️⃣  Storage-Layer                          │
+│      └─ Validiert Tenant & filtert Queries  │
+└─────────────────────────────────────────────┘
+```
+
+---
+
+## 📄 Lizenz
 
 Dieses Projekt ist urheberrechtlich geschützt. Alle Rechte vorbehalten.
 
 ---
 
-Entwickelt mit modernen Web-Technologien für professionelles Helpdesk-Management.
+<div align="center">
+
+**Entwickelt mit ❤️ für professionelles Helpdesk-Management**
+
+⭐ [Demo ansehen](http://localhost:5000) | 📧 [Support](mailto:support@example.com)
+
+</div>
