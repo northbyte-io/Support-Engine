@@ -17,6 +17,7 @@ import UsersPage from "@/pages/users";
 import AreasPage from "@/pages/areas";
 import PortalPage from "@/pages/portal";
 import SlaSettingsPage from "@/pages/sla-settings";
+import SettingsPage from "@/pages/settings";
 import KnowledgeBasePage from "@/pages/knowledge-base";
 import TimeTrackingPage from "@/pages/time-tracking";
 import SurveysPage from "@/pages/surveys";
@@ -160,6 +161,12 @@ function Router() {
       <Route path="/settings/sla">
         <AdminRoute>
           <SlaSettingsPage />
+        </AdminRoute>
+      </Route>
+
+      <Route path="/settings">
+        <AdminRoute>
+          <SettingsPage />
         </AdminRoute>
       </Route>
 

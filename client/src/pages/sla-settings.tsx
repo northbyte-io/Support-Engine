@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
+import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -102,22 +103,22 @@ export default function SlaSettings() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <MainLayout title="SLA-Verwaltung">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-muted rounded w-1/4"></div>
           <div className="h-32 bg-muted rounded"></div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold" data-testid="text-page-title">SLA-Verwaltung</h1>
-          <p className="text-muted-foreground">Service-Level-Vereinbarungen verwalten</p>
-        </div>
+    <MainLayout title="SLA-Verwaltung">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <p className="text-muted-foreground">Service-Level-Vereinbarungen verwalten</p>
+          </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-create-sla">
@@ -220,21 +221,22 @@ export default function SlaSettings() {
         </div>
       )}
 
-      <Dialog open={!!editingSla} onOpenChange={(open) => !open && setEditingSla(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>SLA-Definition bearbeiten</DialogTitle>
-          </DialogHeader>
-          {editingSla && (
-            <SlaForm
-              defaultValues={editingSla}
-              onSubmit={handleSubmit}
-              isLoading={updateMutation.isPending}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+        <Dialog open={!!editingSla} onOpenChange={(open) => !open && setEditingSla(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>SLA-Definition bearbeiten</DialogTitle>
+            </DialogHeader>
+            {editingSla && (
+              <SlaForm
+                defaultValues={editingSla}
+                onSubmit={handleSubmit}
+                isLoading={updateMutation.isPending}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+    </MainLayout>
   );
 }
 
