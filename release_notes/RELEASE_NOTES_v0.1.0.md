@@ -1,138 +1,138 @@
-# 🚀 v0.1.0 - Initial Public Release
+# 🚀 v0.1.0 - Erste öffentliche Version
 
-This is the first official public release of the German Ticket System, an enterprise-grade helpdesk and ticket management platform designed for German-speaking organizations.
-
----
-
-## 📋 Overview
-
-The German Ticket System is a multi-tenant SaaS web application built with a modern tech stack. It provides a comprehensive REST API designed for both web applications and future iOS mobile clients.
+Dies ist die erste offizielle öffentliche Version des German Ticket Systems, einer professionellen Helpdesk- und Ticketverwaltungsplattform für deutschsprachige Organisationen.
 
 ---
 
-## ✨ Key Features
+## 📋 Übersicht
 
-### 🎫 Ticket Management
-- Full ticket lifecycle management with status workflow
-- Priority levels (low, medium, high, urgent)
-- Ticket types with customizable fields
-- Multiple assignees per ticket
-- Internal and public comments
-- File attachments
-
-### 🔐 User Authentication and Roles
-- JWT-based authentication
-- Secure password hashing with bcrypt
-- Three user roles: Admin, Agent, Customer
-- Role-based access control
-
-### 🏢 Multi-Tenant Architecture
-- Complete data isolation between tenants
-- Tenant-specific branding and customization
-- Isolated user management per tenant
-
-### ⏱️ SLA Tracking and Escalation
-- SLA definitions per priority level
-- Response and resolution time tracking
-- Automatic escalation rules
-- Visual SLA status indicators
-
-### 📚 Knowledge Base
-- Article management with versioning
-- Categories and full-text search
-- Article-ticket linking
-
-### 👥 CRM Integration
-- Organizations and customers
-- Contact management
-- Location tracking
-- Activity logging (calls, emails, meetings, notes)
-- Customer-ticket associations
-
-### 💼 Asset Management
-- Hardware, software, licenses, contracts
-- Asset-ticket linking
-- Change history tracking
-
-### 📊 Project and Kanban Boards
-- Project management with team members
-- Kanban board with drag-and-drop
-- WIP limits per column
-- Ticket-project associations
-
-### ⚙️ System Administration
-- Comprehensive logging with admin UI
-- Log filtering, search, and export
-- Let's Encrypt TLS certificate management
-- Tenant branding customization
+Das German Ticket System ist eine mandantenfähige SaaS-Webanwendung mit modernem Tech-Stack. Es bietet eine umfassende REST-API, die sowohl für Webanwendungen als auch für zukünftige iOS-Mobile-Clients konzipiert ist.
 
 ---
 
-## 🛠️ Technical Stack
+## ✨ Hauptfunktionen
 
-| Component | Technology |
-|-----------|------------|
-| Backend | Node.js with Express.js |
-| Frontend | React 18 with TypeScript |
-| Database | PostgreSQL with Drizzle ORM |
-| Authentication | JWT with bcrypt |
+### 🎫 Ticketverwaltung
+- Vollständiges Ticket-Lifecycle-Management mit Statusworkflow
+- Prioritätsstufen (niedrig, mittel, hoch, dringend)
+- Tickettypen mit anpassbaren Feldern
+- Mehrfachzuweisung pro Ticket
+- Interne und öffentliche Kommentare
+- Dateianhänge
+
+### 🔐 Benutzerauthentifizierung und Rollen
+- JWT-basierte Authentifizierung
+- Sichere Passwort-Hashung mit bcrypt
+- Drei Benutzerrollen: Admin, Agent, Kunde
+- Rollenbasierte Zugriffskontrolle
+
+### 🏢 Mandantenfähige Architektur
+- Vollständige Datenisolierung zwischen Mandanten
+- Mandantenspezifisches Branding und Anpassungen
+- Isolierte Benutzerverwaltung pro Mandant
+
+### ⏱️ SLA-Tracking und Eskalation
+- SLA-Definitionen pro Prioritätsstufe
+- Reaktions- und Lösungszeitverfolgung
+- Automatische Eskalationsregeln
+- Visuelle SLA-Statusindikatoren
+
+### 📚 Wissensdatenbank
+- Artikelverwaltung mit Versionierung
+- Kategorien und Volltextsuche
+- Artikel-Ticket-Verknüpfung
+
+### 👥 CRM-Integration
+- Organisationen und Kunden
+- Kontaktverwaltung
+- Standortverfolgung
+- Aktivitätsprotokollierung (Anrufe, E-Mails, Meetings, Notizen)
+- Kunden-Ticket-Zuordnungen
+
+### 💼 Asset-Management
+- Hardware, Software, Lizenzen, Verträge
+- Asset-Ticket-Verknüpfung
+- Änderungsverlauf
+
+### 📊 Projekt- und Kanban-Boards
+- Projektverwaltung mit Teammitgliedern
+- Kanban-Board mit Drag-and-Drop
+- WIP-Limits pro Spalte
+- Ticket-Projekt-Zuordnungen
+
+### ⚙️ Systemadministration
+- Umfassendes Logging mit Admin-Oberfläche
+- Log-Filterung, Suche und Export
+- Let's Encrypt TLS-Zertifikatsverwaltung
+- Mandanten-Branding-Anpassung
+
+---
+
+## 🛠️ Technischer Stack
+
+| Komponente | Technologie |
+|------------|-------------|
+| Backend | Node.js mit Express.js |
+| Frontend | React 18 mit TypeScript |
+| Datenbank | PostgreSQL mit Drizzle ORM |
+| Authentifizierung | JWT mit bcrypt |
 | API | RESTful JSON API |
-| UI Framework | Tailwind CSS with shadcn/ui |
+| UI-Framework | Tailwind CSS mit shadcn/ui |
 
 ---
 
-## 📜 License
+## 📜 Lizenz
 
-This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+Dieses Projekt ist unter der **GNU Affero General Public License v3.0 (AGPL-3.0)** lizenziert.
 
-As required by the AGPL license, the source code is publicly available. When running this software as a network service, you must make the source code available to users of that service.
+Gemäß der AGPL-Lizenz ist der Quellcode öffentlich verfügbar. Beim Betrieb dieser Software als Netzwerkdienst muss der Quellcode den Nutzern dieses Dienstes zugänglich gemacht werden.
 
-- 🔗 License endpoints: `/api/license` and `/api/source`
-- 📄 Full license text: [LICENSE](../LICENSE)
+- 🔗 Lizenz-Endpunkte: `/api/license` und `/api/source`
+- 📄 Vollständiger Lizenztext: [LICENSE](../LICENSE)
 
 ---
 
-## 📝 Changelog
+## 📝 Änderungsprotokoll
 
-### ➕ Added
-- Initial implementation of core ticket management system
-- User authentication and authorization system
-- Multi-tenant architecture with data isolation
-- SLA tracking and escalation engine
-- Knowledge base with article management
-- CRM module with organizations, customers, contacts
-- Asset management system
-- Project management with Kanban boards
-- System logging with admin interface
-- TLS certificate management with Let's Encrypt
-- Tenant branding customization
-- German language UI throughout
+### ➕ Hinzugefügt
+- Erstimplementierung des Kern-Ticketverwaltungssystems
+- Benutzerauthentifizierungs- und Autorisierungssystem
+- Mandantenfähige Architektur mit Datenisolierung
+- SLA-Tracking- und Eskalations-Engine
+- Wissensdatenbank mit Artikelverwaltung
+- CRM-Modul mit Organisationen, Kunden, Kontakten
+- Asset-Management-System
+- Projektverwaltung mit Kanban-Boards
+- System-Logging mit Admin-Oberfläche
+- TLS-Zertifikatsverwaltung mit Let's Encrypt
+- Mandanten-Branding-Anpassung
+- Deutsche Benutzeroberfläche durchgehend
 
-### 🔧 Technical
-- Core application architecture established
-- REST API design and implementation
-- Database schema with Drizzle ORM
-- Admin and user interfaces implemented
-- Dark/Light mode support
+### 🔧 Technisch
+- Grundlegende Anwendungsarchitektur etabliert
+- REST-API-Design und Implementierung
+- Datenbankschema mit Drizzle ORM
+- Admin- und Benutzeroberflächen implementiert
+- Dark/Light Mode Unterstützung
 
 ---
 
 ## 📦 Installation
 
-See [README.md](../README.md) for installation and setup instructions.
+Siehe [README.md](../README.md) für Installations- und Einrichtungsanweisungen.
 
 ---
 
-## 📖 Documentation
+## 📖 Dokumentation
 
-| Document | Description |
-|----------|-------------|
-| 📘 [README.md](../README.md) | Technical documentation |
-| 📗 [ANLEITUNG.md](../ANLEITUNG.md) | Operations and administration guide (German) |
-| 📙 [CONTRIBUTING.md](../CONTRIBUTING.md) | Contribution guidelines |
+| Dokument | Beschreibung |
+|----------|--------------|
+| 📘 [README.md](../README.md) | Technische Dokumentation |
+| 📗 [ANLEITUNG.md](../ANLEITUNG.md) | Betriebs- und Administrationsanleitung |
+| 📙 [CONTRIBUTING.md](../CONTRIBUTING.md) | Beitragsrichtlinien |
 
 ---
 
 🔗 **Repository**: https://github.com/northbyte-io/Support-Engine  
 🏷️ **Version**: 0.1.0  
-📅 **Release Date**: December 2024
+📅 **Veröffentlichungsdatum**: Dezember 2024
