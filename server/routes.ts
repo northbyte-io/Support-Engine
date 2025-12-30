@@ -159,6 +159,31 @@ export async function registerRoutes(
   // Seed default data on startup
   await seedDefaultData();
   
+  // AGPL-3.0 License endpoints (required for network use)
+  app.get("/api/license", async (_req, res) => {
+    try {
+      const fs = await import("fs");
+      const path = await import("path");
+      const licensePath = path.join(process.cwd(), "LICENSE");
+      const licenseText = fs.readFileSync(licensePath, "utf-8");
+      res.type("text/plain").send(licenseText);
+    } catch (error) {
+      res.status(500).json({ message: "Lizenz konnte nicht geladen werden" });
+    }
+  });
+
+  app.get("/api/source", (_req, res) => {
+    res.json({
+      license: "AGPL-3.0",
+      repository: "https://github.com/german-ticket-system/helpdesk",
+      notice: "Dieses Programm ist freie Software unter der GNU Affero General Public License v3.0. Der Quellcode ist verfügbar unter der oben genannten URL.",
+      endpoints: {
+        license: "/api/license",
+        source: "/api/source"
+      }
+    });
+  });
+
   // Auth Routes
   app.post("/api/auth/register", async (req, res) => {
     try {

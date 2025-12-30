@@ -311,6 +311,44 @@ Das **German Ticket System** ist eine moderne Helpdesk-Lösung, die speziell fü
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+#### 🔐 TLS-Zertifikatsverwaltung
+
+- ✅ **Let's Encrypt Integration**: ACME-Protokoll-Unterstützung
+- ✅ **Challenge-Typen**: HTTP-01 Challenge für Domain-Validierung
+- ✅ **Umgebungen**: Staging und Production CA
+- ✅ **Zertifikats-Lifecycle**:
+  - 📥 Anfordern neuer Zertifikate
+  - 🔄 Automatische Erneuerung vor Ablauf
+  - ❌ Widerrufen bei Bedarf
+- ✅ **Sicherheit**:
+  - 🔒 AES-256-GCM verschlüsselte Private Keys
+  - 🗄️ Persistente Challenge-Speicherung in der Datenbank
+  - 🏢 Mandanten-spezifische Zertifikate
+- ✅ **Admin-UI**:
+  - ⚙️ Einstellungen (E-Mail, CA-Typ, Auto-Erneuerung)
+  - 📋 Zertifikatsliste mit Status
+  - 📜 Aktionshistorie
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     🔐 TLS-Zertifikatsverwaltung                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐                │
+│  │ Einstellungen│ │ Zertifikate  │ │  Historie    │                │
+│  └──────────────┘ └──────────────┘ └──────────────┘                │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │  Domain         │ Status    │ Ablauf      │ Aktionen        │   │
+│  ├─────────────────┼───────────┼─────────────┼─────────────────┤   │
+│  │  example.com    │ ✅ Aktiv  │ 2025-03-30  │ [🔄] [❌]       │   │
+│  │  api.example.de │ ⏳ Pending│ -           │ [🔄]            │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│                    [➕ Neues Zertifikat anfordern]                   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
 #### 🎨 Design & UX
 
 - ✅ Dark/Light Mode
@@ -332,6 +370,7 @@ Das **German Ticket System** ist eine moderne Helpdesk-Lösung, die speziell fü
 | 🏢 CRM-Modul | ✅ Fertig | Organisationen, Kunden, Kontakte, Standorte |
 | 📊 System-Logging | ✅ Fertig | Umfassendes Logging mit Admin-UI |
 | 🎨 Mandanten-Branding | ✅ Fertig | Logos, Farben, Schriftarten, E-Mail-Templates, Custom CSS |
+| 🔐 TLS-Zertifikatsverwaltung | ✅ Fertig | Let's Encrypt Integration, ACME-Protokoll, Auto-Erneuerung |
 | 📈 Erweiterte Berichte | 🔜 Geplant | Report Builder, CSV/PDF Export |
 | ✅ Genehmigungsworkflows | 🔜 Geplant | Multi-Step-Approval |
 | 🔗 Microsoft-Integration | 📅 Später | Azure AD, Teams, Outlook |
@@ -686,7 +725,32 @@ Die Anwendung ist dann unter `http://localhost:5000` verfügbar.
 
 ## 📄 Lizenz
 
-Dieses Projekt ist urheberrechtlich geschützt. Alle Rechte vorbehalten.
+Dieses Projekt steht unter der **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+
+### Was bedeutet das?
+
+| Erlaubt | Bedingung |
+|---------|-----------|
+| ✅ Kommerzielle Nutzung | Quellcode muss verfügbar sein |
+| ✅ Modifikation | Änderungen unter gleicher Lizenz |
+| ✅ Verteilung | Copyright-Hinweis beibehalten |
+| ✅ Private Nutzung | Netzwerk-Nutzung = Verteilung |
+
+### AGPL-Pflichten für Webdienste
+
+Da dies eine Webanwendung ist, gilt die **Network Copyleft**-Klausel:
+- Jeder, der diese Software als Webdienst betreibt, muss den Quellcode verfügbar machen
+- Links zu Quellcode und Lizenz sind in der Anwendung integriert
+
+### Lizenz-Endpunkte
+
+| Endpunkt | Beschreibung |
+|----------|--------------|
+| `/api/license` | Lizenztext abrufen |
+| `/api/source` | Link zum Quellcode |
+
+Siehe [LICENSE](./LICENSE) für den vollständigen Lizenztext.
+Siehe [CONTRIBUTING.md](./CONTRIBUTING.md) für Beitragsrichtlinien.
 
 ---
 
@@ -694,6 +758,6 @@ Dieses Projekt ist urheberrechtlich geschützt. Alle Rechte vorbehalten.
 
 **Entwickelt mit ❤️ für professionelles Helpdesk-Management**
 
-📦 Version: 1.0.0 | 📅 Stand: Dezember 2024
+📦 Version: 1.0.0 | 📅 Stand: Dezember 2024 | 📜 AGPL-3.0
 
 </div>
