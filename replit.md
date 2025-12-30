@@ -10,6 +10,7 @@ Preferred communication style: Simple, everyday language (German).
 
 ## Recent Changes
 
+- **December 2024**: Added tenant branding customization (logos, colors, fonts, email templates, custom CSS)
 - **December 2024**: Added comprehensive CRM module (Organizations, Customers, Contacts, Locations, Activity Tracking)
 - **December 2024**: Implemented System-Logging with Winston (color-coded output, log rotation, sensitive data masking)
 - **December 2024**: Added Admin-only Logs UI page with filtering, search, pagination, and export (TXT, CSV, JSON)
@@ -105,6 +106,16 @@ Preferred communication style: Simple, everyday language (German).
 - Sensitive data masking (passwords, API keys, tokens, emails)
 - Admin UI with filtering, search, pagination, export
 
+### Tenant Branding
+- Custom logos (light/dark mode variants, favicon)
+- Color customization (primary, secondary, accent colors)
+- Font family selection (10 font options)
+- Email templates (header/footer HTML, sender name/address)
+- Custom CSS injection for advanced styling
+- Contact information (website, support email, phone)
+- Dynamic CSS variable application via BrandingProvider
+- Admin-only branding settings page with live preview
+
 ## External Dependencies
 
 ### Database
@@ -142,6 +153,8 @@ Preferred communication style: Simple, everyday language (German).
 - `server/auth.ts` - Authentication middleware
 - `client/src/components/MainLayout.tsx` - Main page layout
 - `client/src/components/AppSidebar.tsx` - Navigation sidebar
+- `client/src/lib/branding.tsx` - Tenant branding provider
+- `client/src/pages/branding.tsx` - Branding settings page
 - `design_guidelines.md` - Design system documentation
 
 ## Demo Credentials
