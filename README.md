@@ -329,6 +329,8 @@ Das **German Ticket System** ist eine moderne Helpdesk-Lösung, die speziell fü
   - 📋 Zertifikatsliste mit Status
   - 📜 Aktionshistorie
 
+> **Hinweis:** Die TLS-Zertifikatsverwaltung erfordert einen eigenen Server mit öffentlich erreichbarer Domain. In Hosting-Umgebungen wie Replit kann die HTTP-01 Challenge aufgrund von Proxy-Konfigurationen nicht validiert werden.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                     🔐 TLS-Zertifikatsverwaltung                     │
@@ -359,6 +361,7 @@ Das **German Ticket System** ist eine moderne Helpdesk-Lösung, die speziell fü
 - ✅ Skeleton-Loader
 - ✅ Toast-Benachrichtigungen
 - ✅ Einheitliches MainLayout für alle Seiten
+- ✅ Lizenz-Footer mit Links zu `/api/license` und `/api/source`
 
 ---
 

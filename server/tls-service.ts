@@ -77,7 +77,8 @@ export class TlsService {
     } catch (error: any) {
       logger.error("system", "ACME-Account-Registrierung fehlgeschlagen", {
         description: error.message,
-        cause: "Account konnte nicht bei Let's Encrypt registriert werden"
+        cause: "Account konnte nicht bei Let's Encrypt registriert werden",
+        solution: "Überprüfen Sie die E-Mail-Adresse und die Netzwerkverbindung"
       });
       throw error;
     }
