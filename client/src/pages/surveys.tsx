@@ -108,7 +108,7 @@ function QuestionTypeLabel({ type }: { type: string }) {
 
 export default function SurveysPage() {
   const { toast } = useToast();
-  const [selectedSurvey, setSelectedSurvey] = useState<SurveyWithRelations | null>(null);
+  const [selectedSurveyId, setSelectedSurveyId] = useState<string | null>(null);
   const [isSurveyDialogOpen, setIsSurveyDialogOpen] = useState(false);
   const [isQuestionDialogOpen, setIsQuestionDialogOpen] = useState(false);
   const [editingSurvey, setEditingSurvey] = useState<SurveyWithRelations | null>(null);
@@ -118,9 +118,13 @@ export default function SurveysPage() {
     queryKey: ["/api/surveys"],
   });
 
+  const selectedSurvey = selectedSurveyId 
+    ? surveys.find(s => s.id === selectedSurveyId) || null 
+    : null;
+
   const { data: surveyResults } = useQuery<SurveyResultSummary>({
-    queryKey: ["/api/surveys", selectedSurvey?.id, "results"],
-    enabled: !!selectedSurvey,
+    queryKey: ["/api/surveys", selectedSurveyId, "results"],
+    enabled: !!selectedSurveyId,
   });
 
   const surveyForm = useForm<SurveyFormValues>({
@@ -184,7 +188,7 @@ export default function SurveysPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/surveys"] });
-      if (selectedSurvey) setSelectedSurvey(null);
+      if (selectedSurveyId) setSelectedSurveyId(null);
       toast({ title: "Erfolg", description: "Umfrage wurde gelöscht" });
     },
     onError: () => {
@@ -405,7 +409,7 @@ export default function SurveysPage() {
                     className={`p-3 rounded-md cursor-pointer hover-elevate flex items-center justify-between ${
                       selectedSurvey?.id === survey.id ? "bg-accent" : ""
                     }`}
-                    onClick={() => setSelectedSurvey(survey)}
+                    onClick={() => setSelectedSurveyId(survey.id)}
                     data-testid={`survey-item-${survey.id}`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
