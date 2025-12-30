@@ -57,21 +57,30 @@ export class TlsService {
   }
 
   private async ensureAccount(email: string): Promise<void> {
-    const settings = await storage.getTlsSettings();
-    
-    if (settings?.acmeAgreedToTos) {
-      return;
+    // Always register/retrieve account - acme-client needs to know the account URL
+    // If account already exists for this key, it will return the existing one
+    try {
+      await this.client!.createAccount({
+        termsOfServiceAgreed: true,
+        contact: [`mailto:${email}`]
+      });
+
+      const settings = await storage.getTlsSettings();
+      if (!settings?.acmeAgreedToTos) {
+        await storage.updateTlsSettings({
+          acmeEmail: email,
+          acmeAgreedToTos: true
+        });
+      }
+      
+      logger.info("system", "ACME-Account registriert/verifiziert", `E-Mail: ${email}`);
+    } catch (error: any) {
+      logger.error("system", "ACME-Account-Registrierung fehlgeschlagen", {
+        description: error.message,
+        cause: "Account konnte nicht bei Let's Encrypt registriert werden"
+      });
+      throw error;
     }
-
-    await this.client!.createAccount({
-      termsOfServiceAgreed: true,
-      contact: [`mailto:${email}`]
-    });
-
-    await storage.updateTlsSettings({
-      acmeEmail: email,
-      acmeAgreedToTos: true
-    });
   }
 
   async requestCertificate(
