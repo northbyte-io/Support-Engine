@@ -25,7 +25,6 @@ import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -47,7 +46,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Plus, MoreHorizontal, Users, ExternalLink, GripVertical } from "lucide-react";
+import { ArrowLeft, Plus, MoreHorizontal, Users, ExternalLink } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Project, BoardColumn, TicketWithRelations } from "@shared/schema";
@@ -99,28 +98,23 @@ function SortableTicketCard({
     <Card
       ref={setNodeRef}
       style={style}
-      className="mb-2 hover-elevate cursor-pointer"
+      className="mb-2 hover-elevate cursor-grab active:cursor-grabbing touch-none"
       data-testid={`card-ticket-${ticket.id}`}
+      {...attributes}
+      {...listeners}
     >
       <CardContent className="p-3">
         <div className="flex items-start gap-2">
-          <div
-            {...attributes}
-            {...listeners}
-            className="mt-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <GripVertical className="w-4 h-4" />
-          </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="text-xs text-muted-foreground font-mono">
                 {ticket.ticketNumber}
               </span>
               <PriorityBadge priority={ticket.priority || "medium"} />
             </div>
             <h4
-              className="text-sm font-medium line-clamp-2 hover:underline"
+              className="text-sm font-medium line-clamp-2 hover:underline cursor-pointer"
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={() => setLocation(`/tickets/${ticket.id}`)}
             >
               {ticket.title}
@@ -134,8 +128,8 @@ function SortableTicketCard({
             )}
           </div>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-6 w-6">
+            <DropdownMenuTrigger asChild onPointerDown={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="icon" className="h-6 w-6 cursor-pointer">
                 <MoreHorizontal className="w-3 h-3" />
               </Button>
             </DropdownMenuTrigger>
@@ -160,7 +154,7 @@ function SortableTicketCard({
           </DropdownMenu>
         </div>
         {ticket.assignees && ticket.assignees.length > 0 && (
-          <div className="flex items-center gap-1 mt-2 ml-6">
+          <div className="flex items-center gap-1 mt-2">
             <Users className="w-3 h-3 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">
               {ticket.assignees[0]?.user?.firstName} {ticket.assignees[0]?.user?.lastName}
@@ -213,15 +207,14 @@ function DroppableColumn({
 
   return (
     <div
-      ref={setNodeRef}
-      className={`flex-shrink-0 w-72 rounded-lg p-3 transition-colors ${
+      className={`flex-shrink-0 w-72 rounded-lg p-3 transition-colors flex flex-col ${
         isOver ? "bg-primary/10 ring-2 ring-primary/20" : "bg-muted/30"
       }`}
       data-testid={`column-${column.id}`}
       data-column-status={column.status}
     >
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <div
             className="w-3 h-3 rounded-full"
             style={{ backgroundColor: column.color || "#6B7280" }}
@@ -235,13 +228,16 @@ function DroppableColumn({
             {column.wipLimit && `/${column.wipLimit}`}
           </Badge>
         </div>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onAddTicket}>
+        <Button variant="ghost" size="icon" onClick={onAddTicket}>
           <Plus className="w-4 h-4" />
         </Button>
       </div>
-      <ScrollArea className="h-[calc(100vh-16rem)]">
+      <div
+        ref={setNodeRef}
+        className="flex-1 overflow-y-auto min-h-[200px]"
+      >
         <SortableContext items={ticketIds} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2 pr-2 min-h-[100px]">
+          <div className="space-y-2 pr-2 h-full">
             {tickets.map((ticket) => (
               <SortableTicketCard
                 key={ticket.id}
@@ -250,7 +246,7 @@ function DroppableColumn({
               />
             ))}
             {tickets.length === 0 && (
-              <div className={`text-center py-8 text-sm text-muted-foreground border-2 border-dashed rounded-lg ${
+              <div className={`text-center py-8 text-sm text-muted-foreground border-2 border-dashed rounded-lg h-full flex items-center justify-center ${
                 isOver ? "border-primary/50 bg-primary/5" : "border-muted"
               }`}>
                 Tickets hierher ziehen
@@ -258,7 +254,7 @@ function DroppableColumn({
             )}
           </div>
         </SortableContext>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
