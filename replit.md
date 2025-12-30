@@ -4,12 +4,15 @@
 
 A German-language ticket management system (Helpdesk) built as a full-stack web application with a shared backend API designed for both web and iOS app consumption. The system provides multi-tenant support, role-based access control, and comprehensive ticket lifecycle management including custom fields, assignments, comments, file attachments, CRM functionality, and enterprise-grade logging.
 
+**License**: AGPL-3.0 (GNU Affero General Public License v3.0)
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language (German).
 
 ## Recent Changes
 
+- **December 2024**: Added AGPL-3.0 license with UI footer links to /api/license and /api/source endpoints
 - **December 2024**: Added TLS/SSL certificate management with Let's Encrypt integration (ACME client, auto-renewal, admin UI)
 - **December 2024**: Added tenant branding customization (logos, colors, fonts, email templates, custom CSS)
 - **December 2024**: Added comprehensive CRM module (Organizations, Customers, Contacts, Locations, Activity Tracking)
@@ -162,11 +165,15 @@ Preferred communication style: Simple, everyday language (German).
 - `server/storage.ts` - Database access layer
 - `server/logger.ts` - Logging system
 - `server/auth.ts` - Authentication middleware
-- `client/src/components/MainLayout.tsx` - Main page layout
+- `server/tls-service.ts` - TLS certificate management with ACME/Let's Encrypt
+- `client/src/components/MainLayout.tsx` - Main page layout with license footer
 - `client/src/components/AppSidebar.tsx` - Navigation sidebar
 - `client/src/lib/branding.tsx` - Tenant branding provider
 - `client/src/pages/branding.tsx` - Branding settings page
 - `design_guidelines.md` - Design system documentation
+- `LICENSE` - AGPL-3.0 license text
+- `NOTICE` - Copyright notice
+- `CONTRIBUTING.md` - Contribution guidelines
 
 ## Demo Credentials
 
