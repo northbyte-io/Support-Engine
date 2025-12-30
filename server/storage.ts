@@ -136,6 +136,7 @@ import {
   tlsSettings,
   tlsCertificates,
   tlsCertificateActions,
+  tlsChallenges,
   type TlsSettings,
   type InsertTlsSettings,
   type UpdateTlsSettings,
@@ -145,7 +146,7 @@ import {
   type InsertTlsCertificateAction,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, sql, ilike, or, count } from "drizzle-orm";
+import { eq, and, desc, asc, sql, ilike, or, count, gt, lt } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -416,6 +417,12 @@ export interface IStorage {
   deleteTlsCertificate(id: string): Promise<void>;
   getTlsCertificateActions(certificateId?: string, limit?: number): Promise<(TlsCertificateAction & { performedBy?: User })[]>;
   createTlsCertificateAction(action: InsertTlsCertificateAction): Promise<TlsCertificateAction>;
+  
+  // TLS Challenges
+  createTlsChallenge(challenge: { tenantId?: string | null; token: string; keyAuthorization: string; domain: string; expiresAt: Date }): Promise<any>;
+  getTlsChallengeByToken(token: string): Promise<{ keyAuthorization: string } | undefined>;
+  completeTlsChallenge(token: string): Promise<void>;
+  cleanupExpiredChallenges(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2607,6 +2614,34 @@ export class DatabaseStorage implements IStorage {
   async createTlsCertificateAction(action: InsertTlsCertificateAction): Promise<TlsCertificateAction> {
     const [result] = await db.insert(tlsCertificateActions).values(action).returning();
     return result;
+  }
+
+  // TLS Challenges
+  async createTlsChallenge(challenge: { tenantId?: string | null; token: string; keyAuthorization: string; domain: string; expiresAt: Date }): Promise<any> {
+    const [result] = await db.insert(tlsChallenges).values(challenge).returning();
+    return result;
+  }
+
+  async getTlsChallengeByToken(token: string): Promise<{ keyAuthorization: string } | undefined> {
+    const [challenge] = await db.select().from(tlsChallenges)
+      .where(and(
+        eq(tlsChallenges.token, token),
+        gt(tlsChallenges.expiresAt, new Date())
+      ));
+    return challenge ? { keyAuthorization: challenge.keyAuthorization } : undefined;
+  }
+
+  async completeTlsChallenge(token: string): Promise<void> {
+    await db.update(tlsChallenges)
+      .set({ completedAt: new Date() })
+      .where(eq(tlsChallenges.token, token));
+  }
+
+  async cleanupExpiredChallenges(): Promise<number> {
+    const result = await db.delete(tlsChallenges)
+      .where(lt(tlsChallenges.expiresAt, new Date()))
+      .returning();
+    return result.length;
   }
 }
 

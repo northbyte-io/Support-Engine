@@ -1225,11 +1225,24 @@ export const tlsCertificateActions = pgTable("tls_certificate_actions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// TLS Challenges (for persistent HTTP-01 challenge storage)
+export const tlsChallenges = pgTable("tls_challenges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  token: text("token").notNull(),
+  keyAuthorization: text("key_authorization").notNull(),
+  domain: text("domain").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // TLS Insert schemas
 export const insertTlsSettingsSchema = createInsertSchema(tlsSettings).omit({ id: true, createdAt: true, updatedAt: true });
 export const updateTlsSettingsSchema = insertTlsSettingsSchema.partial();
 export const insertTlsCertificateSchema = createInsertSchema(tlsCertificates).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTlsCertificateActionSchema = createInsertSchema(tlsCertificateActions).omit({ id: true, createdAt: true });
+export const insertTlsChallengeSchema = createInsertSchema(tlsChallenges).omit({ id: true, createdAt: true });
 
 // TLS Types
 export type TlsSettings = typeof tlsSettings.$inferSelect;
@@ -1239,6 +1252,8 @@ export type TlsCertificate = typeof tlsCertificates.$inferSelect;
 export type InsertTlsCertificate = z.infer<typeof insertTlsCertificateSchema>;
 export type TlsCertificateAction = typeof tlsCertificateActions.$inferSelect;
 export type InsertTlsCertificateAction = z.infer<typeof insertTlsCertificateActionSchema>;
+export type TlsChallenge = typeof tlsChallenges.$inferSelect;
+export type InsertTlsChallenge = z.infer<typeof insertTlsChallengeSchema>;
 
 // Auth schemas
 export const loginSchema = z.object({

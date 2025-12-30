@@ -2,29 +2,13 @@ import acme from "acme-client";
 import crypto from "crypto";
 import { storage } from "./storage";
 import { logger } from "./logger";
+import { encryptSecretToJson, decryptSecretFromJson, isEncryptedJson, getOrDecrypt } from "./keyVault";
 
 const LETS_ENCRYPT_STAGING = "https://acme-staging-v02.api.letsencrypt.org/directory";
 const LETS_ENCRYPT_PRODUCTION = "https://acme-v02.api.letsencrypt.org/directory";
 
-interface ChallengeToken {
-  token: string;
-  keyAuthorization: string;
-  expiresAt: Date;
-}
-
-const pendingChallenges = new Map<string, ChallengeToken>();
-
-setInterval(() => {
-  const now = new Date();
-  for (const [token, challenge] of pendingChallenges.entries()) {
-    if (challenge.expiresAt < now) {
-      pendingChallenges.delete(token);
-    }
-  }
-}, 60000);
-
-export function getHttpChallenge(token: string): string | undefined {
-  const challenge = pendingChallenges.get(token);
+export async function getHttpChallenge(token: string): Promise<string | undefined> {
+  const challenge = await storage.getTlsChallengeByToken(token);
   return challenge?.keyAuthorization;
 }
 
@@ -43,17 +27,19 @@ export class TlsService {
     let accountKeyPem: string;
 
     if (settings?.accountKeyPem) {
-      accountKeyPem = settings.accountKeyPem;
+      accountKeyPem = getOrDecrypt(settings.accountKeyPem) || settings.accountKeyPem;
     } else {
       const keyPair = crypto.generateKeyPairSync("rsa", {
         modulusLength: 2048,
         publicKeyEncoding: { type: "spki", format: "pem" },
         privateKeyEncoding: { type: "pkcs8", format: "pem" }
       });
-      accountKeyPem = keyPair.privateKey as string;
+      const rawKey = keyPair.privateKey as string;
+      const encryptedKey = encryptSecretToJson(rawKey);
+      accountKeyPem = rawKey;
       
       await storage.updateTlsSettings({
-        accountKeyPem,
+        accountKeyPem: encryptedKey,
         caType: useProduction ? "production" : "staging",
         autoRenewEnabled: true
       });
@@ -92,7 +78,8 @@ export class TlsService {
     domain: string,
     email: string,
     userId: string,
-    useProduction: boolean = false
+    useProduction: boolean = false,
+    tenantId?: string | null
   ): Promise<{ success: boolean; certificateId?: string; error?: string }> {
     try {
       await this.initialize(useProduction);
@@ -104,16 +91,19 @@ export class TlsService {
         privateKeyEncoding: { type: "pkcs8", format: "pem" }
       });
 
+      const rawPrivateKey = keyPair.privateKey as string;
+      const encryptedPrivateKey = encryptSecretToJson(rawPrivateKey);
+
       const [, csr] = await acme.crypto.createCsr({
         commonName: domain
-      }, keyPair.privateKey as string);
+      }, rawPrivateKey);
 
       const cert = await storage.createTlsCertificate({
         domain,
         status: "pending",
         caType: useProduction ? "production" : "staging",
         isActive: false,
-        privateKeyPem: keyPair.privateKey as string
+        privateKeyPem: encryptedPrivateKey
       });
 
       await storage.createTlsCertificateAction({
@@ -140,9 +130,11 @@ export class TlsService {
 
         const keyAuthorization = await this.client!.getChallengeKeyAuthorization(httpChallenge);
         
-        pendingChallenges.set(httpChallenge.token, {
+        await storage.createTlsChallenge({
+          tenantId: tenantId || null,
           token: httpChallenge.token,
           keyAuthorization,
+          domain,
           expiresAt: new Date(Date.now() + 10 * 60 * 1000)
         });
 
@@ -150,7 +142,7 @@ export class TlsService {
         await this.client!.completeChallenge(httpChallenge);
         await this.client!.waitForValidStatus(httpChallenge);
         
-        pendingChallenges.delete(httpChallenge.token);
+        await storage.completeTlsChallenge(httpChallenge.token);
       }
 
       await this.client!.finalizeOrder(order, csr);
@@ -191,7 +183,8 @@ export class TlsService {
   async renewCertificate(
     certificateId: string,
     email: string,
-    userId: string
+    userId: string,
+    tenantId?: string | null
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const cert = await storage.getTlsCertificate(certificateId);
@@ -202,9 +195,11 @@ export class TlsService {
       await this.initialize(cert.caType === "production");
       await this.ensureAccount(email);
 
+      const privateKeyPem = getOrDecrypt(cert.privateKeyPem || "") || cert.privateKeyPem || "";
+
       const [, csr] = await acme.crypto.createCsr({
         commonName: cert.domain!
-      }, cert.privateKeyPem!);
+      }, privateKeyPem);
 
       await storage.updateTlsCertificate(cert.id, { 
         status: "pending",
@@ -233,9 +228,11 @@ export class TlsService {
 
         const keyAuthorization = await this.client!.getChallengeKeyAuthorization(httpChallenge);
         
-        pendingChallenges.set(httpChallenge.token, {
+        await storage.createTlsChallenge({
+          tenantId: tenantId || null,
           token: httpChallenge.token,
           keyAuthorization,
+          domain: cert.domain!,
           expiresAt: new Date(Date.now() + 10 * 60 * 1000)
         });
 
@@ -243,7 +240,7 @@ export class TlsService {
         await this.client!.completeChallenge(httpChallenge);
         await this.client!.waitForValidStatus(httpChallenge);
         
-        pendingChallenges.delete(httpChallenge.token);
+        await storage.completeTlsChallenge(httpChallenge.token);
       }
 
       await this.client!.finalizeOrder(order, csr);
@@ -351,7 +348,8 @@ export class TlsService {
   async checkAndRenewExpiring(
     daysBeforeExpiry: number = 30,
     email: string,
-    userId: string
+    userId: string,
+    tenantId?: string | null
   ): Promise<{ renewed: number; errors: string[] }> {
     const certificates = await storage.getTlsCertificates();
     const now = new Date();
@@ -368,7 +366,7 @@ export class TlsService {
       if (cert.expiresAt <= renewalThreshold) {
         logger.info("system", "Automatische Zertifikatserneuerung gestartet", `Domain: ${cert.domain}, Ablauf: ${cert.expiresAt}`);
 
-        const result = await this.renewCertificate(cert.id, email, userId);
+        const result = await this.renewCertificate(cert.id, email, userId, tenantId);
         if (result.success) {
           renewed++;
         } else {
@@ -376,6 +374,8 @@ export class TlsService {
         }
       }
     }
+
+    await storage.cleanupExpiredChallenges();
 
     return { renewed, errors };
   }

@@ -2759,19 +2759,27 @@ export async function registerRoutes(
   });
 
   // Request new certificate
+  const requestCertSchema = z.object({
+    domain: z.string().min(1, "Domain ist erforderlich"),
+    email: z.string().email("Gültige E-Mail erforderlich"),
+    useProduction: z.boolean().optional().default(false),
+  });
+
   app.post("/api/tls/certificates", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const { domain, email, useProduction } = req.body;
-      if (!domain || !email) {
-        return res.status(400).json({ message: "Domain und E-Mail sind erforderlich" });
+      const parseResult = requestCertSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ message: parseResult.error.errors[0].message });
       }
+      const { domain, email, useProduction } = parseResult.data;
       
       const { tlsService } = await import("./tls-service");
       const result = await tlsService.requestCertificate(
         domain,
         email,
         req.user!.id,
-        useProduction === true
+        useProduction,
+        req.user!.tenantId
       );
       
       if (result.success) {
@@ -2789,18 +2797,24 @@ export async function registerRoutes(
   });
 
   // Renew certificate
+  const renewCertSchema = z.object({
+    email: z.string().email("Gültige E-Mail erforderlich"),
+  });
+
   app.post("/api/tls/certificates/:id/renew", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const { email } = req.body;
-      if (!email) {
-        return res.status(400).json({ message: "E-Mail ist erforderlich" });
+      const parseResult = renewCertSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ message: parseResult.error.errors[0].message });
       }
+      const { email } = parseResult.data;
       
       const { tlsService } = await import("./tls-service");
       const result = await tlsService.renewCertificate(
         req.params.id,
         email,
-        req.user!.id
+        req.user!.id,
+        req.user!.tenantId
       );
       
       if (result.success) {
