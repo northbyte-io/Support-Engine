@@ -2692,5 +2692,243 @@ export async function registerRoutes(
     }
   });
 
+  // ============================================
+  // TLS Certificate Management (Admin only)
+  // ============================================
+
+  // Get TLS settings
+  app.get("/api/tls/settings", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { tlsService } = await import("./tls-service");
+      const settings = await tlsService.getSettings();
+      res.json(settings || { 
+        httpsEnabled: false, 
+        autoRenewEnabled: true, 
+        renewDaysBeforeExpiry: 30,
+        caType: "staging"
+      });
+    } catch (error) {
+      console.error("TLS settings error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Update TLS settings
+  app.patch("/api/tls/settings", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const settings = await storage.updateTlsSettings(req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("TLS settings update error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Get all certificates
+  app.get("/api/tls/certificates", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { tlsService } = await import("./tls-service");
+      const certificates = await tlsService.getCertificates();
+      // Don't expose private keys
+      const safeCertificates = certificates.map(cert => ({
+        ...cert,
+        privateKeyPem: undefined,
+      }));
+      res.json(safeCertificates);
+    } catch (error) {
+      console.error("TLS certificates error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Get single certificate
+  app.get("/api/tls/certificates/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { tlsService } = await import("./tls-service");
+      const certificate = await tlsService.getCertificate(req.params.id);
+      if (!certificate) {
+        return res.status(404).json({ message: "Zertifikat nicht gefunden" });
+      }
+      // Don't expose private key
+      const safeCertificate = { ...certificate, privateKeyPem: undefined };
+      res.json(safeCertificate);
+    } catch (error) {
+      console.error("TLS certificate error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Request new certificate
+  app.post("/api/tls/certificates", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { domain, email, useProduction } = req.body;
+      if (!domain || !email) {
+        return res.status(400).json({ message: "Domain und E-Mail sind erforderlich" });
+      }
+      
+      const { tlsService } = await import("./tls-service");
+      const result = await tlsService.requestCertificate(
+        domain,
+        email,
+        req.user!.id,
+        useProduction === true
+      );
+      
+      if (result.success) {
+        res.json({ 
+          message: "Zertifikat erfolgreich angefordert", 
+          certificateId: result.certificateId 
+        });
+      } else {
+        res.status(400).json({ message: result.error });
+      }
+    } catch (error) {
+      console.error("TLS certificate request error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Renew certificate
+  app.post("/api/tls/certificates/:id/renew", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "E-Mail ist erforderlich" });
+      }
+      
+      const { tlsService } = await import("./tls-service");
+      const result = await tlsService.renewCertificate(
+        req.params.id,
+        email,
+        req.user!.id
+      );
+      
+      if (result.success) {
+        res.json({ message: "Zertifikat erfolgreich erneuert" });
+      } else {
+        res.status(400).json({ message: result.error });
+      }
+    } catch (error) {
+      console.error("TLS certificate renew error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Revoke certificate
+  app.post("/api/tls/certificates/:id/revoke", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { tlsService } = await import("./tls-service");
+      const result = await tlsService.revokeCertificate(
+        req.params.id,
+        req.user!.id
+      );
+      
+      if (result.success) {
+        res.json({ message: "Zertifikat erfolgreich widerrufen" });
+      } else {
+        res.status(400).json({ message: result.error });
+      }
+    } catch (error) {
+      console.error("TLS certificate revoke error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Activate certificate
+  app.post("/api/tls/certificates/:id/activate", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Deactivate all other certificates first
+      const allCerts = await storage.getTlsCertificates();
+      for (const cert of allCerts) {
+        if (cert.isActive) {
+          await storage.updateTlsCertificate(cert.id, { isActive: false });
+        }
+      }
+      
+      // Activate the selected certificate
+      const updated = await storage.updateTlsCertificate(req.params.id, { isActive: true });
+      if (!updated) {
+        return res.status(404).json({ message: "Zertifikat nicht gefunden" });
+      }
+      
+      await storage.createTlsCertificateAction({
+        certificateId: req.params.id,
+        action: "activated",
+        status: "success",
+        performedById: req.user!.id,
+        details: { domain: updated.domain }
+      });
+      
+      res.json({ message: "Zertifikat aktiviert" });
+    } catch (error) {
+      console.error("TLS certificate activate error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Delete certificate
+  app.delete("/api/tls/certificates/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.deleteTlsCertificate(req.params.id);
+      res.json({ message: "Zertifikat gelöscht" });
+    } catch (error) {
+      console.error("TLS certificate delete error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Get certificate actions/history
+  app.get("/api/tls/actions", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { tlsService } = await import("./tls-service");
+      const certificateId = req.query.certificateId as string | undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      const actions = await tlsService.getActions(certificateId, limit);
+      res.json(actions);
+    } catch (error) {
+      console.error("TLS actions error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Check and renew expiring certificates
+  app.post("/api/tls/check-renewal", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const settings = await storage.getTlsSettings();
+      const email = settings?.acmeEmail || req.body.email;
+      if (!email) {
+        return res.status(400).json({ message: "E-Mail für Erneuerung ist erforderlich" });
+      }
+      
+      const { tlsService } = await import("./tls-service");
+      const daysBeforeExpiry = settings?.renewDaysBeforeExpiry || 30;
+      const result = await tlsService.checkAndRenewExpiring(
+        daysBeforeExpiry,
+        email,
+        req.user!.id
+      );
+      
+      res.json({
+        message: `${result.renewed} Zertifikat(e) erneuert`,
+        renewed: result.renewed,
+        errors: result.errors
+      });
+    } catch (error) {
+      console.error("TLS renewal check error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // HTTP-01 Challenge endpoint for Let's Encrypt validation
+  app.get("/.well-known/acme-challenge/:token", async (req, res) => {
+    const { getHttpChallenge } = await import("./tls-service");
+    const keyAuth = getHttpChallenge(req.params.token);
+    if (keyAuth) {
+      res.type("text/plain").send(keyAuth);
+    } else {
+      res.status(404).send("Challenge not found");
+    }
+  });
+
   return httpServer;
 }

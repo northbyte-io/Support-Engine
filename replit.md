@@ -10,6 +10,7 @@ Preferred communication style: Simple, everyday language (German).
 
 ## Recent Changes
 
+- **December 2024**: Added TLS/SSL certificate management with Let's Encrypt integration (ACME client, auto-renewal, admin UI)
 - **December 2024**: Added tenant branding customization (logos, colors, fonts, email templates, custom CSS)
 - **December 2024**: Added comprehensive CRM module (Organizations, Customers, Contacts, Locations, Activity Tracking)
 - **December 2024**: Implemented System-Logging with Winston (color-coded output, log rotation, sensitive data masking)
@@ -115,6 +116,16 @@ Preferred communication style: Simple, everyday language (German).
 - Contact information (website, support email, phone)
 - Dynamic CSS variable application via BrandingProvider
 - Admin-only branding settings page with live preview
+
+### TLS Certificate Management
+- Let's Encrypt integration via ACME protocol (acme-client)
+- HTTP-01 challenge support for domain validation
+- Staging and Production CA environments
+- Certificate lifecycle: request, issue, renew, revoke
+- Auto-renewal before expiry (configurable days)
+- Certificate history and action logging
+- Admin UI with settings, certificates list, and history tabs
+- Secure private key storage in database
 
 ## External Dependencies
 

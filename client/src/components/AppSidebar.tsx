@@ -18,6 +18,7 @@ import {
   Landmark,
   ScrollText,
   Palette,
+  Shield,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useBranding } from "@/lib/branding";
@@ -117,6 +118,11 @@ const adminNavItems = [
     title: "Branding",
     url: "/branding",
     icon: Palette,
+  },
+  {
+    title: "TLS-Zertifikate",
+    url: "/tls-certificates",
+    icon: Shield,
   },
   {
     title: "SLA-Verwaltung",
