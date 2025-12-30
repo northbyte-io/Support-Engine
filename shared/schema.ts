@@ -1255,6 +1255,198 @@ export type InsertTlsCertificateAction = z.infer<typeof insertTlsCertificateActi
 export type TlsChallenge = typeof tlsChallenges.$inferSelect;
 export type InsertTlsChallenge = z.infer<typeof insertTlsChallengeSchema>;
 
+// ========================================
+// Exchange Online Integration
+// ========================================
+
+export const exchangeAuthTypeEnum = pgEnum("exchange_auth_type", ["client_secret", "certificate"]);
+export const exchangeMailboxTypeEnum = pgEnum("exchange_mailbox_type", ["shared", "user"]);
+export const exchangePostImportActionEnum = pgEnum("exchange_post_import_action", [
+  "move_to_folder",    // In Zielordner verschieben
+  "delete",            // Löschen
+  "mark_as_read",      // Als gelesen markieren
+  "archive",           // Archivieren
+  "keep_unchanged"     // Unverändert belassen
+]);
+
+// Exchange Configuration (mandantenweite Einstellungen)
+export const exchangeConfigurations = pgTable("exchange_configurations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  // Aktivierungsstatus
+  isEnabled: boolean("is_enabled").default(false),
+  // Azure Entra ID App-Registrierung
+  clientId: text("client_id"),
+  tenantAzureId: text("tenant_azure_id"), // Azure Tenant ID
+  authType: exchangeAuthTypeEnum("auth_type").default("client_secret"),
+  clientSecretEncrypted: text("client_secret_encrypted"), // Verschlüsselt
+  certificatePemEncrypted: text("certificate_pem_encrypted"), // Verschlüsselt
+  certificateThumbprint: text("certificate_thumbprint"),
+  // Token-Handling
+  accessToken: text("access_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at"),
+  refreshToken: text("refresh_token"),
+  // Verbindungsstatus
+  connectionStatus: text("connection_status").default("not_configured"), // not_configured, connected, error, disconnected
+  lastConnectionTest: timestamp("last_connection_test"),
+  lastConnectionError: text("last_connection_error"),
+  // Audit
+  configuredById: varchar("configured_by_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Exchange Mailboxes (Postfächer pro Mandant)
+export const exchangeMailboxes = pgTable("exchange_mailboxes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  configurationId: varchar("configuration_id").references(() => exchangeConfigurations.id).notNull(),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  // Postfachdetails
+  emailAddress: text("email_address").notNull(),
+  displayName: text("display_name"),
+  mailboxType: exchangeMailboxTypeEnum("mailbox_type").default("shared"),
+  // Quellordner für E-Mail-Abruf
+  sourceFolderId: text("source_folder_id").default("inbox"),
+  sourceFolderName: text("source_folder_name").default("Posteingang"),
+  // Zielordner nach Import
+  targetFolderId: text("target_folder_id"),
+  targetFolderName: text("target_folder_name"),
+  // Aktionen nach Import (mehrere kombinierbar)
+  postImportActions: text("post_import_actions").array().default(sql`ARRAY['mark_as_read']::text[]`),
+  // Ticket-Erstellungsregeln
+  defaultTicketTypeId: varchar("default_ticket_type_id").references(() => ticketTypes.id),
+  defaultPriority: ticketPriorityEnum("default_priority").default("medium"),
+  autoAssignToUserId: varchar("auto_assign_to_user_id").references(() => users.id),
+  // Abruf-Einstellungen
+  isActive: boolean("is_active").default(false),
+  fetchIntervalMinutes: integer("fetch_interval_minutes").default(5),
+  fetchUnreadOnly: boolean("fetch_unread_only").default(true),
+  includeAttachments: boolean("include_attachments").default(true),
+  maxEmailsPerFetch: integer("max_emails_per_fetch").default(50),
+  // Status
+  lastFetchAt: timestamp("last_fetch_at"),
+  lastFetchError: text("last_fetch_error"),
+  lastFetchEmailCount: integer("last_fetch_email_count").default(0),
+  totalImportedEmails: integer("total_imported_emails").default(0),
+  totalCreatedTickets: integer("total_created_tickets").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Exchange Ticket Zuordnungsregeln
+export const exchangeAssignmentRules = pgTable("exchange_assignment_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  mailboxId: varchar("mailbox_id").references(() => exchangeMailboxes.id).notNull(),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  // Regel
+  name: text("name").notNull(),
+  priority: integer("priority").default(0), // Höher = wird zuerst geprüft
+  isActive: boolean("is_active").default(true),
+  // Bedingungen (JSON mit Regeln)
+  conditions: jsonb("conditions").notNull(), // z.B. { "from_contains": "@example.com", "subject_contains": "Dringend" }
+  // Aktionen
+  assignToTicketTypeId: varchar("assign_to_ticket_type_id").references(() => ticketTypes.id),
+  assignPriority: ticketPriorityEnum("assign_priority"),
+  assignToUserId: varchar("assign_to_user_id").references(() => users.id),
+  addTags: text("add_tags").array(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Exchange Imported Emails (Historie importierter E-Mails)
+export const exchangeEmails = pgTable("exchange_emails", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  mailboxId: varchar("mailbox_id").references(() => exchangeMailboxes.id).notNull(),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  ticketId: varchar("ticket_id").references(() => tickets.id),
+  // E-Mail-Daten
+  messageId: text("message_id").notNull(), // Microsoft Graph Message ID
+  internetMessageId: text("internet_message_id"), // RFC 5322 Message-ID Header
+  conversationId: text("conversation_id"), // Für Thread-Zuordnung
+  // Absender/Empfänger
+  fromAddress: text("from_address").notNull(),
+  fromName: text("from_name"),
+  toAddresses: text("to_addresses").array(),
+  ccAddresses: text("cc_addresses").array(),
+  // Inhalt
+  subject: text("subject"),
+  bodyPreview: text("body_preview"),
+  bodyContent: text("body_content"),
+  bodyContentType: text("body_content_type").default("html"), // html, text
+  hasAttachments: boolean("has_attachments").default(false),
+  attachmentCount: integer("attachment_count").default(0),
+  // Zeitstempel
+  receivedAt: timestamp("received_at"),
+  sentAt: timestamp("sent_at"),
+  // Verarbeitungsstatus
+  isProcessed: boolean("is_processed").default(false),
+  processedAt: timestamp("processed_at"),
+  processingError: text("processing_error"),
+  // Import-Aktion
+  direction: text("direction").default("inbound"), // inbound, outbound
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Exchange Sync Log (Synchronisierungsverlauf)
+export const exchangeSyncLogs = pgTable("exchange_sync_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  mailboxId: varchar("mailbox_id").references(() => exchangeMailboxes.id).notNull(),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  // Sync-Details
+  syncType: text("sync_type").notNull(), // fetch, send, test
+  status: text("status").notNull(), // success, failed, partial
+  // Statistiken
+  emailsFetched: integer("emails_fetched").default(0),
+  ticketsCreated: integer("tickets_created").default(0),
+  emailsSent: integer("emails_sent").default(0),
+  errorsCount: integer("errors_count").default(0),
+  // Details
+  startedAt: timestamp("started_at").notNull(),
+  completedAt: timestamp("completed_at"),
+  durationMs: integer("duration_ms"),
+  errorMessage: text("error_message"),
+  errorDetails: jsonb("error_details"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Exchange Insert Schemas
+export const insertExchangeConfigurationSchema = createInsertSchema(exchangeConfigurations).omit({ 
+  id: true, createdAt: true, updatedAt: true, accessToken: true, accessTokenExpiresAt: true, refreshToken: true 
+});
+export const updateExchangeConfigurationSchema = insertExchangeConfigurationSchema.partial();
+export const insertExchangeMailboxSchema = createInsertSchema(exchangeMailboxes).omit({ 
+  id: true, createdAt: true, updatedAt: true, lastFetchAt: true, lastFetchError: true, 
+  lastFetchEmailCount: true, totalImportedEmails: true, totalCreatedTickets: true 
+});
+export const updateExchangeMailboxSchema = insertExchangeMailboxSchema.partial();
+export const insertExchangeAssignmentRuleSchema = createInsertSchema(exchangeAssignmentRules).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertExchangeEmailSchema = createInsertSchema(exchangeEmails).omit({ id: true, createdAt: true });
+export const insertExchangeSyncLogSchema = createInsertSchema(exchangeSyncLogs).omit({ id: true, createdAt: true });
+
+// Exchange Types
+export type ExchangeConfiguration = typeof exchangeConfigurations.$inferSelect;
+export type InsertExchangeConfiguration = z.infer<typeof insertExchangeConfigurationSchema>;
+export type UpdateExchangeConfiguration = z.infer<typeof updateExchangeConfigurationSchema>;
+export type ExchangeMailbox = typeof exchangeMailboxes.$inferSelect;
+export type InsertExchangeMailbox = z.infer<typeof insertExchangeMailboxSchema>;
+export type UpdateExchangeMailbox = z.infer<typeof updateExchangeMailboxSchema>;
+export type ExchangeAssignmentRule = typeof exchangeAssignmentRules.$inferSelect;
+export type InsertExchangeAssignmentRule = z.infer<typeof insertExchangeAssignmentRuleSchema>;
+export type ExchangeEmail = typeof exchangeEmails.$inferSelect;
+export type InsertExchangeEmail = z.infer<typeof insertExchangeEmailSchema>;
+export type ExchangeSyncLog = typeof exchangeSyncLogs.$inferSelect;
+export type InsertExchangeSyncLog = z.infer<typeof insertExchangeSyncLogSchema>;
+
+// Exchange Relation Types
+export type ExchangeConfigurationWithMailboxes = ExchangeConfiguration & {
+  mailboxes?: ExchangeMailbox[];
+};
+
+export type ExchangeMailboxWithRules = ExchangeMailbox & {
+  assignmentRules?: ExchangeAssignmentRule[];
+  configuration?: ExchangeConfiguration;
+};
+
 // Auth schemas
 export const loginSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),

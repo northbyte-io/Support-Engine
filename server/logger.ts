@@ -16,6 +16,7 @@ export type LogSource =
   | "sla"
   | "crm"
   | "email"
+  | "exchange"
   | "integration"
   | "database"
   | "background"
@@ -74,6 +75,7 @@ const sourceColors: Record<LogSource, (text: string) => string> = {
   sla: chalk.hex("#FFA500"),
   crm: chalk.blue,
   email: chalk.cyan,
+  exchange: chalk.hex("#0078D4"), // Microsoft Blue
   integration: chalk.cyan,
   database: chalk.gray,
   background: chalk.gray,
