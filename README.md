@@ -4,7 +4,7 @@
 
 **Enterprise-grade Helpdesk & Ticket Management Platform**
 
-[![Release](https://img.shields.io/badge/release-v1.0.0-blue?style=flat-square)](https://github.com/german-ticket-system/releases)
+[![Release](https://img.shields.io/badge/release-v0.1.0-blue?style=flat-square)](https://github.com/northbyte-io/Support-Engine/releases)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-purple?style=flat-square)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen?style=flat-square)](https://nodejs.org/)
 [![Build](https://img.shields.io/badge/build-passing-success?style=flat-square)]()
@@ -804,6 +804,6 @@ Die Anleitung enthält:
 
 **Entwickelt mit ❤️ für professionelles Helpdesk-Management**
 
-📦 Version: 1.0.0 | 📅 Stand: Dezember 2024 | 📜 AGPL-3.0
+📦 Version: 0.1.0 | 📅 Stand: Dezember 2024 | 📜 AGPL-3.0
 
 </div>
