@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 7
+    },
+    "auditLog": "/home/runner/workspace/logs/.c2d6ab9d0e0b7ff4a4c38e4722afcb8c4204170d-audit.json",
+    "files": [
+        {
+            "date": 1767107477445,
+            "name": "/home/runner/workspace/logs/ticketsystem-2025-12-30.log",
+            "hash": "7207341ec03fdc59ff36fcc6568a00a3bf551315663019621ed6b7c049a02e04"
+        }
+    ],
+    "hashType": "sha256"
+}
