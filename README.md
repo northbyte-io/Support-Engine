@@ -1,3 +1,28 @@
+<div align="center">
+
+# German Ticket System
+
+**Enterprise-grade Helpdesk & Ticket Management Platform**
+
+[![Release](https://img.shields.io/badge/release-v1.0.0-blue?style=flat-square)](https://github.com/german-ticket-system/releases)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-purple?style=flat-square)](./LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen?style=flat-square)](https://nodejs.org/)
+[![Build](https://img.shields.io/badge/build-passing-success?style=flat-square)]()
+[![API](https://img.shields.io/badge/api-stable-blue?style=flat-square)]()
+[![Docker](https://img.shields.io/badge/docker-supported-2496ED?style=flat-square)]()
+[![Maintenance](https://img.shields.io/badge/maintenance-active-brightgreen?style=flat-square)]()
+
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)]()
+[![React](https://img.shields.io/badge/React-18.x-61DAFB?style=flat-square&logo=react&logoColor=black)]()
+[![Express](https://img.shields.io/badge/Express-4.x-000000?style=flat-square&logo=express&logoColor=white)]()
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)]()
+
+Multi-Tenant | REST API | SLA Management | CRM | Knowledge Base | Asset Management
+
+</div>
+
+---
+
 # 🎫 German Ticket System – Helpdesk Management
 
 Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und Helpdesk-Management mit Multi-Tenant-Architektur, REST-API für Web und iOS, sowie umfangreichen Enterprise-Features.
