@@ -886,6 +886,77 @@ export type AssetWithRelations = Asset & {
   history?: AssetHistory[];
 };
 
+// Projects for Kanban board organization
+export const projectStatusEnum = pgEnum("project_status", ["active", "on_hold", "completed", "archived"]);
+
+export const projects = pgTable("projects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  key: text("key").notNull(), // Short key like "PROJ" for ticket prefixes
+  status: projectStatusEnum("project_status").default("active"),
+  color: text("color").default("#3B82F6"),
+  icon: text("icon").default("folder"),
+  leadId: varchar("lead_id").references(() => users.id),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Project members with roles
+export const projectMembers = pgTable("project_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").references(() => projects.id),
+  userId: varchar("user_id").references(() => users.id),
+  role: text("role").default("member"), // lead, member, viewer
+  joinedAt: timestamp("joined_at").defaultNow(),
+});
+
+// Board columns for Kanban view (customizable per project)
+export const boardColumns = pgTable("board_columns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").references(() => projects.id),
+  name: text("name").notNull(),
+  status: ticketStatusEnum("status"), // Maps to ticket status
+  color: text("color").default("#6B7280"),
+  order: integer("order").default(0),
+  wipLimit: integer("wip_limit"), // Work-in-progress limit
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Ticket-Project assignment
+export const ticketProjects = pgTable("ticket_projects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: varchar("ticket_id").references(() => tickets.id),
+  projectId: varchar("project_id").references(() => projects.id),
+  boardOrder: integer("board_order").default(0), // Position in board column
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertProjectMemberSchema = createInsertSchema(projectMembers).omit({ id: true, joinedAt: true });
+export const insertBoardColumnSchema = createInsertSchema(boardColumns).omit({ id: true, createdAt: true });
+export const insertTicketProjectSchema = createInsertSchema(ticketProjects).omit({ id: true, createdAt: true });
+
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = z.infer<typeof insertProjectSchema>;
+export type ProjectMember = typeof projectMembers.$inferSelect;
+export type InsertProjectMember = z.infer<typeof insertProjectMemberSchema>;
+export type BoardColumn = typeof boardColumns.$inferSelect;
+export type InsertBoardColumn = z.infer<typeof insertBoardColumnSchema>;
+export type TicketProject = typeof ticketProjects.$inferSelect;
+export type InsertTicketProject = z.infer<typeof insertTicketProjectSchema>;
+
+export type ProjectWithRelations = Project & {
+  lead?: User | null;
+  members?: (ProjectMember & { user?: User })[];
+  columns?: BoardColumn[];
+  ticketCount?: number;
+};
+
 // Auth schemas
 export const loginSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),

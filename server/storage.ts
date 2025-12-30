@@ -99,6 +99,19 @@ import {
   type AssetHistory,
   type InsertAssetHistory,
   type AssetWithRelations,
+  projects,
+  projectMembers,
+  boardColumns,
+  ticketProjects,
+  type Project,
+  type InsertProject,
+  type ProjectMember,
+  type InsertProjectMember,
+  type BoardColumn,
+  type InsertBoardColumn,
+  type TicketProject,
+  type InsertTicketProject,
+  type ProjectWithRelations,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, ilike, or, count } from "drizzle-orm";
@@ -293,6 +306,32 @@ export interface IStorage {
   // Asset History
   getAssetHistory(assetId: string, tenantId: string): Promise<(AssetHistory & { user?: User })[]>;
   createAssetHistory(entry: InsertAssetHistory, tenantId: string): Promise<AssetHistory>;
+
+  // Projects
+  getProjects(tenantId: string): Promise<ProjectWithRelations[]>;
+  getProject(id: string, tenantId: string): Promise<ProjectWithRelations | undefined>;
+  createProject(project: InsertProject, tenantId: string): Promise<Project>;
+  updateProject(id: string, updates: Partial<InsertProject>, tenantId: string): Promise<Project | undefined>;
+  deleteProject(id: string, tenantId: string): Promise<void>;
+
+  // Project Members
+  getProjectMembers(projectId: string, tenantId: string): Promise<(ProjectMember & { user?: User })[]>;
+  addProjectMember(member: InsertProjectMember, tenantId: string): Promise<ProjectMember>;
+  removeProjectMember(projectId: string, userId: string, tenantId: string): Promise<void>;
+
+  // Board Columns
+  getBoardColumns(projectId: string, tenantId: string): Promise<BoardColumn[]>;
+  createBoardColumn(column: InsertBoardColumn, tenantId: string): Promise<BoardColumn>;
+  updateBoardColumn(id: string, updates: Partial<InsertBoardColumn>, tenantId: string): Promise<BoardColumn | undefined>;
+  deleteBoardColumn(id: string, tenantId: string): Promise<void>;
+  reorderBoardColumns(projectId: string, columnIds: string[], tenantId: string): Promise<void>;
+
+  // Ticket Projects
+  getTicketProjects(ticketId: string, tenantId: string): Promise<(TicketProject & { project?: Project })[]>;
+  addTicketToProject(ticketProject: InsertTicketProject, tenantId: string): Promise<TicketProject>;
+  removeTicketFromProject(ticketId: string, projectId: string, tenantId: string): Promise<void>;
+  getProjectTickets(projectId: string, tenantId: string): Promise<{ column: BoardColumn; tickets: TicketProject[] }[]>;
+  updateTicketBoardOrder(ticketId: string, projectId: string, boardOrder: number, tenantId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1675,6 +1714,267 @@ export class DatabaseStorage implements IStorage {
     }
     const [result] = await db.insert(assetHistory).values(entry).returning();
     return result;
+  }
+
+  // Projects
+  async getProjects(tenantId: string): Promise<ProjectWithRelations[]> {
+    const projectList = await db.select().from(projects)
+      .where(eq(projects.tenantId, tenantId))
+      .orderBy(desc(projects.createdAt));
+    
+    const result: ProjectWithRelations[] = [];
+    for (const project of projectList) {
+      const lead = project.leadId ? await this.getUser(project.leadId) : undefined;
+      const members = await this.getProjectMembers(project.id, tenantId);
+      const columns = await db.select().from(boardColumns)
+        .where(eq(boardColumns.projectId, project.id))
+        .orderBy(asc(boardColumns.order));
+      const [ticketCountResult] = await db.select({ count: count() }).from(ticketProjects)
+        .where(eq(ticketProjects.projectId, project.id));
+      result.push({
+        ...project,
+        lead: lead || undefined,
+        members,
+        columns,
+        ticketCount: ticketCountResult?.count || 0
+      });
+    }
+    return result;
+  }
+
+  async getProject(id: string, tenantId: string): Promise<ProjectWithRelations | undefined> {
+    const [project] = await db.select().from(projects)
+      .where(and(eq(projects.id, id), eq(projects.tenantId, tenantId)));
+    if (!project) return undefined;
+
+    const lead = project.leadId ? await this.getUser(project.leadId) : undefined;
+    const members = await this.getProjectMembers(project.id, tenantId);
+    const columns = await db.select().from(boardColumns)
+      .where(eq(boardColumns.projectId, project.id))
+      .orderBy(asc(boardColumns.order));
+    const [ticketCountResult] = await db.select({ count: count() }).from(ticketProjects)
+      .where(eq(ticketProjects.projectId, project.id));
+
+    return {
+      ...project,
+      lead: lead || undefined,
+      members,
+      columns,
+      ticketCount: ticketCountResult?.count || 0
+    };
+  }
+
+  async createProject(project: InsertProject, tenantId: string): Promise<Project> {
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
+    if (!tenant) {
+      throw new Error("Mandant nicht gefunden");
+    }
+    const { tenantId: _, id: __, ...safeProject } = project as any;
+    const [result] = await db.insert(projects).values({ ...safeProject, tenantId }).returning();
+    
+    const defaultColumns = [
+      { name: "Offen", status: "open" as const, color: "#3B82F6", order: 0 },
+      { name: "In Bearbeitung", status: "in_progress" as const, color: "#F59E0B", order: 1 },
+      { name: "Wartend", status: "waiting" as const, color: "#8B5CF6", order: 2 },
+      { name: "Gelöst", status: "resolved" as const, color: "#10B981", order: 3 },
+      { name: "Geschlossen", status: "closed" as const, color: "#6B7280", order: 4 },
+    ];
+    for (const col of defaultColumns) {
+      await db.insert(boardColumns).values({ ...col, projectId: result.id });
+    }
+    
+    return result;
+  }
+
+  async updateProject(id: string, updates: Partial<InsertProject>, tenantId: string): Promise<Project | undefined> {
+    const [existing] = await db.select().from(projects)
+      .where(and(eq(projects.id, id), eq(projects.tenantId, tenantId)));
+    if (!existing) return undefined;
+    
+    const { tenantId: _, id: __, ...safeUpdates } = updates as any;
+    const [result] = await db.update(projects)
+      .set({ ...safeUpdates, updatedAt: new Date() })
+      .where(eq(projects.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteProject(id: string, tenantId: string): Promise<void> {
+    const [existing] = await db.select().from(projects)
+      .where(and(eq(projects.id, id), eq(projects.tenantId, tenantId)));
+    if (!existing) return;
+    
+    await db.delete(ticketProjects).where(eq(ticketProjects.projectId, id));
+    await db.delete(boardColumns).where(eq(boardColumns.projectId, id));
+    await db.delete(projectMembers).where(eq(projectMembers.projectId, id));
+    await db.delete(projects).where(eq(projects.id, id));
+  }
+
+  // Project Members
+  async getProjectMembers(projectId: string, tenantId: string): Promise<(ProjectMember & { user?: User })[]> {
+    const [project] = await db.select().from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.tenantId, tenantId)));
+    if (!project) return [];
+
+    const members = await db.select().from(projectMembers).where(eq(projectMembers.projectId, projectId));
+    const result: (ProjectMember & { user?: User })[] = [];
+    for (const member of members) {
+      const user = member.userId ? await this.getUser(member.userId) : undefined;
+      result.push({ ...member, user });
+    }
+    return result;
+  }
+
+  async addProjectMember(member: InsertProjectMember, tenantId: string): Promise<ProjectMember> {
+    const [project] = await db.select().from(projects)
+      .where(and(eq(projects.id, member.projectId!), eq(projects.tenantId, tenantId)));
+    if (!project) {
+      throw new Error("Projekt gehört nicht zum Mandanten");
+    }
+    const [result] = await db.insert(projectMembers).values(member).returning();
+    return result;
+  }
+
+  async removeProjectMember(projectId: string, userId: string, tenantId: string): Promise<void> {
+    const [project] = await db.select().from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.tenantId, tenantId)));
+    if (!project) return;
+
+    await db.delete(projectMembers).where(
+      and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, userId))
+    );
+  }
+
+  // Board Columns
+  async getBoardColumns(projectId: string, tenantId: string): Promise<BoardColumn[]> {
+    const [project] = await db.select().from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.tenantId, tenantId)));
+    if (!project) return [];
+
+    return db.select().from(boardColumns)
+      .where(eq(boardColumns.projectId, projectId))
+      .orderBy(asc(boardColumns.order));
+  }
+
+  async createBoardColumn(column: InsertBoardColumn, tenantId: string): Promise<BoardColumn> {
+    const [project] = await db.select().from(projects)
+      .where(and(eq(projects.id, column.projectId!), eq(projects.tenantId, tenantId)));
+    if (!project) {
+      throw new Error("Projekt gehört nicht zum Mandanten");
+    }
+    const [result] = await db.insert(boardColumns).values(column).returning();
+    return result;
+  }
+
+  async updateBoardColumn(id: string, updates: Partial<InsertBoardColumn>, tenantId: string): Promise<BoardColumn | undefined> {
+    const [existing] = await db.select().from(boardColumns).where(eq(boardColumns.id, id));
+    if (!existing) return undefined;
+
+    const [project] = await db.select().from(projects)
+      .where(and(eq(projects.id, existing.projectId!), eq(projects.tenantId, tenantId)));
+    if (!project) return undefined;
+
+    const { projectId: _, id: __, ...safeUpdates } = updates as any;
+    const [result] = await db.update(boardColumns).set(safeUpdates).where(eq(boardColumns.id, id)).returning();
+    return result;
+  }
+
+  async deleteBoardColumn(id: string, tenantId: string): Promise<void> {
+    const [existing] = await db.select().from(boardColumns).where(eq(boardColumns.id, id));
+    if (!existing) return;
+
+    const [project] = await db.select().from(projects)
+      .where(and(eq(projects.id, existing.projectId!), eq(projects.tenantId, tenantId)));
+    if (!project) return;
+
+    await db.delete(boardColumns).where(eq(boardColumns.id, id));
+  }
+
+  async reorderBoardColumns(projectId: string, columnIds: string[], tenantId: string): Promise<void> {
+    const [project] = await db.select().from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.tenantId, tenantId)));
+    if (!project) return;
+
+    for (let i = 0; i < columnIds.length; i++) {
+      await db.update(boardColumns).set({ order: i }).where(eq(boardColumns.id, columnIds[i]));
+    }
+  }
+
+  // Ticket Projects
+  async getTicketProjects(ticketId: string, tenantId: string): Promise<(TicketProject & { project?: Project })[]> {
+    const [ticket] = await db.select().from(tickets)
+      .where(and(eq(tickets.id, ticketId), eq(tickets.tenantId, tenantId)));
+    if (!ticket) return [];
+
+    const links = await db.select().from(ticketProjects).where(eq(ticketProjects.ticketId, ticketId));
+    const result: (TicketProject & { project?: Project })[] = [];
+    for (const link of links) {
+      const [project] = await db.select().from(projects)
+        .where(and(eq(projects.id, link.projectId!), eq(projects.tenantId, tenantId)));
+      result.push({ ...link, project: project || undefined });
+    }
+    return result;
+  }
+
+  async addTicketToProject(ticketProject: InsertTicketProject, tenantId: string): Promise<TicketProject> {
+    const [ticket] = await db.select().from(tickets)
+      .where(and(eq(tickets.id, ticketProject.ticketId!), eq(tickets.tenantId, tenantId)));
+    const [project] = await db.select().from(projects)
+      .where(and(eq(projects.id, ticketProject.projectId!), eq(projects.tenantId, tenantId)));
+    
+    if (!ticket || !project) {
+      throw new Error("Ticket oder Projekt gehört nicht zum Mandanten");
+    }
+    
+    const [result] = await db.insert(ticketProjects).values(ticketProject).returning();
+    return result;
+  }
+
+  async removeTicketFromProject(ticketId: string, projectId: string, tenantId: string): Promise<void> {
+    const [ticket] = await db.select().from(tickets)
+      .where(and(eq(tickets.id, ticketId), eq(tickets.tenantId, tenantId)));
+    if (!ticket) return;
+
+    await db.delete(ticketProjects).where(
+      and(eq(ticketProjects.ticketId, ticketId), eq(ticketProjects.projectId, projectId))
+    );
+  }
+
+  async getProjectTickets(projectId: string, tenantId: string): Promise<{ column: BoardColumn; tickets: TicketProject[] }[]> {
+    const [project] = await db.select().from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.tenantId, tenantId)));
+    if (!project) return [];
+
+    const columns = await db.select().from(boardColumns)
+      .where(eq(boardColumns.projectId, projectId))
+      .orderBy(asc(boardColumns.order));
+    
+    const ticketProjectsList = await db.select().from(ticketProjects)
+      .where(eq(ticketProjects.projectId, projectId))
+      .orderBy(asc(ticketProjects.boardOrder));
+
+    const result: { column: BoardColumn; tickets: TicketProject[] }[] = [];
+    for (const column of columns) {
+      const columnTickets: TicketProject[] = [];
+      for (const tp of ticketProjectsList) {
+        const [ticket] = await db.select().from(tickets).where(eq(tickets.id, tp.ticketId!));
+        if (ticket && ticket.status === column.status) {
+          columnTickets.push(tp);
+        }
+      }
+      result.push({ column, tickets: columnTickets });
+    }
+    return result;
+  }
+
+  async updateTicketBoardOrder(ticketId: string, projectId: string, boardOrder: number, tenantId: string): Promise<void> {
+    const [ticket] = await db.select().from(tickets)
+      .where(and(eq(tickets.id, ticketId), eq(tickets.tenantId, tenantId)));
+    if (!ticket) return;
+
+    await db.update(ticketProjects)
+      .set({ boardOrder })
+      .where(and(eq(ticketProjects.ticketId, ticketId), eq(ticketProjects.projectId, projectId)));
   }
 }
 
