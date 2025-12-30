@@ -11,6 +11,7 @@ import {
   Timer,
   BookOpen,
   ClipboardList,
+  Package,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
@@ -60,6 +61,11 @@ const mainNavItems = [
     title: "Bereiche",
     url: "/areas",
     icon: FolderKanban,
+  },
+  {
+    title: "Assets",
+    url: "/assets",
+    icon: Package,
   },
 ];
 

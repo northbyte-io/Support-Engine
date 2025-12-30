@@ -23,6 +23,12 @@ import {
   surveyQuestions,
   surveyInvitations,
   surveyResponses,
+  assetCategories,
+  assets,
+  assetLicenses,
+  assetContracts,
+  ticketAssets,
+  assetHistory,
   type User,
   type InsertUser,
   type Tenant,
@@ -80,6 +86,19 @@ import {
   type SurveyWithRelations,
   type SurveyInvitationWithRelations,
   type SurveyResultSummary,
+  type AssetCategory,
+  type InsertAssetCategory,
+  type Asset,
+  type InsertAsset,
+  type AssetLicense,
+  type InsertAssetLicense,
+  type AssetContract,
+  type InsertAssetContract,
+  type TicketAsset,
+  type InsertTicketAsset,
+  type AssetHistory,
+  type InsertAssetHistory,
+  type AssetWithRelations,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, ilike, or, count } from "drizzle-orm";
@@ -237,6 +256,43 @@ export interface IStorage {
   getSurveyResponses(invitationId: string): Promise<SurveyResponse[]>;
   createSurveyResponse(response: InsertSurveyResponse): Promise<SurveyResponse>;
   getSurveyResultSummary(tenantId: string, surveyId: string): Promise<SurveyResultSummary | undefined>;
+
+  // Asset Categories
+  getAssetCategories(tenantId: string): Promise<AssetCategory[]>;
+  getAssetCategory(id: string, tenantId: string): Promise<AssetCategory | undefined>;
+  createAssetCategory(category: InsertAssetCategory, tenantId: string): Promise<AssetCategory>;
+  updateAssetCategory(id: string, updates: Partial<InsertAssetCategory>, tenantId: string): Promise<AssetCategory | undefined>;
+  deleteAssetCategory(id: string, tenantId: string): Promise<void>;
+
+  // Assets
+  getAssets(tenantId: string, params?: { assetType?: string; status?: string; categoryId?: string; assignedToId?: string; search?: string }): Promise<AssetWithRelations[]>;
+  getAsset(id: string, tenantId: string): Promise<AssetWithRelations | undefined>;
+  createAsset(asset: InsertAsset, tenantId: string): Promise<Asset>;
+  updateAsset(id: string, updates: Partial<InsertAsset>, tenantId: string): Promise<Asset | undefined>;
+  deleteAsset(id: string, tenantId: string): Promise<void>;
+  getNextAssetNumber(tenantId: string): Promise<string>;
+
+  // Asset Licenses
+  getAssetLicense(assetId: string, tenantId: string): Promise<AssetLicense | undefined>;
+  createAssetLicense(license: InsertAssetLicense, tenantId: string): Promise<AssetLicense>;
+  updateAssetLicense(id: string, updates: Partial<InsertAssetLicense>, tenantId: string): Promise<AssetLicense | undefined>;
+  deleteAssetLicense(id: string, tenantId: string): Promise<void>;
+
+  // Asset Contracts
+  getAssetContract(assetId: string, tenantId: string): Promise<AssetContract | undefined>;
+  createAssetContract(contract: InsertAssetContract, tenantId: string): Promise<AssetContract>;
+  updateAssetContract(id: string, updates: Partial<InsertAssetContract>, tenantId: string): Promise<AssetContract | undefined>;
+  deleteAssetContract(id: string, tenantId: string): Promise<void>;
+
+  // Ticket Assets
+  getTicketAssets(ticketId: string, tenantId: string): Promise<(TicketAsset & { asset?: Asset })[]>;
+  getAssetTickets(assetId: string, tenantId: string): Promise<(TicketAsset & { ticket?: Ticket })[]>;
+  createTicketAsset(link: InsertTicketAsset, tenantId: string): Promise<TicketAsset>;
+  deleteTicketAsset(id: string, tenantId: string): Promise<void>;
+
+  // Asset History
+  getAssetHistory(assetId: string, tenantId: string): Promise<(AssetHistory & { user?: User })[]>;
+  createAssetHistory(entry: InsertAssetHistory, tenantId: string): Promise<AssetHistory>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1318,6 +1374,307 @@ export class DatabaseStorage implements IStorage {
       npsScore,
       questionStats,
     };
+  }
+
+  // Asset Categories
+  async getAssetCategories(tenantId: string): Promise<AssetCategory[]> {
+    return db.select().from(assetCategories).where(eq(assetCategories.tenantId, tenantId)).orderBy(asc(assetCategories.name));
+  }
+
+  async getAssetCategory(id: string, tenantId: string): Promise<AssetCategory | undefined> {
+    const [category] = await db.select().from(assetCategories).where(
+      and(eq(assetCategories.id, id), eq(assetCategories.tenantId, tenantId))
+    );
+    return category || undefined;
+  }
+
+  async createAssetCategory(category: InsertAssetCategory, tenantId: string): Promise<AssetCategory> {
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
+    if (!tenant) throw new Error("Ungültiger Mandant");
+    const { tenantId: _, ...rest } = category as any;
+    const [result] = await db.insert(assetCategories).values({ ...rest, tenantId }).returning();
+    return result;
+  }
+
+  async updateAssetCategory(id: string, updates: Partial<InsertAssetCategory>, tenantId: string): Promise<AssetCategory | undefined> {
+    const { tenantId: _, id: __, ...safeUpdates } = updates as any;
+    const [result] = await db.update(assetCategories).set(safeUpdates).where(
+      and(eq(assetCategories.id, id), eq(assetCategories.tenantId, tenantId))
+    ).returning();
+    return result || undefined;
+  }
+
+  async deleteAssetCategory(id: string, tenantId: string): Promise<void> {
+    await db.delete(assetCategories).where(
+      and(eq(assetCategories.id, id), eq(assetCategories.tenantId, tenantId))
+    );
+  }
+
+  // Assets
+  async getAssets(tenantId: string, params?: { assetType?: string; status?: string; categoryId?: string; assignedToId?: string; search?: string }): Promise<AssetWithRelations[]> {
+    let baseQuery = db.select().from(assets).where(eq(assets.tenantId, tenantId));
+
+    const conditions: any[] = [eq(assets.tenantId, tenantId)];
+
+    if (params?.assetType) {
+      conditions.push(eq(assets.assetType, params.assetType as any));
+    }
+    if (params?.status) {
+      conditions.push(eq(assets.status, params.status as any));
+    }
+    if (params?.categoryId) {
+      conditions.push(eq(assets.categoryId, params.categoryId));
+    }
+    if (params?.assignedToId) {
+      conditions.push(eq(assets.assignedToId, params.assignedToId));
+    }
+    if (params?.search) {
+      conditions.push(
+        or(
+          ilike(assets.name, `%${params.search}%`),
+          ilike(assets.assetNumber, `%${params.search}%`),
+          ilike(assets.serialNumber, `%${params.search}%`)
+        )
+      );
+    }
+
+    const assetList = await db.select().from(assets).where(and(...conditions)).orderBy(desc(assets.createdAt));
+
+    const result: AssetWithRelations[] = [];
+    for (const asset of assetList) {
+      const category = asset.categoryId ? await this.getAssetCategory(asset.categoryId, tenantId) : null;
+      const assignedTo = asset.assignedToId ? await this.getUser(asset.assignedToId) : null;
+      const license = asset.assetType === "software" || asset.assetType === "license" ? await this.getAssetLicense(asset.id, tenantId) : null;
+      const contract = asset.assetType === "contract" ? await this.getAssetContract(asset.id, tenantId) : null;
+      result.push({ ...asset, category, assignedTo, license, contract });
+    }
+
+    return result;
+  }
+
+  async getAsset(id: string, tenantId: string): Promise<AssetWithRelations | undefined> {
+    const [asset] = await db.select().from(assets).where(
+      and(eq(assets.id, id), eq(assets.tenantId, tenantId))
+    );
+    if (!asset) return undefined;
+
+    const category = asset.categoryId ? await this.getAssetCategory(asset.categoryId, tenantId) : null;
+    const assignedTo = asset.assignedToId ? await this.getUser(asset.assignedToId) : null;
+    const license = asset.assetType === "software" || asset.assetType === "license" ? await this.getAssetLicense(asset.id, tenantId) : null;
+    const contract = asset.assetType === "contract" ? await this.getAssetContract(asset.id, tenantId) : null;
+    const history = await this.getAssetHistory(asset.id, tenantId);
+
+    return { ...asset, category, assignedTo, license, contract, history };
+  }
+
+  async createAsset(asset: InsertAsset, tenantId: string): Promise<Asset> {
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
+    if (!tenant) throw new Error("Ungültiger Mandant");
+    const { tenantId: _, ...rest } = asset as any;
+    const [result] = await db.insert(assets).values({ ...rest, tenantId }).returning();
+    return result;
+  }
+
+  async updateAsset(id: string, updates: Partial<InsertAsset>, tenantId: string): Promise<Asset | undefined> {
+    const { tenantId: _, id: __, ...safeUpdates } = updates as any;
+    const [result] = await db.update(assets).set({ ...safeUpdates, updatedAt: new Date() }).where(
+      and(eq(assets.id, id), eq(assets.tenantId, tenantId))
+    ).returning();
+    return result || undefined;
+  }
+
+  async deleteAsset(id: string, tenantId: string): Promise<void> {
+    const [asset] = await db.select().from(assets).where(
+      and(eq(assets.id, id), eq(assets.tenantId, tenantId))
+    );
+    if (!asset) return;
+    await db.delete(assetLicenses).where(eq(assetLicenses.assetId, id));
+    await db.delete(assetContracts).where(eq(assetContracts.assetId, id));
+    await db.delete(ticketAssets).where(eq(ticketAssets.assetId, id));
+    await db.delete(assetHistory).where(eq(assetHistory.assetId, id));
+    await db.delete(assets).where(
+      and(eq(assets.id, id), eq(assets.tenantId, tenantId))
+    );
+  }
+
+  async getNextAssetNumber(tenantId: string): Promise<string> {
+    const [result] = await db.select({ count: count() }).from(assets).where(eq(assets.tenantId, tenantId));
+    const num = (result?.count || 0) + 1;
+    return `ASSET-${String(num).padStart(5, "0")}`;
+  }
+
+  // Asset Licenses
+  async getAssetLicense(assetId: string, tenantId: string): Promise<AssetLicense | undefined> {
+    const [asset] = await db.select().from(assets).where(
+      and(eq(assets.id, assetId), eq(assets.tenantId, tenantId))
+    );
+    if (!asset) return undefined;
+    const [license] = await db.select().from(assetLicenses).where(eq(assetLicenses.assetId, assetId));
+    return license || undefined;
+  }
+
+  async createAssetLicense(license: InsertAssetLicense, tenantId: string): Promise<AssetLicense> {
+    const [asset] = await db.select().from(assets).where(
+      and(eq(assets.id, license.assetId!), eq(assets.tenantId, tenantId))
+    );
+    if (!asset) {
+      throw new Error("Asset gehört nicht zum Mandanten");
+    }
+    const [result] = await db.insert(assetLicenses).values(license).returning();
+    return result;
+  }
+
+  async updateAssetLicense(id: string, updates: Partial<InsertAssetLicense>, tenantId: string): Promise<AssetLicense | undefined> {
+    const [existingLicense] = await db.select().from(assetLicenses).where(eq(assetLicenses.id, id));
+    if (!existingLicense) return undefined;
+    const [asset] = await db.select().from(assets).where(
+      and(eq(assets.id, existingLicense.assetId!), eq(assets.tenantId, tenantId))
+    );
+    if (!asset) return undefined;
+    const { assetId: _, id: __, ...safeUpdates } = updates as any;
+    const [result] = await db.update(assetLicenses).set(safeUpdates).where(eq(assetLicenses.id, id)).returning();
+    return result || undefined;
+  }
+
+  async deleteAssetLicense(id: string, tenantId: string): Promise<void> {
+    const [existingLicense] = await db.select().from(assetLicenses).where(eq(assetLicenses.id, id));
+    if (!existingLicense) return;
+    const [asset] = await db.select().from(assets).where(
+      and(eq(assets.id, existingLicense.assetId!), eq(assets.tenantId, tenantId))
+    );
+    if (!asset) return;
+    await db.delete(assetLicenses).where(eq(assetLicenses.id, id));
+  }
+
+  // Asset Contracts
+  async getAssetContract(assetId: string, tenantId: string): Promise<AssetContract | undefined> {
+    const [asset] = await db.select().from(assets).where(
+      and(eq(assets.id, assetId), eq(assets.tenantId, tenantId))
+    );
+    if (!asset) return undefined;
+    const [contract] = await db.select().from(assetContracts).where(eq(assetContracts.assetId, assetId));
+    return contract || undefined;
+  }
+
+  async createAssetContract(contract: InsertAssetContract, tenantId: string): Promise<AssetContract> {
+    const [asset] = await db.select().from(assets).where(
+      and(eq(assets.id, contract.assetId!), eq(assets.tenantId, tenantId))
+    );
+    if (!asset) {
+      throw new Error("Asset gehört nicht zum Mandanten");
+    }
+    const [result] = await db.insert(assetContracts).values(contract).returning();
+    return result;
+  }
+
+  async updateAssetContract(id: string, updates: Partial<InsertAssetContract>, tenantId: string): Promise<AssetContract | undefined> {
+    const [existingContract] = await db.select().from(assetContracts).where(eq(assetContracts.id, id));
+    if (!existingContract) return undefined;
+    const [asset] = await db.select().from(assets).where(
+      and(eq(assets.id, existingContract.assetId!), eq(assets.tenantId, tenantId))
+    );
+    if (!asset) return undefined;
+    const { assetId: _, id: __, ...safeUpdates } = updates as any;
+    const [result] = await db.update(assetContracts).set(safeUpdates).where(eq(assetContracts.id, id)).returning();
+    return result || undefined;
+  }
+
+  async deleteAssetContract(id: string, tenantId: string): Promise<void> {
+    const [existingContract] = await db.select().from(assetContracts).where(eq(assetContracts.id, id));
+    if (!existingContract) return;
+    const [asset] = await db.select().from(assets).where(
+      and(eq(assets.id, existingContract.assetId!), eq(assets.tenantId, tenantId))
+    );
+    if (!asset) return;
+    await db.delete(assetContracts).where(eq(assetContracts.id, id));
+  }
+
+  // Ticket Assets
+  async getTicketAssets(ticketId: string, tenantId: string): Promise<(TicketAsset & { asset?: Asset })[]> {
+    const [ticket] = await db.select().from(tickets).where(
+      and(eq(tickets.id, ticketId), eq(tickets.tenantId, tenantId))
+    );
+    if (!ticket) return [];
+    
+    const links = await db.select().from(ticketAssets).where(eq(ticketAssets.ticketId, ticketId));
+    const result: (TicketAsset & { asset?: Asset })[] = [];
+    for (const link of links) {
+      const [asset] = await db.select().from(assets).where(
+        and(eq(assets.id, link.assetId!), eq(assets.tenantId, tenantId))
+      );
+      result.push({ ...link, asset: asset || undefined });
+    }
+    return result;
+  }
+
+  async getAssetTickets(assetId: string, tenantId: string): Promise<(TicketAsset & { ticket?: Ticket })[]> {
+    const [asset] = await db.select().from(assets).where(
+      and(eq(assets.id, assetId), eq(assets.tenantId, tenantId))
+    );
+    if (!asset) return [];
+    
+    const links = await db.select().from(ticketAssets).where(eq(ticketAssets.assetId, assetId));
+    const result: (TicketAsset & { ticket?: Ticket })[] = [];
+    for (const link of links) {
+      const [ticket] = await db.select().from(tickets).where(
+        and(eq(tickets.id, link.ticketId!), eq(tickets.tenantId, tenantId))
+      );
+      result.push({ ...link, ticket: ticket || undefined });
+    }
+    return result;
+  }
+
+  async createTicketAsset(link: InsertTicketAsset, tenantId: string): Promise<TicketAsset> {
+    const [ticket] = await db.select().from(tickets).where(
+      and(eq(tickets.id, link.ticketId!), eq(tickets.tenantId, tenantId))
+    );
+    const [asset] = await db.select().from(assets).where(
+      and(eq(assets.id, link.assetId!), eq(assets.tenantId, tenantId))
+    );
+    if (!ticket || !asset) {
+      throw new Error("Ticket oder Asset gehört nicht zum Mandanten");
+    }
+    const [result] = await db.insert(ticketAssets).values(link).returning();
+    return result;
+  }
+
+  async deleteTicketAsset(id: string, tenantId: string): Promise<void> {
+    const [link] = await db.select().from(ticketAssets).where(eq(ticketAssets.id, id));
+    if (!link) return;
+    
+    const [ticket] = await db.select().from(tickets).where(
+      and(eq(tickets.id, link.ticketId!), eq(tickets.tenantId, tenantId))
+    );
+    if (!ticket) return;
+    
+    await db.delete(ticketAssets).where(eq(ticketAssets.id, id));
+  }
+
+  // Asset History
+  async getAssetHistory(assetId: string, tenantId: string): Promise<(AssetHistory & { user?: User })[]> {
+    const [asset] = await db.select().from(assets).where(
+      and(eq(assets.id, assetId), eq(assets.tenantId, tenantId))
+    );
+    if (!asset) return [];
+    
+    const entries = await db.select().from(assetHistory).where(eq(assetHistory.assetId, assetId)).orderBy(desc(assetHistory.createdAt));
+    const result: (AssetHistory & { user?: User })[] = [];
+    for (const entry of entries) {
+      const user = entry.userId ? await this.getUser(entry.userId) : undefined;
+      result.push({ ...entry, user });
+    }
+    return result;
+  }
+
+  async createAssetHistory(entry: InsertAssetHistory, tenantId: string): Promise<AssetHistory> {
+    const [asset] = await db.select().from(assets).where(
+      and(eq(assets.id, entry.assetId!), eq(assets.tenantId, tenantId))
+    );
+    if (!asset) {
+      throw new Error("Asset gehört nicht zum Mandanten");
+    }
+    const [result] = await db.insert(assetHistory).values(entry).returning();
+    return result;
   }
 }
 

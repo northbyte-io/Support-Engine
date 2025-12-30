@@ -20,6 +20,7 @@ import SlaSettingsPage from "@/pages/sla-settings";
 import KnowledgeBasePage from "@/pages/knowledge-base";
 import TimeTrackingPage from "@/pages/time-tracking";
 import SurveysPage from "@/pages/surveys";
+import AssetsPage from "@/pages/assets";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -166,6 +167,12 @@ function Router() {
         <AdminRoute>
           <SurveysPage />
         </AdminRoute>
+      </Route>
+
+      <Route path="/assets">
+        <AgentRoute>
+          <AssetsPage />
+        </AgentRoute>
       </Route>
 
       <Route component={NotFound} />

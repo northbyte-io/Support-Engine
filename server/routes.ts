@@ -10,7 +10,7 @@ import {
   agentMiddleware,
   type AuthenticatedRequest 
 } from "./auth";
-import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyInvitationSchema, insertSurveyResponseSchema } from "@shared/schema";
+import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyInvitationSchema, insertSurveyResponseSchema, insertAssetCategorySchema, insertAssetSchema, insertAssetLicenseSchema, insertAssetContractSchema, insertTicketAssetSchema, insertAssetHistorySchema } from "@shared/schema";
 import crypto from "crypto";
 import { z } from "zod";
 
@@ -1564,6 +1564,274 @@ export async function registerRoutes(
   // This logic is now in the ticket update endpoint
   // When a ticket status changes to "closed", we check for an active survey
   // and create an invitation if one exists
+
+  // ==================== ASSET MANAGEMENT ====================
+  
+  // Asset Categories
+  app.get("/api/asset-categories", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const categories = await storage.getAssetCategories(req.user!.tenantId!);
+      res.json(categories);
+    } catch (error) {
+      console.error("Get asset categories error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/asset-categories", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertAssetCategorySchema.parse({
+        ...req.body,
+        tenantId: req.user!.tenantId,
+      });
+      const category = await storage.createAssetCategory(data, req.user!.tenantId!);
+      res.status(201).json(category);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create asset category error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.patch("/api/asset-categories/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const category = await storage.getAssetCategory(req.params.id, req.user!.tenantId!);
+      if (!category) {
+        return res.status(404).json({ message: "Kategorie nicht gefunden" });
+      }
+      const updated = await storage.updateAssetCategory(req.params.id, req.body, req.user!.tenantId!);
+      res.json(updated);
+    } catch (error) {
+      console.error("Update asset category error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/asset-categories/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const category = await storage.getAssetCategory(req.params.id, req.user!.tenantId!);
+      if (!category) {
+        return res.status(404).json({ message: "Kategorie nicht gefunden" });
+      }
+      await storage.deleteAssetCategory(req.params.id, req.user!.tenantId!);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete asset category error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Assets
+  app.get("/api/assets", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { assetType, status, categoryId, assignedToId, search } = req.query;
+      const assets = await storage.getAssets(req.user!.tenantId!, {
+        assetType: assetType as string | undefined,
+        status: status as string | undefined,
+        categoryId: categoryId as string | undefined,
+        assignedToId: assignedToId as string | undefined,
+        search: search as string | undefined,
+      });
+      res.json(assets);
+    } catch (error) {
+      console.error("Get assets error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.get("/api/assets/next-number", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const assetNumber = await storage.getNextAssetNumber(req.user!.tenantId!);
+      res.json({ assetNumber });
+    } catch (error) {
+      console.error("Get next asset number error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.get("/api/assets/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const asset = await storage.getAsset(req.params.id, req.user!.tenantId!);
+      if (!asset) {
+        return res.status(404).json({ message: "Asset nicht gefunden" });
+      }
+      res.json(asset);
+    } catch (error) {
+      console.error("Get asset error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/assets", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertAssetSchema.parse({
+        ...req.body,
+        tenantId: req.user!.tenantId,
+      });
+      const asset = await storage.createAsset(data, req.user!.tenantId!);
+
+      // Create history entry
+      await storage.createAssetHistory({
+        assetId: asset.id,
+        userId: req.user!.id,
+        action: "created",
+        description: "Asset erstellt",
+      }, req.user!.tenantId!);
+
+      // If software/license type, create license entry
+      if ((asset.assetType === "software" || asset.assetType === "license") && req.body.license) {
+        const licenseData = insertAssetLicenseSchema.parse({
+          ...req.body.license,
+          assetId: asset.id,
+        });
+        await storage.createAssetLicense(licenseData, req.user!.tenantId!);
+      }
+
+      // If contract type, create contract entry
+      if (asset.assetType === "contract" && req.body.contract) {
+        const contractData = insertAssetContractSchema.parse({
+          ...req.body.contract,
+          assetId: asset.id,
+        });
+        await storage.createAssetContract(contractData, req.user!.tenantId!);
+      }
+
+      const fullAsset = await storage.getAsset(asset.id, req.user!.tenantId!);
+      res.status(201).json(fullAsset);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      console.error("Create asset error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.patch("/api/assets/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const asset = await storage.getAsset(req.params.id, req.user!.tenantId!);
+      if (!asset) {
+        return res.status(404).json({ message: "Asset nicht gefunden" });
+      }
+
+      const updated = await storage.updateAsset(req.params.id, req.body, req.user!.tenantId!);
+
+      // Create history entry for update
+      await storage.createAssetHistory({
+        assetId: req.params.id,
+        userId: req.user!.id,
+        action: "updated",
+        description: "Asset aktualisiert",
+        previousValue: asset,
+        newValue: updated,
+      }, req.user!.tenantId!);
+
+      // Update license if provided
+      if (req.body.license) {
+        const existingLicense = await storage.getAssetLicense(req.params.id, req.user!.tenantId!);
+        if (existingLicense) {
+          await storage.updateAssetLicense(existingLicense.id, req.body.license, req.user!.tenantId!);
+        } else {
+          await storage.createAssetLicense({ ...req.body.license, assetId: req.params.id }, req.user!.tenantId!);
+        }
+      }
+
+      // Update contract if provided
+      if (req.body.contract) {
+        const existingContract = await storage.getAssetContract(req.params.id, req.user!.tenantId!);
+        if (existingContract) {
+          await storage.updateAssetContract(existingContract.id, req.body.contract, req.user!.tenantId!);
+        } else {
+          await storage.createAssetContract({ ...req.body.contract, assetId: req.params.id }, req.user!.tenantId!);
+        }
+      }
+
+      const fullAsset = await storage.getAsset(req.params.id, req.user!.tenantId!);
+      res.json(fullAsset);
+    } catch (error) {
+      console.error("Update asset error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/assets/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const asset = await storage.getAsset(req.params.id, req.user!.tenantId!);
+      if (!asset) {
+        return res.status(404).json({ message: "Asset nicht gefunden" });
+      }
+      await storage.deleteAsset(req.params.id, req.user!.tenantId!);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete asset error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Ticket Assets (linking)
+  app.get("/api/tickets/:ticketId/assets", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const ticketAssets = await storage.getTicketAssets(req.params.ticketId, req.user!.tenantId!);
+      res.json(ticketAssets);
+    } catch (error) {
+      console.error("Get ticket assets error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/tickets/:ticketId/assets", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const data = insertTicketAssetSchema.parse({
+        ticketId: req.params.ticketId,
+        assetId: req.body.assetId,
+      });
+      const link = await storage.createTicketAsset(data, req.user!.tenantId!);
+      res.status(201).json(link);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      if (error instanceof Error && error.message.includes("gehört nicht zum Mandanten")) {
+        return res.status(404).json({ message: "Ticket oder Asset nicht gefunden" });
+      }
+      console.error("Create ticket asset link error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/ticket-assets/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.deleteTicketAsset(req.params.id, req.user!.tenantId!);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete ticket asset link error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Asset tickets (get tickets linked to an asset)
+  app.get("/api/assets/:assetId/tickets", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const assetTickets = await storage.getAssetTickets(req.params.assetId, req.user!.tenantId!);
+      res.json(assetTickets);
+    } catch (error) {
+      console.error("Get asset tickets error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Asset history
+  app.get("/api/assets/:assetId/history", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const history = await storage.getAssetHistory(req.params.assetId, req.user!.tenantId!);
+      res.json(history);
+    } catch (error) {
+      console.error("Get asset history error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
 
   return httpServer;
 }

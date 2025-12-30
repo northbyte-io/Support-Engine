@@ -766,6 +766,126 @@ export type SurveyResultSummary = {
   }[];
 };
 
+// Asset type enum
+export const assetTypeEnum = pgEnum("asset_type", ["hardware", "software", "license", "contract"]);
+export const assetStatusEnum = pgEnum("asset_status", ["active", "inactive", "maintenance", "disposed", "expired"]);
+
+// Asset Categories
+export const assetCategories = pgTable("asset_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  assetType: assetTypeEnum("asset_type").notNull(),
+  icon: text("icon").default("box"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Assets
+export const assets = pgTable("assets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  categoryId: varchar("category_id").references(() => assetCategories.id),
+  assetNumber: text("asset_number").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  assetType: assetTypeEnum("asset_type").notNull(),
+  status: assetStatusEnum("asset_status").default("active"),
+  manufacturer: text("manufacturer"),
+  model: text("model"),
+  serialNumber: text("serial_number"),
+  purchaseDate: timestamp("purchase_date"),
+  purchasePrice: integer("purchase_price"),
+  warrantyExpiry: timestamp("warranty_expiry"),
+  assignedToId: varchar("assigned_to_id").references(() => users.id),
+  location: text("location"),
+  notes: text("notes"),
+  customFields: jsonb("custom_fields"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// License details for software assets
+export const assetLicenses = pgTable("asset_licenses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  assetId: varchar("asset_id").references(() => assets.id),
+  licenseKey: text("license_key"),
+  licensedSeats: integer("licensed_seats"),
+  usedSeats: integer("used_seats").default(0),
+  licenseType: text("license_type"),
+  startDate: timestamp("start_date"),
+  expiryDate: timestamp("expiry_date"),
+  renewalCost: integer("renewal_cost"),
+  vendor: text("vendor"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Contract details for contract assets
+export const assetContracts = pgTable("asset_contracts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  assetId: varchar("asset_id").references(() => assets.id),
+  contractNumber: text("contract_number"),
+  contractType: text("contract_type"),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  renewalDate: timestamp("renewal_date"),
+  autoRenew: boolean("auto_renew").default(false),
+  monthlyCost: integer("monthly_cost"),
+  annualCost: integer("annual_cost"),
+  vendor: text("vendor"),
+  contactName: text("contact_name"),
+  contactEmail: text("contact_email"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Asset-Ticket linking
+export const ticketAssets = pgTable("ticket_assets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: varchar("ticket_id").references(() => tickets.id),
+  assetId: varchar("asset_id").references(() => assets.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Asset maintenance/history log
+export const assetHistory = pgTable("asset_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  assetId: varchar("asset_id").references(() => assets.id),
+  userId: varchar("user_id").references(() => users.id),
+  action: text("action").notNull(),
+  description: text("description"),
+  previousValue: jsonb("previous_value"),
+  newValue: jsonb("new_value"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertAssetCategorySchema = createInsertSchema(assetCategories).omit({ id: true, createdAt: true });
+export const insertAssetSchema = createInsertSchema(assets).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertAssetLicenseSchema = createInsertSchema(assetLicenses).omit({ id: true, createdAt: true });
+export const insertAssetContractSchema = createInsertSchema(assetContracts).omit({ id: true, createdAt: true });
+export const insertTicketAssetSchema = createInsertSchema(ticketAssets).omit({ id: true, createdAt: true });
+export const insertAssetHistorySchema = createInsertSchema(assetHistory).omit({ id: true, createdAt: true });
+
+export type AssetCategory = typeof assetCategories.$inferSelect;
+export type InsertAssetCategory = z.infer<typeof insertAssetCategorySchema>;
+export type Asset = typeof assets.$inferSelect;
+export type InsertAsset = z.infer<typeof insertAssetSchema>;
+export type AssetLicense = typeof assetLicenses.$inferSelect;
+export type InsertAssetLicense = z.infer<typeof insertAssetLicenseSchema>;
+export type AssetContract = typeof assetContracts.$inferSelect;
+export type InsertAssetContract = z.infer<typeof insertAssetContractSchema>;
+export type TicketAsset = typeof ticketAssets.$inferSelect;
+export type InsertTicketAsset = z.infer<typeof insertTicketAssetSchema>;
+export type AssetHistory = typeof assetHistory.$inferSelect;
+export type InsertAssetHistory = z.infer<typeof insertAssetHistorySchema>;
+
+export type AssetWithRelations = Asset & {
+  category?: AssetCategory | null;
+  assignedTo?: User | null;
+  license?: AssetLicense | null;
+  contract?: AssetContract | null;
+  history?: AssetHistory[];
+};
+
 // Auth schemas
 export const loginSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
