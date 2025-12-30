@@ -18,6 +18,7 @@ Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und H
 - [👥 Benutzerrollen & Berechtigungen](#-benutzerrollen--berechtigungen)
 - [🔒 Sicherheit](#-sicherheit)
 - [📄 Lizenz](#-lizenz)
+- [📘 Administrationsanleitung](#-administrationsanleitung)
 
 ---
 
@@ -754,6 +755,23 @@ Da dies eine Webanwendung ist, gilt die **Network Copyleft**-Klausel:
 
 Siehe [LICENSE](./LICENSE) für den vollständigen Lizenztext.
 Siehe [CONTRIBUTING.md](./CONTRIBUTING.md) für Beitragsrichtlinien.
+
+---
+
+## 📘 Administrationsanleitung
+
+Für Administratoren, Betreiber und technische Ansprechpartner steht eine ausführliche Betriebs- und Administrationsanleitung zur Verfügung:
+
+**[📘 ANLEITUNG.md](./ANLEITUNG.md)**
+
+Die Anleitung enthält:
+- ⚙️ Betrieb und Administration (Mandanten, Benutzer, SLA)
+- 📧 E-Mail- und Integrationen (Exchange, Mailabruf)
+- 🏢 CRM-Nutzung im Ticketsystem
+- 📊 Logging und Monitoring
+- 🔐 TLS und Sicherheit
+- 🎨 Branding und Mandantenanpassung
+- 🔧 Betriebshinweise (Backup, Updates, Wartung)
 
 ---
 
