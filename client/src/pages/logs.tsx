@@ -18,6 +18,7 @@ import {
   FileText,
   FileSpreadsheet,
   FileJson,
+  FlaskConical,
 } from "lucide-react";
 import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -242,6 +243,22 @@ export default function LogsPage() {
     }
   };
 
+  const handleGenerateTestLogs = async () => {
+    const token = localStorage.getItem("token");
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    try {
+      const res = await fetch("/api/logs/test", { method: "POST", headers });
+      if (res.ok) {
+        refetch();
+      }
+    } catch (error) {
+      console.error("Generate test logs error:", error);
+    }
+  };
+
   const levelCounts = data?.logs.reduce((acc, log) => {
     acc[log.level] = (acc[log.level] || 0) + 1;
     return acc;
@@ -252,6 +269,15 @@ export default function LogsPage() {
       title="System-Logs"
       actions={
         <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleGenerateTestLogs}
+            data-testid="button-generate-test-logs"
+          >
+            <FlaskConical className="w-4 h-4 mr-2" />
+            Test-Logs
+          </Button>
           <Button 
             variant="outline" 
             size="sm" 

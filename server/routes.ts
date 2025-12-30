@@ -2496,6 +2496,65 @@ export async function registerRoutes(
     }
   });
 
+  // Test endpoint to generate sample logs for all levels
+  app.post("/api/logs/test", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { logger } = await import("./logger");
+      
+      // Debug log
+      logger.debug("system", "Debug-Test", "Dies ist eine Test-Debug-Nachricht zur Überprüfung des Logging-Systems", {
+        tenantId: req.tenantId || undefined,
+        userId: req.user!.id,
+        metadata: { testType: "debug", timestamp: new Date().toISOString() },
+      });
+
+      // Info log
+      logger.info("api", "Info-Test", "Dies ist eine Test-Info-Nachricht - System läuft normal", {
+        tenantId: req.tenantId || undefined,
+        userId: req.user!.id,
+        metadata: { testType: "info", component: "API-Gateway" },
+      });
+
+      // Warning log
+      logger.warn("database", "Warnung-Test", "Dies ist eine Test-Warnung - Hohe Datenbankauslastung erkannt", {
+        tenantId: req.tenantId || undefined,
+        userId: req.user!.id,
+        metadata: { testType: "warning", cpuUsage: "85%", memoryUsage: "78%" },
+      });
+
+      // Error log
+      logger.error("ticket", "Fehler-Test", {
+        description: "Dies ist ein Test-Fehler zur Demonstration",
+        cause: "Simulierter Datenbankverbindungsfehler beim Ticket-Abruf",
+        solution: "Überprüfen Sie die Datenbankverbindung und starten Sie den Dienst neu",
+      }, {
+        tenantId: req.tenantId || undefined,
+        userId: req.user!.id,
+        entityType: "ticket",
+        entityId: "test-123",
+      });
+
+      // Security log
+      logger.security("auth", "Sicherheit-Test", "Verdächtige Anmeldeaktivität erkannt - Mehrere fehlgeschlagene Versuche von derselben IP", {
+        tenantId: req.tenantId || undefined,
+        userId: req.user!.id,
+        metadata: { testType: "security", ipAddress: "192.168.1.100", failedAttempts: 5 },
+      });
+
+      // Performance log
+      logger.performance("api", "Performance-Test", 2500, {
+        tenantId: req.tenantId || undefined,
+        userId: req.user!.id,
+        metadata: { testType: "performance", endpoint: "/api/tickets", method: "GET" },
+      });
+
+      res.json({ message: "Test-Logs wurden erfolgreich erstellt", count: 6 });
+    } catch (error) {
+      console.error("Test logs error:", error);
+      res.status(500).json({ message: "Fehler beim Erstellen der Test-Logs" });
+    }
+  });
+
   app.get("/api/logs/export", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const { logger } = await import("./logger");
