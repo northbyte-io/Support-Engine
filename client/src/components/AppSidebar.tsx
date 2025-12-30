@@ -12,6 +12,7 @@ import {
   BookOpen,
   ClipboardList,
   Package,
+  Kanban,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
@@ -66,6 +67,11 @@ const mainNavItems = [
     title: "Assets",
     url: "/assets",
     icon: Package,
+  },
+  {
+    title: "Projekte",
+    url: "/projects",
+    icon: Kanban,
   },
 ];
 
