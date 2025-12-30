@@ -73,6 +73,8 @@ export const tickets = pgTable("tickets", {
   status: ticketStatusEnum("status").default("open"),
   priority: ticketPriorityEnum("priority").default("medium"),
   createdById: varchar("created_by_id").references(() => users.id),
+  // CRM fields - customer reference (FK handled in storage layer)
+  customerId: varchar("customer_id"),
   customFieldValues: jsonb("custom_field_values"),
   dueDate: timestamp("due_date"),
   // SLA tracking fields
@@ -955,6 +957,173 @@ export type ProjectWithRelations = Project & {
   members?: (ProjectMember & { user?: User })[];
   columns?: BoardColumn[];
   ticketCount?: number;
+};
+
+// ============================================
+// CRM ENTITIES - Customer & Contact Management
+// ============================================
+
+// Organizations (Companies)
+export const organizations = pgTable("organizations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  name: text("name").notNull(),
+  legalName: text("legal_name"),
+  industry: text("industry"),
+  website: text("website"),
+  phone: text("phone"),
+  email: text("email"),
+  taxId: text("tax_id"),
+  address: text("address"),
+  city: text("city"),
+  postalCode: text("postal_code"),
+  country: text("country").default("Deutschland"),
+  parentId: varchar("parent_id"), // Hierarchical org structure
+  notes: text("notes"),
+  customFields: jsonb("custom_fields"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Customers (can be linked to organization or standalone)
+export const customers = pgTable("customers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  organizationId: varchar("organization_id").references(() => organizations.id),
+  customerNumber: text("customer_number").notNull(),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  address: text("address"),
+  city: text("city"),
+  postalCode: text("postal_code"),
+  country: text("country").default("Deutschland"),
+  accountManagerId: varchar("account_manager_id").references(() => users.id),
+  slaDefinitionId: varchar("sla_definition_id").references(() => slaDefinitions.id),
+  priority: ticketPriorityEnum("priority").default("medium"),
+  notes: text("notes"),
+  customFields: jsonb("custom_fields"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Customer Locations (multiple sites per customer)
+export const customerLocations = pgTable("customer_locations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").references(() => customers.id),
+  name: text("name").notNull(),
+  address: text("address"),
+  city: text("city"),
+  postalCode: text("postal_code"),
+  country: text("country").default("Deutschland"),
+  phone: text("phone"),
+  isPrimary: boolean("is_primary").default(false),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Contacts (people at customer/organization)
+export const contactRoleEnum = pgEnum("contact_role", ["primary", "secondary", "technical", "billing", "decision_maker"]);
+
+export const contacts = pgTable("contacts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  customerId: varchar("customer_id").references(() => customers.id),
+  organizationId: varchar("organization_id").references(() => organizations.id),
+  userId: varchar("user_id").references(() => users.id), // Link to user account if exists
+  salutation: text("salutation"),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  title: text("title"), // Job title
+  department: text("department"),
+  email: text("email"),
+  phone: text("phone"),
+  mobile: text("mobile"),
+  role: contactRoleEnum("role").default("secondary"),
+  communicationPreference: text("communication_preference").default("email"),
+  emailConsent: boolean("email_consent").default(false),
+  notes: text("notes"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Ticket-Contact relationship (who is involved in ticket)
+export const ticketContacts = pgTable("ticket_contacts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: varchar("ticket_id").references(() => tickets.id),
+  contactId: varchar("contact_id").references(() => contacts.id),
+  role: text("role").default("requester"), // requester, cc, technical
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Customer Activity Log (timeline)
+export const customerActivityTypeEnum = pgEnum("customer_activity_type", [
+  "ticket_created", "ticket_resolved", "ticket_closed",
+  "comment_added", "email_sent", "email_received",
+  "call_logged", "meeting_scheduled", "note_added",
+  "contract_signed", "invoice_sent"
+]);
+
+export const customerActivities = pgTable("customer_activities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  customerId: varchar("customer_id").references(() => customers.id),
+  contactId: varchar("contact_id").references(() => contacts.id),
+  ticketId: varchar("ticket_id").references(() => tickets.id),
+  activityType: customerActivityTypeEnum("activity_type").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  metadata: jsonb("metadata"),
+  createdById: varchar("created_by_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// CRM Insert schemas
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertCustomerLocationSchema = createInsertSchema(customerLocations).omit({ id: true, createdAt: true });
+export const insertContactSchema = createInsertSchema(contacts).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTicketContactSchema = createInsertSchema(ticketContacts).omit({ id: true, createdAt: true });
+export const insertCustomerActivitySchema = createInsertSchema(customerActivities).omit({ id: true, createdAt: true });
+
+// CRM Types
+export type Organization = typeof organizations.$inferSelect;
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+export type Customer = typeof customers.$inferSelect;
+export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
+export type CustomerLocation = typeof customerLocations.$inferSelect;
+export type InsertCustomerLocation = z.infer<typeof insertCustomerLocationSchema>;
+export type Contact = typeof contacts.$inferSelect;
+export type InsertContact = z.infer<typeof insertContactSchema>;
+export type TicketContact = typeof ticketContacts.$inferSelect;
+export type InsertTicketContact = z.infer<typeof insertTicketContactSchema>;
+export type CustomerActivity = typeof customerActivities.$inferSelect;
+export type InsertCustomerActivity = z.infer<typeof insertCustomerActivitySchema>;
+
+// CRM Relation Types
+export type OrganizationWithRelations = Organization & {
+  customers?: Customer[];
+  contacts?: Contact[];
+  parentOrganization?: Organization | null;
+};
+
+export type CustomerWithRelations = Customer & {
+  organization?: Organization | null;
+  accountManager?: User | null;
+  slaDefinition?: SlaDefinition | null;
+  locations?: CustomerLocation[];
+  contacts?: Contact[];
+  tickets?: Ticket[];
+  activities?: CustomerActivity[];
+};
+
+export type ContactWithRelations = Contact & {
+  customer?: Customer | null;
+  organization?: Organization | null;
+  user?: User | null;
 };
 
 // Auth schemas
