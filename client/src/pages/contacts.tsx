@@ -508,14 +508,14 @@ export default function ContactsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Kunde</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select onValueChange={(val) => field.onChange(val === "none" ? null : val)} value={field.value || "none"}>
                         <FormControl>
                           <SelectTrigger data-testid="select-contact-customer">
                             <SelectValue placeholder="Kunde wählen" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Kein Kunde</SelectItem>
+                          <SelectItem value="none">Kein Kunde</SelectItem>
                           {customers?.map((customer) => (
                             <SelectItem key={customer.id} value={customer.id}>
                               {customer.name}
@@ -534,14 +534,14 @@ export default function ContactsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Organisation</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select onValueChange={(val) => field.onChange(val === "none" ? null : val)} value={field.value || "none"}>
                         <FormControl>
                           <SelectTrigger data-testid="select-contact-organization">
                             <SelectValue placeholder="Organisation wählen" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Keine Organisation</SelectItem>
+                          <SelectItem value="none">Keine Organisation</SelectItem>
                           {organizations?.map((org) => (
                             <SelectItem key={org.id} value={org.id}>
                               {org.name}

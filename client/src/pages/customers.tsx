@@ -487,14 +487,14 @@ export default function CustomersPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Organisation</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select onValueChange={(val) => field.onChange(val === "none" ? null : val)} value={field.value || "none"}>
                         <FormControl>
                           <SelectTrigger data-testid="select-customer-organization">
                             <SelectValue placeholder="Organisation wählen" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Keine Organisation</SelectItem>
+                          <SelectItem value="none">Keine Organisation</SelectItem>
                           {organizations?.map((org) => (
                             <SelectItem key={org.id} value={org.id}>
                               {org.name}
@@ -513,14 +513,14 @@ export default function CustomersPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Kundenbetreuer</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select onValueChange={(val) => field.onChange(val === "none" ? null : val)} value={field.value || "none"}>
                         <FormControl>
                           <SelectTrigger data-testid="select-customer-manager">
                             <SelectValue placeholder="Betreuer wählen" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Kein Betreuer</SelectItem>
+                          <SelectItem value="none">Kein Betreuer</SelectItem>
                           {agents?.map((user) => (
                             <SelectItem key={user.id} value={user.id}>
                               {user.firstName} {user.lastName}
