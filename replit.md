@@ -174,6 +174,7 @@ Preferred communication style: Simple, everyday language (German).
 - `LICENSE` - AGPL-3.0 license text
 - `NOTICE` - Copyright notice
 - `CONTRIBUTING.md` - Contribution guidelines
+- `ANLEITUNG.md` - Betriebs- und Administrationsanleitung
 
 ## Demo Credentials
 
