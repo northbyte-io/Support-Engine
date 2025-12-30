@@ -11,7 +11,7 @@ import {
   agentMiddleware,
   type AuthenticatedRequest 
 } from "./auth";
-import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyInvitationSchema, insertSurveyResponseSchema, insertAssetCategorySchema, insertAssetSchema, insertAssetLicenseSchema, insertAssetContractSchema, insertTicketAssetSchema, insertAssetHistorySchema, insertProjectSchema, insertProjectMemberSchema, insertBoardColumnSchema, insertTicketProjectSchema, insertOrganizationSchema, insertCustomerSchema, insertCustomerLocationSchema, insertContactSchema, insertTicketContactSchema, insertCustomerActivitySchema } from "@shared/schema";
+import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyInvitationSchema, insertSurveyResponseSchema, insertAssetCategorySchema, insertAssetSchema, insertAssetLicenseSchema, insertAssetContractSchema, insertTicketAssetSchema, insertAssetHistorySchema, insertProjectSchema, insertProjectMemberSchema, insertBoardColumnSchema, insertTicketProjectSchema, insertOrganizationSchema, insertCustomerSchema, insertCustomerLocationSchema, insertContactSchema, insertTicketContactSchema, insertCustomerActivitySchema, updateTenantBrandingSchema } from "@shared/schema";
 import crypto from "crypto";
 import { z } from "zod";
 
@@ -497,6 +497,89 @@ export async function registerRoutes(
       res.json(types);
     } catch (error) {
       console.error("Get ticket types error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Tenant Branding
+  app.get("/api/tenant/branding", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.tenantId) {
+        return res.status(400).json({ message: "Mandant nicht gefunden" });
+      }
+      const tenant = await storage.getTenant(req.tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Mandant nicht gefunden" });
+      }
+      res.json(tenant);
+    } catch (error) {
+      logger.error("api", "Fehler beim Abrufen des Mandanten-Brandings", {
+        description: "Das Mandanten-Branding konnte nicht abgerufen werden",
+        cause: error instanceof Error ? error.message : "Unbekannter Fehler",
+        solution: "Überprüfen Sie die Mandanten-ID",
+      });
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.patch("/api/tenant/branding", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.tenantId) {
+        return res.status(400).json({ message: "Mandant nicht gefunden" });
+      }
+      
+      const data = updateTenantBrandingSchema.parse(req.body);
+      const updatedTenant = await storage.updateTenantBranding(req.tenantId, data);
+      
+      if (!updatedTenant) {
+        return res.status(404).json({ message: "Mandant nicht gefunden" });
+      }
+
+      logger.info("system", "Mandanten-Branding aktualisiert", `Das Branding für Mandant wurde erfolgreich aktualisiert`, {
+        tenantId: req.tenantId,
+        userId: req.user!.id,
+      });
+
+      res.json(updatedTenant);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+      }
+      logger.error("system", "Fehler beim Aktualisieren des Mandanten-Brandings", {
+        description: "Das Mandanten-Branding konnte nicht aktualisiert werden",
+        cause: error instanceof Error ? error.message : "Unbekannter Fehler",
+        solution: "Überprüfen Sie die Eingabedaten",
+      });
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Get current tenant info (public, for branding on login page etc.)
+  app.get("/api/tenant/public/:slug", async (req, res) => {
+    try {
+      const tenant = await storage.getTenantBySlug(req.params.slug);
+      if (!tenant || !tenant.isActive) {
+        return res.status(404).json({ message: "Mandant nicht gefunden" });
+      }
+      // Return only public branding info
+      res.json({
+        id: tenant.id,
+        name: tenant.name,
+        slug: tenant.slug,
+        logo: tenant.logo,
+        logoLight: tenant.logoLight,
+        logoDark: tenant.logoDark,
+        favicon: tenant.favicon,
+        primaryColor: tenant.primaryColor,
+        secondaryColor: tenant.secondaryColor,
+        accentColor: tenant.accentColor,
+        fontFamily: tenant.fontFamily,
+        companyWebsite: tenant.companyWebsite,
+        supportEmail: tenant.supportEmail,
+        supportPhone: tenant.supportPhone,
+      });
+    } catch (error) {
+      console.error("Get public tenant error:", error);
       res.status(500).json({ message: "Interner Serverfehler" });
     }
   });

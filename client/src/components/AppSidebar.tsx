@@ -17,8 +17,11 @@ import {
   Contact,
   Landmark,
   ScrollText,
+  Palette,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { useBranding } from "@/lib/branding";
+import { useTheme } from "@/lib/theme";
 import {
   Sidebar,
   SidebarContent,
@@ -111,6 +114,11 @@ const adminNavItems = [
     icon: ScrollText,
   },
   {
+    title: "Branding",
+    url: "/branding",
+    icon: Palette,
+  },
+  {
     title: "SLA-Verwaltung",
     url: "/settings/sla",
     icon: Clock,
@@ -125,6 +133,8 @@ const adminNavItems = [
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const { user, logout } = useAuth();
+  const { branding } = useBranding();
+  const { theme } = useTheme();
 
   const handleLogout = () => {
     logout();
@@ -142,15 +152,29 @@ export function AppSidebar() {
     return location.startsWith(url);
   };
 
+  const getLogo = () => {
+    if (theme === "dark" && branding?.logoDark) {
+      return branding.logoDark;
+    }
+    return branding?.logoLight || branding?.logoUrl;
+  };
+
+  const logo = getLogo();
+  const tenantName = branding?.name || "Ticket-System";
+
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <Ticket className="w-4 h-4 text-primary-foreground" />
-          </div>
+          {logo ? (
+            <img src={logo} alt={tenantName} className="h-8 w-auto max-w-[120px] object-contain" />
+          ) : (
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <Ticket className="w-4 h-4 text-primary-foreground" />
+            </div>
+          )}
           <div>
-            <span className="font-semibold text-sm">Ticket-System</span>
+            <span className="font-semibold text-sm">{tenantName}</span>
           </div>
         </div>
       </SidebarHeader>

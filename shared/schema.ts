@@ -15,10 +15,32 @@ export const tenants = pgTable("tenants", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
+  // Branding - Logo & Favicon
   logo: text("logo"),
+  logoLight: text("logo_light"), // Logo für Light Mode
+  logoDark: text("logo_dark"), // Logo für Dark Mode
+  favicon: text("favicon"),
+  // Branding - Farben
   primaryColor: text("primary_color").default("#3B82F6"),
+  secondaryColor: text("secondary_color").default("#6366F1"),
+  accentColor: text("accent_color").default("#10B981"),
+  // Branding - Typografie
+  fontFamily: text("font_family").default("Inter"),
+  // Branding - E-Mail Templates
+  emailHeaderHtml: text("email_header_html"),
+  emailFooterHtml: text("email_footer_html"),
+  emailFromName: text("email_from_name"),
+  emailFromAddress: text("email_from_address"),
+  // Branding - Benutzerdefiniertes CSS
+  customCss: text("custom_css"),
+  // Branding - Allgemein
+  companyWebsite: text("company_website"),
+  supportEmail: text("support_email"),
+  supportPhone: text("support_phone"),
+  // Status
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Users table
@@ -620,7 +642,8 @@ export const surveyResponsesRelations = relations(surveyResponses, ({ one }) => 
 }));
 
 // Insert Schemas
-export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, createdAt: true });
+export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateTenantBrandingSchema = createInsertSchema(tenants).omit({ id: true, name: true, slug: true, createdAt: true, updatedAt: true, isActive: true }).partial();
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, lastLoginAt: true });
 export const insertTicketTypeSchema = createInsertSchema(ticketTypes).omit({ id: true, createdAt: true });
 export const insertCustomFieldSchema = createInsertSchema(customFields).omit({ id: true, createdAt: true });
@@ -648,6 +671,7 @@ export const insertSurveyResponseSchema = createInsertSchema(surveyResponses).om
 // Types
 export type Tenant = typeof tenants.$inferSelect;
 export type InsertTenant = z.infer<typeof insertTenantSchema>;
+export type UpdateTenantBranding = z.infer<typeof updateTenantBrandingSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type TicketType = typeof ticketTypes.$inferSelect;

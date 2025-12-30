@@ -148,7 +148,10 @@ export interface IStorage {
   // Tenants
   getTenant(id: string): Promise<Tenant | undefined>;
   getTenantBySlug(slug: string): Promise<Tenant | undefined>;
+  getTenants(): Promise<Tenant[]>;
   createTenant(tenant: InsertTenant): Promise<Tenant>;
+  updateTenant(id: string, updates: Partial<InsertTenant>): Promise<Tenant | undefined>;
+  updateTenantBranding(id: string, branding: Partial<InsertTenant>): Promise<Tenant | undefined>;
 
   // Tickets
   getTicket(id: string): Promise<TicketWithRelations | undefined>;
@@ -435,6 +438,26 @@ export class DatabaseStorage implements IStorage {
   async createTenant(insertTenant: InsertTenant): Promise<Tenant> {
     const [tenant] = await db.insert(tenants).values(insertTenant).returning();
     return tenant;
+  }
+
+  async getTenants(): Promise<Tenant[]> {
+    return db.select().from(tenants).orderBy(asc(tenants.name));
+  }
+
+  async updateTenant(id: string, updates: Partial<InsertTenant>): Promise<Tenant | undefined> {
+    const [tenant] = await db.update(tenants)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(tenants.id, id))
+      .returning();
+    return tenant || undefined;
+  }
+
+  async updateTenantBranding(id: string, branding: Partial<InsertTenant>): Promise<Tenant | undefined> {
+    const [tenant] = await db.update(tenants)
+      .set({ ...branding, updatedAt: new Date() })
+      .where(eq(tenants.id, id))
+      .returning();
+    return tenant || undefined;
   }
 
   // Tickets

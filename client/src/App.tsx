@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/lib/theme";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { BrandingProvider } from "@/lib/branding";
 import { LoadingPage } from "@/components/LoadingState";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
@@ -29,6 +30,7 @@ import CustomerDetailPage from "@/pages/customer-detail";
 import ContactsPage from "@/pages/contacts";
 import OrganizationsPage from "@/pages/organizations";
 import LogsPage from "@/pages/logs";
+import BrandingPage from "@/pages/branding";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -231,6 +233,12 @@ function Router() {
         </AdminRoute>
       </Route>
 
+      <Route path="/branding">
+        <AdminRoute>
+          <BrandingPage />
+        </AdminRoute>
+      </Route>
+
       <Route component={NotFound} />
     </Switch>
   );
@@ -241,10 +249,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
+          <BrandingProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </BrandingProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
