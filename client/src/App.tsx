@@ -28,6 +28,7 @@ import CustomersPage from "@/pages/customers";
 import CustomerDetailPage from "@/pages/customer-detail";
 import ContactsPage from "@/pages/contacts";
 import OrganizationsPage from "@/pages/organizations";
+import LogsPage from "@/pages/logs";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -222,6 +223,12 @@ function Router() {
         <AgentRoute>
           <OrganizationsPage />
         </AgentRoute>
+      </Route>
+
+      <Route path="/logs">
+        <AdminRoute>
+          <LogsPage />
+        </AdminRoute>
       </Route>
 
       <Route component={NotFound} />

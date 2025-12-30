@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { logger } from "./logger";
 import { 
   generateToken, 
   hashPassword, 
@@ -16,6 +17,7 @@ import { z } from "zod";
 
 // Seed default data for demo
 async function seedDefaultData() {
+  logger.info("system", "System wird gestartet", "Der Server wird initialisiert und Standarddaten werden geladen");
   try {
     // Check if default tenant exists
     let defaultTenant = await storage.getTenantBySlug("default");
@@ -202,19 +204,41 @@ export async function registerRoutes(
       
       const user = await storage.getUserByEmail(data.email);
       if (!user) {
+        logger.security("auth", "Fehlgeschlagener Anmeldeversuch", `Anmeldeversuch mit unbekannter E-Mail-Adresse`, {
+          metadata: { email: data.email },
+        });
         return res.status(401).json({ message: "Ungültige Anmeldedaten" });
       }
 
       const validPassword = await comparePassword(data.password, user.password);
       if (!validPassword) {
+        logger.security("auth", "Fehlgeschlagener Anmeldeversuch", `Falsches Passwort für Benutzer eingegeben`, {
+          entityType: "user",
+          entityId: user.id,
+          tenantId: user.tenantId || undefined,
+          userId: user.id,
+        });
         return res.status(401).json({ message: "Ungültige Anmeldedaten" });
       }
 
       if (!user.isActive) {
+        logger.security("auth", "Anmeldeversuch deaktiviertes Konto", `Benutzer versuchte sich anzumelden, aber das Konto ist deaktiviert`, {
+          entityType: "user",
+          entityId: user.id,
+          tenantId: user.tenantId || undefined,
+          userId: user.id,
+        });
         return res.status(401).json({ message: "Konto ist deaktiviert" });
       }
 
       await storage.updateUser(user.id, { lastLoginAt: new Date() } as any);
+
+      logger.success("auth", "Erfolgreiche Anmeldung", `Benutzer ${user.firstName} ${user.lastName} hat sich erfolgreich angemeldet`, {
+        entityType: "user",
+        entityId: user.id,
+        tenantId: user.tenantId || undefined,
+        userId: user.id,
+      });
 
       const token = generateToken(user);
       res.json({ user: { ...user, password: undefined }, token });
@@ -222,7 +246,11 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
       }
-      console.error("Login error:", error);
+      logger.error("auth", "Anmeldefehler", {
+        description: "Ein unerwarteter Fehler ist bei der Anmeldung aufgetreten",
+        cause: error instanceof Error ? error.message : "Unbekannter Fehler",
+        solution: "Überprüfen Sie die Serverprotokolle und stellen Sie sicher, dass die Datenbank erreichbar ist",
+      });
       res.status(500).json({ message: "Interner Serverfehler" });
     }
   });
@@ -310,12 +338,27 @@ export async function registerRoutes(
         }
       }
 
+      logger.success("ticket", "Ticket erstellt", `Neues Ticket "${data.title}" wurde erfolgreich erstellt`, {
+        entityType: "ticket",
+        entityId: ticket.id,
+        tenantId: req.tenantId || undefined,
+        userId: req.user!.id,
+        metadata: { priority: data.priority, status: data.status },
+      });
+
       res.status(201).json(ticket);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
       }
-      console.error("Create ticket error:", error);
+      logger.error("ticket", "Fehler beim Erstellen eines Tickets", {
+        description: "Das Ticket konnte nicht erstellt werden",
+        cause: error instanceof Error ? error.message : "Unbekannter Fehler",
+        solution: "Überprüfen Sie die Eingabedaten und stellen Sie sicher, dass alle Pflichtfelder ausgefüllt sind",
+      }, {
+        tenantId: req.tenantId || undefined,
+        userId: req.user!.id,
+      });
       res.status(500).json({ message: "Interner Serverfehler" });
     }
   });
@@ -2410,6 +2453,99 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
       }
       console.error("Create customer activity error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // ============================================
+  // System Logs (Admin only)
+  // ============================================
+
+  app.get("/api/logs", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { logger } = await import("./logger");
+      const filters = {
+        level: req.query.level as string | undefined,
+        source: req.query.source as string | undefined,
+        tenantId: req.query.tenantId as string | undefined,
+        userId: req.query.userId as string | undefined,
+        entityType: req.query.entityType as string | undefined,
+        entityId: req.query.entityId as string | undefined,
+        search: req.query.search as string | undefined,
+        startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
+        endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 100,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
+      };
+      const result = logger.getLogs(filters as any);
+      res.json(result);
+    } catch (error) {
+      console.error("Get logs error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.get("/api/logs/files", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { logger } = await import("./logger");
+      const files = logger.getLogFiles();
+      res.json({ files });
+    } catch (error) {
+      console.error("Get log files error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.get("/api/logs/export", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { logger } = await import("./logger");
+      const format = (req.query.format as string) || "json";
+      const filters = {
+        level: req.query.level as string | undefined,
+        source: req.query.source as string | undefined,
+        tenantId: req.query.tenantId as string | undefined,
+        search: req.query.search as string | undefined,
+        startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
+        endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
+        limit: 10000,
+        offset: 0,
+      };
+      const result = logger.getLogs(filters as any);
+      
+      if (format === "csv") {
+        const headers = ["Zeitstempel", "Level", "Quelle", "Entitätstyp", "Titel", "Beschreibung", "Mandant", "Benutzer"];
+        const rows = result.logs.map((log: any) => [
+          log.timestampFormatted,
+          log.level,
+          log.source,
+          log.entityType,
+          `"${(log.title || "").replace(/"/g, '""')}"`,
+          `"${(log.description || "").replace(/"/g, '""')}"`,
+          log.tenantId || "",
+          log.userId || "",
+        ].join(";"));
+        const csv = [headers.join(";"), ...rows].join("\n");
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename=logs-${new Date().toISOString().split("T")[0]}.csv`);
+        res.send("\uFEFF" + csv); // BOM for Excel
+      } else if (format === "txt") {
+        const txt = result.logs.map((log: any) => 
+          `[${log.timestampFormatted}] [${log.level.toUpperCase()}] [${log.source}]\n` +
+          `   Titel: ${log.title}\n` +
+          `   Beschreibung: ${log.description}\n` +
+          (log.error ? `   Fehler: ${log.error.description}\n   Ursache: ${log.error.cause}\n   Lösung: ${log.error.solution}\n` : "") +
+          `---\n`
+        ).join("\n");
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename=logs-${new Date().toISOString().split("T")[0]}.txt`);
+        res.send(txt);
+      } else {
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Content-Disposition", `attachment; filename=logs-${new Date().toISOString().split("T")[0]}.json`);
+        res.json(result.logs);
+      }
+    } catch (error) {
+      console.error("Export logs error:", error);
       res.status(500).json({ message: "Interner Serverfehler" });
     }
   });

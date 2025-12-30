@@ -16,6 +16,7 @@ import {
   Building2,
   Contact,
   Landmark,
+  ScrollText,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
@@ -103,6 +104,11 @@ const adminNavItems = [
     title: "Umfragen",
     url: "/surveys",
     icon: ClipboardList,
+  },
+  {
+    title: "System-Logs",
+    url: "/logs",
+    icon: ScrollText,
   },
   {
     title: "SLA-Verwaltung",
