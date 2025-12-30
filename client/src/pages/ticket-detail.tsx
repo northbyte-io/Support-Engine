@@ -81,6 +81,10 @@ export default function TicketDetailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tickets", params.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+      ticketProjects?.forEach((tp) => {
+        queryClient.invalidateQueries({ queryKey: [`/api/projects/${tp.projectId}/board`] });
+      });
       toast({ title: "Status aktualisiert" });
     },
     onError: () => {
