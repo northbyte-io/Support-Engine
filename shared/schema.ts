@@ -1435,8 +1435,9 @@ export const emailProcessingRules = pgTable("email_processing_rules", {
   // Bedingung
   conditionType: emailProcessingRuleConditionTypeEnum("condition_type").notNull(),
   conditionValue: text("condition_value"), // Wert für die Bedingung (z.B. "@spam.com")
-  // Aktion
-  actionType: emailProcessingRuleActionTypeEnum("action_type").notNull(),
+  // Aktionen (Mehrfachauswahl)
+  actions: text("actions").array(), // Array von Aktionstypen
+  actionType: emailProcessingRuleActionTypeEnum("action_type"), // Legacy: einzelne Aktion (optional für Rückwärtskompatibilität)
   actionValue: text("action_value"), // Wert für die Aktion (z.B. Ordner-ID, User-ID, etc.)
   actionFolderId: text("action_folder_id"), // Für move_to_folder
   actionFolderName: text("action_folder_name"), // Anzeigename

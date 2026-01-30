@@ -112,7 +112,7 @@ export default function ExchangeIntegration() {
   const [ruleDescription, setRuleDescription] = useState("");
   const [ruleConditionType, setRuleConditionType] = useState("all_emails");
   const [ruleConditionValue, setRuleConditionValue] = useState("");
-  const [ruleActionType, setRuleActionType] = useState("mark_as_read");
+  const [ruleActions, setRuleActions] = useState<string[]>(["mark_as_read"]);
   const [ruleActionValue, setRuleActionValue] = useState("");
   const [ruleActionFolderId, setRuleActionFolderId] = useState("");
   const [ruleActionFolderName, setRuleActionFolderName] = useState("");
@@ -361,7 +361,7 @@ export default function ExchangeIntegration() {
     setRuleDescription("");
     setRuleConditionType("all_emails");
     setRuleConditionValue("");
-    setRuleActionType("mark_as_read");
+    setRuleActions(["mark_as_read"]);
     setRuleActionValue("");
     setRuleActionFolderId("");
     setRuleActionFolderName("");
@@ -379,7 +379,9 @@ export default function ExchangeIntegration() {
     setRuleDescription(rule.description || "");
     setRuleConditionType(rule.conditionType);
     setRuleConditionValue(rule.conditionValue || "");
-    setRuleActionType(rule.actionType);
+    // Support both old single actionType and new actions array
+    const actions = rule.actions || (rule.actionType ? [rule.actionType] : ["mark_as_read"]);
+    setRuleActions(Array.isArray(actions) ? actions : [actions]);
     setRuleActionValue(rule.actionValue || "");
     setRuleActionFolderId(rule.actionFolderId || "");
     setRuleActionFolderName(rule.actionFolderName || "");
@@ -409,12 +411,12 @@ export default function ExchangeIntegration() {
         description: ruleDescription || undefined,
         conditionType: ruleConditionType,
         conditionValue: ruleConditionValue || undefined,
-        actionType: ruleActionType,
+        actions: ruleActions,
         actionValue: ruleActionValue || undefined,
-        actionFolderId: ruleActionFolderId || undefined,
-        actionFolderName: ruleActionFolderName || undefined,
-        actionPriority: ruleActionType === "set_priority" ? ruleActionPriority : undefined,
-        actionAutoReplyTemplate: ruleActionType === "auto_reply" ? ruleAutoReplyTemplate : undefined,
+        actionFolderId: ruleActions.includes("move_to_folder") ? ruleActionFolderId : undefined,
+        actionFolderName: ruleActions.includes("move_to_folder") ? ruleActionFolderName : undefined,
+        actionPriority: ruleActions.includes("set_priority") ? ruleActionPriority : undefined,
+        actionAutoReplyTemplate: ruleActions.includes("auto_reply") ? ruleAutoReplyTemplate : undefined,
         mailboxId: ruleMailboxId && ruleMailboxId !== "__all__" ? ruleMailboxId : undefined,
         priority: rulePriority,
         isActive: ruleIsActive,
@@ -1134,22 +1136,25 @@ export default function ExchangeIntegration() {
                              rule.conditionType}
                           </span>
                           <ArrowRight className="w-3 h-3" />
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 flex-wrap">
                             <Zap className="w-3 h-3" />
-                            {rule.actionType === "mark_as_read" ? "Als gelesen markieren" :
-                             rule.actionType === "mark_as_unread" ? "Als ungelesen markieren" :
-                             rule.actionType === "move_to_folder" ? `In Ordner verschieben${rule.actionFolderName ? ` (${rule.actionFolderName})` : ''}` :
-                             rule.actionType === "archive" ? "Archivieren" :
-                             rule.actionType === "delete" ? "Löschen" :
-                             rule.actionType === "reject" ? "Ablehnen" :
-                             rule.actionType === "forward_to" ? `Weiterleiten an ${rule.actionValue}` :
-                             rule.actionType === "set_priority" ? `Priorität: ${rule.actionPriority}` :
-                             rule.actionType === "assign_to_user" ? "Bearbeiter zuweisen" :
-                             rule.actionType === "assign_to_ticket_type" ? "Ticket-Typ zuweisen" :
-                             rule.actionType === "add_tag" ? `Tag hinzufügen: ${rule.actionValue}` :
-                             rule.actionType === "skip_import" ? "Import überspringen" :
-                             rule.actionType === "auto_reply" ? "Auto-Antwort senden" :
-                             rule.actionType}
+                            {(() => {
+                              const actions = rule.actions || (rule.actionType ? [rule.actionType] : []);
+                              const actionLabels: Record<string, string> = {
+                                mark_as_read: "Als gelesen",
+                                mark_as_unread: "Als ungelesen",
+                                move_to_folder: rule.actionFolderName ? `→ ${rule.actionFolderName}` : "In Ordner",
+                                archive: "Archivieren",
+                                delete: "Löschen",
+                                reject: "Ablehnen",
+                                forward_to: rule.actionValue ? `→ ${rule.actionValue}` : "Weiterleiten",
+                                set_priority: rule.actionPriority ? `Prio: ${rule.actionPriority}` : "Priorität",
+                                add_tag: rule.actionValue ? `Tag: ${rule.actionValue}` : "Tag",
+                                skip_import: "Überspringen",
+                                auto_reply: "Auto-Antwort",
+                              };
+                              return actions.map((a: string) => actionLabels[a] || a).join(", ");
+                            })()}
                           </span>
                           {rule.priority > 0 && (
                             <Badge variant="outline" className="text-xs">
@@ -1600,55 +1605,76 @@ export default function ExchangeIntegration() {
 
             <Separator />
 
-            {/* Aktion */}
+            {/* Aktionen (Mehrfachauswahl) */}
             <div className="space-y-3">
               <h4 className="font-medium flex items-center gap-2">
                 <Zap className="w-4 h-4" />
-                Aktion
+                Aktionen (Mehrfachauswahl)
               </h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="rule-action-type">Aktionstyp *</Label>
-                  <Select value={ruleActionType} onValueChange={setRuleActionType}>
-                    <SelectTrigger id="rule-action-type" data-testid="select-action-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mark_as_read">Als gelesen markieren</SelectItem>
-                      <SelectItem value="mark_as_unread">Als ungelesen markieren</SelectItem>
-                      <SelectItem value="move_to_folder">In Ordner verschieben</SelectItem>
-                      <SelectItem value="archive">Archivieren</SelectItem>
-                      <SelectItem value="delete">Löschen</SelectItem>
-                      <SelectItem value="reject">Ablehnen / Bounce</SelectItem>
-                      <SelectItem value="forward_to">Weiterleiten an</SelectItem>
-                      <SelectItem value="set_priority">Ticket-Priorität setzen</SelectItem>
-                      <SelectItem value="add_tag">Tag hinzufügen</SelectItem>
-                      <SelectItem value="skip_import">Import überspringen</SelectItem>
-                      <SelectItem value="auto_reply">Auto-Antwort senden</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {["forward_to", "add_tag"].includes(ruleActionType) && (
-                  <div className="space-y-2">
-                    <Label htmlFor="rule-action-value">
-                      {ruleActionType === "forward_to" ? "Weiterleitungs-E-Mail" : "Tag-Name"}
-                    </Label>
-                    <Input 
-                      id="rule-action-value"
-                      value={ruleActionValue}
-                      onChange={(e) => setRuleActionValue(e.target.value)}
-                      placeholder={
-                        ruleActionType === "forward_to" ? "admin@example.com" : "z.B. wichtig"
-                      }
-                      data-testid="input-action-value"
+              <p className="text-xs text-muted-foreground">
+                Wählen Sie eine oder mehrere Aktionen, die bei Übereinstimmung ausgeführt werden
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "mark_as_read", label: "Als gelesen markieren" },
+                  { value: "mark_as_unread", label: "Als ungelesen markieren" },
+                  { value: "move_to_folder", label: "In Ordner verschieben" },
+                  { value: "archive", label: "Archivieren" },
+                  { value: "delete", label: "Löschen" },
+                  { value: "reject", label: "Ablehnen / Bounce" },
+                  { value: "forward_to", label: "Weiterleiten an" },
+                  { value: "set_priority", label: "Ticket-Priorität setzen" },
+                  { value: "add_tag", label: "Tag hinzufügen" },
+                  { value: "skip_import", label: "Import überspringen" },
+                  { value: "auto_reply", label: "Auto-Antwort senden" },
+                ].map((action) => (
+                  <div key={action.value} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`action-${action.value}`}
+                      checked={ruleActions.includes(action.value)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setRuleActions([...ruleActions, action.value]);
+                        } else {
+                          setRuleActions(ruleActions.filter(a => a !== action.value));
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-input"
+                      data-testid={`checkbox-action-${action.value}`}
                     />
+                    <Label htmlFor={`action-${action.value}`} className="text-sm font-normal cursor-pointer">
+                      {action.label}
+                    </Label>
                   </div>
-                )}
+                ))}
               </div>
 
+              {/* Weiterleitung / Tag Eingabe */}
+              {(ruleActions.includes("forward_to") || ruleActions.includes("add_tag")) && (
+                <div className="space-y-2 pt-2">
+                  <Label htmlFor="rule-action-value">
+                    {ruleActions.includes("forward_to") && ruleActions.includes("add_tag") 
+                      ? "Weiterleitungs-E-Mail / Tag-Name" 
+                      : ruleActions.includes("forward_to") 
+                        ? "Weiterleitungs-E-Mail" 
+                        : "Tag-Name"}
+                  </Label>
+                  <Input 
+                    id="rule-action-value"
+                    value={ruleActionValue}
+                    onChange={(e) => setRuleActionValue(e.target.value)}
+                    placeholder={
+                      ruleActions.includes("forward_to") ? "admin@example.com" : "z.B. wichtig"
+                    }
+                    data-testid="input-action-value"
+                  />
+                </div>
+              )}
+
               {/* Ordner-Auswahl für move_to_folder */}
-              {ruleActionType === "move_to_folder" && (
-                <div className="space-y-2">
+              {ruleActions.includes("move_to_folder") && (
+                <div className="space-y-2 pt-2">
                   <Label htmlFor="rule-action-folder">Zielordner</Label>
                   <Select 
                     value={ruleActionFolderId} 
@@ -1676,8 +1702,8 @@ export default function ExchangeIntegration() {
               )}
 
               {/* Priorität-Auswahl für set_priority */}
-              {ruleActionType === "set_priority" && (
-                <div className="space-y-2">
+              {ruleActions.includes("set_priority") && (
+                <div className="space-y-2 pt-2">
                   <Label htmlFor="rule-action-priority">Ticket-Priorität</Label>
                   <Select value={ruleActionPriority} onValueChange={(v) => setRuleActionPriority(v as any)}>
                     <SelectTrigger id="rule-action-priority" data-testid="select-action-priority">
@@ -1697,8 +1723,8 @@ export default function ExchangeIntegration() {
               )}
 
               {/* Auto-Antwort Template für auto_reply */}
-              {ruleActionType === "auto_reply" && (
-                <div className="space-y-2 col-span-2">
+              {ruleActions.includes("auto_reply") && (
+                <div className="space-y-2 pt-2">
                   <Label htmlFor="rule-auto-reply">Auto-Antwort Text</Label>
                   <textarea 
                     id="rule-auto-reply"
