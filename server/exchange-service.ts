@@ -659,6 +659,37 @@ export class ExchangeService {
   }
 
   /**
+   * Ruft die ID eines Well-known Ordners ab (z.B. "archive", "inbox", "drafts")
+   */
+  static async getWellKnownFolderId(
+    config: ExchangeConfiguration,
+    mailboxEmail: string,
+    wellKnownName: string
+  ): Promise<string | null> {
+    if (!this.isConfigurationValid(config)) {
+      throw new ExchangeError("NOT_CONFIGURED");
+    }
+
+    const token = await this.getAccessToken(config);
+
+    const response = await fetch(
+      `${GRAPH_API_BASE}/users/${mailboxEmail}/mailFolders/${wellKnownName}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const folder = await response.json();
+    return folder.id || null;
+  }
+
+  /**
    * Verschiebt eine E-Mail in einen anderen Ordner
    */
   static async moveEmail(
@@ -673,6 +704,18 @@ export class ExchangeService {
 
     const token = await this.getAccessToken(config);
 
+    // Wenn es ein well-known folder name ist, erst die tatsächliche ID abrufen
+    let actualFolderId = destinationFolderId;
+    const wellKnownFolders = ["inbox", "drafts", "sentitems", "deleteditems", "archive", "junkemail", "outbox"];
+    if (wellKnownFolders.includes(destinationFolderId.toLowerCase())) {
+      const resolvedId = await this.getWellKnownFolderId(config, mailboxEmail, destinationFolderId);
+      if (!resolvedId) {
+        logger.warn(this.logSource, "Ordner nicht gefunden", `Well-known Ordner '${destinationFolderId}' nicht gefunden für ${mailboxEmail}`);
+        return false;
+      }
+      actualFolderId = resolvedId;
+    }
+
     const response = await fetch(
       `${GRAPH_API_BASE}/users/${mailboxEmail}/messages/${messageId}/move`,
       {
@@ -681,7 +724,7 @@ export class ExchangeService {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ destinationId: destinationFolderId })
+        body: JSON.stringify({ destinationId: actualFolderId })
       }
     );
 

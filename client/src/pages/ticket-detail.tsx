@@ -168,6 +168,26 @@ export default function TicketDetailPage() {
     },
   });
 
+  const deleteTicketMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("DELETE", `/api/tickets/${params.id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+      toast({ title: "Ticket gelöscht" });
+      setLocation("/tickets");
+    },
+    onError: () => {
+      toast({ title: "Fehler beim Löschen", variant: "destructive" });
+    },
+  });
+
+  const handleDeleteTicket = () => {
+    if (window.confirm("Sind Sie sicher, dass Sie dieses Ticket löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.")) {
+      deleteTicketMutation.mutate();
+    }
+  };
+
   const handleSubmitComment = async () => {
     if (!newComment.trim()) return;
     setIsSubmitting(true);
@@ -257,7 +277,11 @@ export default function TicketDetailPage() {
                 Ticket duplizieren
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive" data-testid="menu-delete">
+              <DropdownMenuItem 
+                className="text-destructive" 
+                data-testid="menu-delete"
+                onClick={handleDeleteTicket}
+              >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Ticket löschen
               </DropdownMenuItem>

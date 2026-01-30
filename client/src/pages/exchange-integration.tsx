@@ -1577,6 +1577,65 @@ export default function ExchangeIntegration() {
                 data-testid="switch-fetch-unread-only"
               />
             </div>
+            
+            <Separator />
+            
+            <div className="space-y-2">
+              <Label htmlFor="post-import-action">Aktion nach Import</Label>
+              <Select 
+                value={newMailboxPostImportAction} 
+                onValueChange={(v) => setNewMailboxPostImportAction(v as any)}
+              >
+                <SelectTrigger id="post-import-action" data-testid="select-post-import-action">
+                  <SelectValue placeholder="Aktion auswählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="keep_unchanged">Keine Aktion</SelectItem>
+                  <SelectItem value="mark_as_read">Als gelesen markieren</SelectItem>
+                  <SelectItem value="move_to_folder">In Ordner verschieben</SelectItem>
+                  <SelectItem value="archive">Archivieren</SelectItem>
+                  <SelectItem value="delete">Löschen</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Was soll mit der E-Mail nach dem Import geschehen?
+              </p>
+            </div>
+            
+            {newMailboxPostImportAction === "move_to_folder" && (
+              <div className="space-y-2">
+                <Label htmlFor="target-folder">Zielordner *</Label>
+                {(availableFolders.length > 0 || useStandardFolders) ? (
+                  <Select 
+                    value={newMailboxTargetFolderId} 
+                    onValueChange={(v) => {
+                      setNewMailboxTargetFolderId(v);
+                      const folders = useStandardFolders ? standardFolders : availableFolders;
+                      const folder = folders.find(f => f.id === v);
+                      setNewMailboxTargetFolderName(folder?.displayName || "");
+                    }}
+                  >
+                    <SelectTrigger id="target-folder" data-testid="select-target-folder">
+                      <SelectValue placeholder="Zielordner auswählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(useStandardFolders ? standardFolders : availableFolders).map((folder) => (
+                        <SelectItem key={folder.id} value={folder.id}>
+                          {folder.displayName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="text-sm text-muted-foreground p-3 border rounded-md bg-muted/50">
+                    Bitte zuerst E-Mail-Adresse eingeben und Ordner laden
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  In diesen Ordner wird die E-Mail nach dem Import verschoben
+                </p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowMailboxDialog(false)}>
@@ -1584,7 +1643,7 @@ export default function ExchangeIntegration() {
             </Button>
             <Button 
               onClick={handleSaveMailbox} 
-              disabled={isSavingMailbox || !newMailboxEmail || !newMailboxSourceFolderId}
+              disabled={isSavingMailbox || !newMailboxEmail || !newMailboxSourceFolderId || (newMailboxPostImportAction === "move_to_folder" && !newMailboxTargetFolderId)}
               data-testid="button-save-mailbox"
             >
               {isSavingMailbox ? (

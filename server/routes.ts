@@ -494,7 +494,7 @@ export async function registerRoutes(
       res.setHeader("Content-Type", attachment.mimeType);
       res.setHeader("Content-Disposition", `attachment; filename="${attachment.fileName}"`);
       res.setHeader("Content-Length", attachment.fileSize);
-      res.send(Buffer.from(fileContent.value));
+      res.send(fileContent.value);
     } catch (error) {
       console.error("Download attachment error:", error);
       res.status(500).json({ message: "Interner Serverfehler" });
@@ -3155,6 +3155,12 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Exchange ist nicht konfiguriert" });
       }
       
+      // Server-side validation for move_to_folder action
+      const postImportActions = req.body.postImportActions || [];
+      if (postImportActions.includes("move_to_folder") && !req.body.targetFolderId) {
+        return res.status(400).json({ message: "Zielordner muss angegeben werden, wenn 'In Ordner verschieben' ausgewählt ist" });
+      }
+      
       const mailbox = await storage.createExchangeMailbox({
         ...req.body,
         configurationId: config.id,
@@ -3172,6 +3178,12 @@ export async function registerRoutes(
   // Update Exchange mailbox
   app.patch("/api/exchange/mailboxes/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
+      // Server-side validation for move_to_folder action
+      const postImportActions = req.body.postImportActions || [];
+      if (postImportActions.includes("move_to_folder") && !req.body.targetFolderId) {
+        return res.status(400).json({ message: "Zielordner muss angegeben werden, wenn 'In Ordner verschieben' ausgewählt ist" });
+      }
+      
       const mailbox = await storage.updateExchangeMailbox(req.params.id, req.body, req.user!.tenantId);
       if (!mailbox) {
         return res.status(404).json({ message: "Postfach nicht gefunden" });
@@ -3407,9 +3419,16 @@ export async function registerRoutes(
                   } else if (action === "move_to_folder" && mailbox.targetFolderId) {
                     await ExchangeService.moveEmail(config, mailbox.emailAddress, graphEmail.id, mailbox.targetFolderId);
                     logger.debug("exchange", "E-Mail verschoben", `E-Mail ${graphEmail.id} nach ${mailbox.targetFolderName} verschoben`);
+                  } else if (action === "archive") {
+                    // Archivieren: E-Mail in den Archiv-Ordner verschieben
+                    await ExchangeService.moveEmail(config, mailbox.emailAddress, graphEmail.id, "archive");
+                    logger.debug("exchange", "E-Mail archiviert", `E-Mail ${graphEmail.id} wurde archiviert`);
                   } else if (action === "delete") {
                     await ExchangeService.deleteEmail(config, mailbox.emailAddress, graphEmail.id);
                     logger.debug("exchange", "E-Mail gelöscht", `E-Mail ${graphEmail.id} gelöscht`);
+                  } else if (action === "keep_unchanged") {
+                    // Keine Aktion - E-Mail bleibt unverändert
+                    logger.debug("exchange", "Keine Aktion", `E-Mail ${graphEmail.id} bleibt unverändert`);
                   }
                 } catch (actionError) {
                   logger.warn("exchange", "Post-Import-Aktion fehlgeschlagen", `Aktion ${action} für E-Mail ${graphEmail.id} fehlgeschlagen: ${actionError}`);
