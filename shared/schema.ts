@@ -1389,6 +1389,69 @@ export const exchangeEmails = pgTable("exchange_emails", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// E-Mail-Verarbeitungsregeln (Filter-Bedingung und Aktion)
+export const emailProcessingRuleConditionTypeEnum = pgEnum("email_rule_condition_type", [
+  "sender_contains",      // Absender enthält
+  "sender_equals",        // Absender ist genau
+  "sender_domain",        // Absender-Domain ist
+  "recipient_contains",   // Empfänger enthält
+  "recipient_equals",     // Empfänger ist genau
+  "subject_contains",     // Betreff enthält
+  "subject_starts_with",  // Betreff beginnt mit
+  "body_contains",        // Text enthält
+  "has_attachments",      // Hat Anhänge
+  "no_attachments",       // Hat keine Anhänge
+  "priority_high",        // Hohe Priorität
+  "is_reply",             // Ist Antwort (RE:)
+  "is_forward",           // Ist Weiterleitung (FW:)
+  "all_emails"            // Alle E-Mails (Standard)
+]);
+
+export const emailProcessingRuleActionTypeEnum = pgEnum("email_rule_action_type", [
+  "move_to_folder",       // In Ordner verschieben
+  "mark_as_read",         // Als gelesen markieren
+  "mark_as_unread",       // Als ungelesen markieren
+  "archive",              // Archivieren
+  "delete",               // Löschen
+  "reject",               // Ablehnen/Bounce
+  "forward_to",           // Weiterleiten an
+  "set_priority",         // Ticket-Priorität setzen
+  "assign_to_user",       // Bearbeiter zuweisen
+  "assign_to_ticket_type", // Ticket-Typ zuweisen
+  "add_tag",              // Tag hinzufügen
+  "skip_import",          // Import überspringen
+  "auto_reply"            // Auto-Antwort senden
+]);
+
+export const emailProcessingRules = pgTable("email_processing_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  mailboxId: varchar("mailbox_id").references(() => exchangeMailboxes.id), // Optional: gilt für spezifisches Postfach oder alle
+  // Regel-Info
+  name: text("name").notNull(),
+  description: text("description"),
+  priority: integer("priority").default(0), // Höher = wird zuerst geprüft
+  isActive: boolean("is_active").default(true),
+  // Bedingung
+  conditionType: emailProcessingRuleConditionTypeEnum("condition_type").notNull(),
+  conditionValue: text("condition_value"), // Wert für die Bedingung (z.B. "@spam.com")
+  // Aktion
+  actionType: emailProcessingRuleActionTypeEnum("action_type").notNull(),
+  actionValue: text("action_value"), // Wert für die Aktion (z.B. Ordner-ID, User-ID, etc.)
+  actionFolderId: text("action_folder_id"), // Für move_to_folder
+  actionFolderName: text("action_folder_name"), // Anzeigename
+  actionUserId: varchar("action_user_id").references(() => users.id), // Für assign_to_user
+  actionTicketTypeId: varchar("action_ticket_type_id").references(() => ticketTypes.id), // Für assign_to_ticket_type
+  actionPriority: ticketPriorityEnum("action_priority"), // Für set_priority
+  actionAutoReplyTemplate: text("action_auto_reply_template"), // Für auto_reply
+  // Statistiken
+  timesMatched: integer("times_matched").default(0),
+  lastMatchedAt: timestamp("last_matched_at"),
+  // Audit
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Exchange Sync Log (Synchronisierungsverlauf)
 export const exchangeSyncLogs = pgTable("exchange_sync_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1424,6 +1487,8 @@ export const updateExchangeMailboxSchema = insertExchangeMailboxSchema.partial()
 export const insertExchangeAssignmentRuleSchema = createInsertSchema(exchangeAssignmentRules).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertExchangeEmailSchema = createInsertSchema(exchangeEmails).omit({ id: true, createdAt: true });
 export const insertExchangeSyncLogSchema = createInsertSchema(exchangeSyncLogs).omit({ id: true, createdAt: true });
+export const insertEmailProcessingRuleSchema = createInsertSchema(emailProcessingRules).omit({ id: true, createdAt: true, updatedAt: true, timesMatched: true, lastMatchedAt: true });
+export const updateEmailProcessingRuleSchema = insertEmailProcessingRuleSchema.partial();
 
 // Exchange Types
 export type ExchangeConfiguration = typeof exchangeConfigurations.$inferSelect;
@@ -1438,6 +1503,9 @@ export type ExchangeEmail = typeof exchangeEmails.$inferSelect;
 export type InsertExchangeEmail = z.infer<typeof insertExchangeEmailSchema>;
 export type ExchangeSyncLog = typeof exchangeSyncLogs.$inferSelect;
 export type InsertExchangeSyncLog = z.infer<typeof insertExchangeSyncLogSchema>;
+export type EmailProcessingRule = typeof emailProcessingRules.$inferSelect;
+export type InsertEmailProcessingRule = z.infer<typeof insertEmailProcessingRuleSchema>;
+export type UpdateEmailProcessingRule = z.infer<typeof updateEmailProcessingRuleSchema>;
 
 // Exchange Relation Types
 export type ExchangeConfigurationWithMailboxes = ExchangeConfiguration & {

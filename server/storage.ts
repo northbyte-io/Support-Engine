@@ -149,6 +149,7 @@ import {
   exchangeAssignmentRules,
   exchangeEmails,
   exchangeSyncLogs,
+  emailProcessingRules,
   type ExchangeConfiguration,
   type InsertExchangeConfiguration,
   type UpdateExchangeConfiguration,
@@ -161,6 +162,9 @@ import {
   type InsertExchangeEmail,
   type ExchangeSyncLog,
   type InsertExchangeSyncLog,
+  type EmailProcessingRule,
+  type InsertEmailProcessingRule,
+  type UpdateEmailProcessingRule,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, ilike, or, count, gt, lt } from "drizzle-orm";
@@ -464,6 +468,13 @@ export interface IStorage {
 
   getExchangeSyncLogs(tenantId: string, params?: { mailboxId?: string; limit?: number }): Promise<ExchangeSyncLog[]>;
   createExchangeSyncLog(log: InsertExchangeSyncLog): Promise<ExchangeSyncLog>;
+
+  // Email Processing Rules
+  getEmailProcessingRules(tenantId: string, mailboxId?: string): Promise<EmailProcessingRule[]>;
+  getEmailProcessingRule(id: string, tenantId: string): Promise<EmailProcessingRule | undefined>;
+  createEmailProcessingRule(rule: InsertEmailProcessingRule): Promise<EmailProcessingRule>;
+  updateEmailProcessingRule(id: string, updates: UpdateEmailProcessingRule, tenantId: string): Promise<EmailProcessingRule | undefined>;
+  deleteEmailProcessingRule(id: string, tenantId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2812,6 +2823,45 @@ export class DatabaseStorage implements IStorage {
   async createExchangeSyncLog(log: InsertExchangeSyncLog): Promise<ExchangeSyncLog> {
     const [result] = await db.insert(exchangeSyncLogs).values(log).returning();
     return result;
+  }
+
+  // Email Processing Rules
+  async getEmailProcessingRules(tenantId: string, mailboxId?: string): Promise<EmailProcessingRule[]> {
+    if (mailboxId) {
+      return db.select().from(emailProcessingRules)
+        .where(and(
+          eq(emailProcessingRules.tenantId, tenantId),
+          or(eq(emailProcessingRules.mailboxId, mailboxId), sql`${emailProcessingRules.mailboxId} IS NULL`)
+        ))
+        .orderBy(desc(emailProcessingRules.priority), asc(emailProcessingRules.createdAt));
+    }
+    return db.select().from(emailProcessingRules)
+      .where(eq(emailProcessingRules.tenantId, tenantId))
+      .orderBy(desc(emailProcessingRules.priority), asc(emailProcessingRules.createdAt));
+  }
+
+  async getEmailProcessingRule(id: string, tenantId: string): Promise<EmailProcessingRule | undefined> {
+    const [result] = await db.select().from(emailProcessingRules)
+      .where(and(eq(emailProcessingRules.id, id), eq(emailProcessingRules.tenantId, tenantId)));
+    return result || undefined;
+  }
+
+  async createEmailProcessingRule(rule: InsertEmailProcessingRule): Promise<EmailProcessingRule> {
+    const [result] = await db.insert(emailProcessingRules).values(rule).returning();
+    return result;
+  }
+
+  async updateEmailProcessingRule(id: string, updates: UpdateEmailProcessingRule, tenantId: string): Promise<EmailProcessingRule | undefined> {
+    const [result] = await db.update(emailProcessingRules)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(emailProcessingRules.id, id), eq(emailProcessingRules.tenantId, tenantId)))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteEmailProcessingRule(id: string, tenantId: string): Promise<void> {
+    await db.delete(emailProcessingRules)
+      .where(and(eq(emailProcessingRules.id, id), eq(emailProcessingRules.tenantId, tenantId)));
   }
 }
 

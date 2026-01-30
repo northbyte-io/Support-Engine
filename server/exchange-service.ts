@@ -565,7 +565,8 @@ export class ExchangeService {
    */
   static async sendTestEmail(
     config: ExchangeConfiguration,
-    mailboxEmail: string
+    mailboxEmail: string,
+    recipientEmail?: string
   ): Promise<boolean> {
     if (!this.isConfigurationValid(config)) {
       throw new ExchangeError("NOT_CONFIGURED");
@@ -573,7 +574,10 @@ export class ExchangeService {
 
     const token = await this.getAccessToken(config);
     
-    logger.info(this.logSource, "Test-Mail", `Sende Test-E-Mail von ${mailboxEmail}`);
+    // Falls kein Empfänger angegeben, an das gleiche Postfach senden
+    const targetRecipient = recipientEmail || mailboxEmail;
+    
+    logger.info(this.logSource, "Test-Mail", `Sende Test-E-Mail von ${mailboxEmail} an ${targetRecipient}`);
 
     const emailMessage = {
       message: {
@@ -584,13 +588,14 @@ export class ExchangeService {
             <h2>Exchange Online Integration - Testmail</h2>
             <p>Diese E-Mail wurde automatisch vom Ticket-System gesendet, um die Exchange-Integration zu testen.</p>
             <p><strong>Zeitpunkt:</strong> ${new Date().toLocaleString("de-DE")}</p>
-            <p><strong>Postfach:</strong> ${mailboxEmail}</p>
+            <p><strong>Von Postfach:</strong> ${mailboxEmail}</p>
+            <p><strong>An:</strong> ${targetRecipient}</p>
             <hr>
-            <p style="color: #666; font-size: 12px;">Diese Test-E-Mail wurde an das gleiche Postfach gesendet, von dem sie stammt.</p>
+            <p style="color: #666; font-size: 12px;">Dies ist eine automatisch generierte Test-E-Mail.</p>
           </body></html>`
         },
         toRecipients: [{
-          emailAddress: { address: mailboxEmail }
+          emailAddress: { address: targetRecipient }
         }]
       },
       saveToSentItems: true

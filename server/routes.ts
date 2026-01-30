@@ -3291,7 +3291,7 @@ export async function registerRoutes(
     try {
       const { ExchangeService } = await import("./exchange-service");
       const tenantId = req.user!.tenantId;
-      const { mailboxEmail } = req.body;
+      const { mailboxEmail, recipientEmail } = req.body;
       
       if (!mailboxEmail) {
         return res.status(400).json({ message: "E-Mail-Adresse des Postfachs ist erforderlich" });
@@ -3319,12 +3319,13 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Dieses Postfach kann keine E-Mails senden (Typ muss Ausgehend oder Gemeinsam sein)" });
       }
       
-      await ExchangeService.sendTestEmail(config, mailboxEmail);
+      const targetRecipient = recipientEmail || mailboxEmail;
+      await ExchangeService.sendTestEmail(config, mailboxEmail, targetRecipient);
       
-      logger.info("exchange", "Test-Mail gesendet", `Über Postfach: ${mailboxEmail}`, { userId: req.user!.id });
+      logger.info("exchange", "Test-Mail gesendet", `Von ${mailboxEmail} an ${targetRecipient}`, { userId: req.user!.id });
       
       res.json({ 
-        message: `Test-E-Mail wurde erfolgreich über ${mailboxEmail} gesendet`
+        message: `Test-E-Mail wurde erfolgreich an ${targetRecipient} gesendet`
       });
     } catch (error: any) {
       logger.error("exchange", "Fehler beim Test-Mailversand", { 
@@ -3333,6 +3334,83 @@ export async function registerRoutes(
         solution: "Überprüfen Sie die Mail.Send-Berechtigung in Azure AD"
       });
       res.status(500).json({ message: error.message || "Fehler beim Senden der Test-E-Mail" });
+    }
+  });
+
+  // ==========================================
+  // E-Mail Verarbeitungsregeln
+  // ==========================================
+
+  // Alle Regeln abrufen
+  app.get("/api/exchange/processing-rules", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const tenantId = req.user!.tenantId;
+      const mailboxId = req.query.mailboxId as string | undefined;
+      const rules = await storage.getEmailProcessingRules(tenantId, mailboxId);
+      res.json(rules);
+    } catch (error: any) {
+      logger.error("exchange", "Fehler beim Laden der Verarbeitungsregeln", { description: String(error) });
+      res.status(500).json({ message: error.message || "Fehler beim Laden der Regeln" });
+    }
+  });
+
+  // Einzelne Regel abrufen
+  app.get("/api/exchange/processing-rules/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const tenantId = req.user!.tenantId;
+      const rule = await storage.getEmailProcessingRule(req.params.id, tenantId);
+      if (!rule) {
+        return res.status(404).json({ message: "Regel nicht gefunden" });
+      }
+      res.json(rule);
+    } catch (error: any) {
+      logger.error("exchange", "Fehler beim Laden der Regel", { description: String(error) });
+      res.status(500).json({ message: error.message || "Fehler beim Laden der Regel" });
+    }
+  });
+
+  // Neue Regel erstellen
+  app.post("/api/exchange/processing-rules", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const tenantId = req.user!.tenantId;
+      const rule = await storage.createEmailProcessingRule({
+        ...req.body,
+        tenantId
+      });
+      logger.info("exchange", "Verarbeitungsregel erstellt", rule.name, { userId: req.user!.id });
+      res.status(201).json(rule);
+    } catch (error: any) {
+      logger.error("exchange", "Fehler beim Erstellen der Regel", { description: String(error) });
+      res.status(500).json({ message: error.message || "Fehler beim Erstellen der Regel" });
+    }
+  });
+
+  // Regel aktualisieren
+  app.patch("/api/exchange/processing-rules/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const tenantId = req.user!.tenantId;
+      const rule = await storage.updateEmailProcessingRule(req.params.id, req.body, tenantId);
+      if (!rule) {
+        return res.status(404).json({ message: "Regel nicht gefunden" });
+      }
+      logger.info("exchange", "Verarbeitungsregel aktualisiert", rule.name, { userId: req.user!.id });
+      res.json(rule);
+    } catch (error: any) {
+      logger.error("exchange", "Fehler beim Aktualisieren der Regel", { description: String(error) });
+      res.status(500).json({ message: error.message || "Fehler beim Aktualisieren der Regel" });
+    }
+  });
+
+  // Regel löschen
+  app.delete("/api/exchange/processing-rules/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const tenantId = req.user!.tenantId;
+      await storage.deleteEmailProcessingRule(req.params.id, tenantId);
+      logger.info("exchange", "Verarbeitungsregel gelöscht", req.params.id, { userId: req.user!.id });
+      res.json({ message: "Regel gelöscht" });
+    } catch (error: any) {
+      logger.error("exchange", "Fehler beim Löschen der Regel", { description: String(error) });
+      res.status(500).json({ message: error.message || "Fehler beim Löschen der Regel" });
     }
   });
 
