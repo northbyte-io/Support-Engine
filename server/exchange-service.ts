@@ -174,7 +174,7 @@ export class ExchangeService {
     const algorithm = "aes-256-gcm";
     const key = crypto.scryptSync(process.env.SESSION_SECRET || "default-key", "salt", 32);
     const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv(algorithm, key, iv);
+    const cipher = crypto.createCipheriv(algorithm, key, iv, { authTagLength: 16 });
     let encrypted = cipher.update(secret, "utf8", "hex");
     encrypted += cipher.final("hex");
     const authTag = cipher.getAuthTag().toString("hex");
@@ -194,7 +194,7 @@ export class ExchangeService {
     const iv = Buffer.from(parts[0], "hex");
     const authTag = Buffer.from(parts[1], "hex");
     const encrypted = parts[2];
-    const decipher = crypto.createDecipheriv(algorithm, key, iv);
+    const decipher = crypto.createDecipheriv(algorithm, key, iv, { authTagLength: 16 });
     decipher.setAuthTag(authTag);
     let decrypted = decipher.update(encrypted, "hex", "utf8");
     decrypted += decipher.final("utf8");
