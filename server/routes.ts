@@ -3155,12 +3155,6 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Exchange ist nicht konfiguriert" });
       }
       
-      // Server-side validation for move_to_folder action
-      const postImportActions = req.body.postImportActions || [];
-      if (postImportActions.includes("move_to_folder") && !req.body.targetFolderId) {
-        return res.status(400).json({ message: "Zielordner muss angegeben werden, wenn 'In Ordner verschieben' ausgewählt ist" });
-      }
-      
       const mailbox = await storage.createExchangeMailbox({
         ...req.body,
         configurationId: config.id,
@@ -3178,12 +3172,6 @@ export async function registerRoutes(
   // Update Exchange mailbox
   app.patch("/api/exchange/mailboxes/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      // Server-side validation for move_to_folder action
-      const postImportActions = req.body.postImportActions || [];
-      if (postImportActions.includes("move_to_folder") && !req.body.targetFolderId) {
-        return res.status(400).json({ message: "Zielordner muss angegeben werden, wenn 'In Ordner verschieben' ausgewählt ist" });
-      }
-      
       const mailbox = await storage.updateExchangeMailbox(req.params.id, req.body, req.user!.tenantId);
       if (!mailbox) {
         return res.status(404).json({ message: "Postfach nicht gefunden" });

@@ -663,6 +663,19 @@ export class DatabaseStorage implements IStorage {
       ? and(eq(tickets.id, id), eq(tickets.tenantId, tenantId))
       : eq(tickets.id, id);
     
+    // Delete all related records first (cascade delete)
+    await db.delete(ticketProjects).where(eq(ticketProjects.ticketId, id));
+    await db.delete(ticketAssignees).where(eq(ticketAssignees.ticketId, id));
+    await db.delete(ticketWatchers).where(eq(ticketWatchers.ticketId, id));
+    await db.delete(ticketAreas).where(eq(ticketAreas.ticketId, id));
+    await db.delete(ticketKbLinks).where(eq(ticketKbLinks.ticketId, id));
+    await db.delete(ticketAssets).where(eq(ticketAssets.ticketId, id));
+    await db.delete(ticketContacts).where(eq(ticketContacts.ticketId, id));
+    await db.delete(timeEntries).where(eq(timeEntries.ticketId, id));
+    await db.delete(attachments).where(eq(attachments.ticketId, id));
+    await db.delete(comments).where(eq(comments.ticketId, id));
+    
+    // Now delete the ticket itself
     await db.delete(tickets).where(whereClause);
   }
 
