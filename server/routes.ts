@@ -3217,10 +3217,13 @@ export async function registerRoutes(
       }
       
       const mailboxes = await storage.getExchangeMailboxes(tenantId);
-      const incomingMailboxes = mailboxes.filter(m => m.mailboxType === "incoming" && m.isActive);
+      // Hole alle aktiven Postfächer, die E-Mails empfangen können (incoming oder shared)
+      const incomingMailboxes = mailboxes.filter(m => 
+        (m.mailboxType === "incoming" || m.mailboxType === "shared") && m.isActive
+      );
       
       if (incomingMailboxes.length === 0) {
-        return res.status(400).json({ message: "Keine aktiven eingehenden Postfächer konfiguriert" });
+        return res.status(400).json({ message: "Keine aktiven Postfächer für den E-Mail-Abruf konfiguriert (Typ: Eingehend oder Gemeinsam)" });
       }
       
       let totalEmails = 0;
