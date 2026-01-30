@@ -107,6 +107,17 @@ export default function ExchangeIntegration() {
   const [availableFolders, setAvailableFolders] = useState<Array<{ id: string; displayName: string }>>([]);
   const [isLoadingFolders, setIsLoadingFolders] = useState(false);
   const [foldersError, setFoldersError] = useState<string | null>(null);
+  const [useStandardFolders, setUseStandardFolders] = useState(false);
+
+  // Standard Exchange-Ordner (Well-Known Folder Names)
+  const standardFolders = [
+    { id: "inbox", displayName: "Posteingang (Inbox)" },
+    { id: "drafts", displayName: "Entwürfe (Drafts)" },
+    { id: "sentitems", displayName: "Gesendete Elemente" },
+    { id: "deleteditems", displayName: "Gelöschte Elemente" },
+    { id: "archive", displayName: "Archiv" },
+    { id: "junkemail", displayName: "Junk-E-Mail" },
+  ];
 
   // Form States
   const [isEnabled, setIsEnabled] = useState(false);
@@ -255,6 +266,7 @@ export default function ExchangeIntegration() {
     setNewMailboxPostImportAction("mark_as_read");
     setAvailableFolders([]);
     setFoldersError(null);
+    setUseStandardFolders(false);
   };
 
   // Handler zum Laden der Ordner
@@ -1114,7 +1126,25 @@ export default function ExchangeIntegration() {
             {foldersError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{foldersError}</AlertDescription>
+                <AlertTitle>Ordner konnten nicht geladen werden</AlertTitle>
+                <AlertDescription>
+                  {foldersError}
+                  <div className="mt-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setUseStandardFolders(true);
+                        setFoldersError(null);
+                        // Setze automatisch auf inbox
+                        setNewMailboxSourceFolderId("inbox");
+                        setNewMailboxSourceFolderName("Posteingang (Inbox)");
+                      }}
+                    >
+                      Standard-Ordner verwenden
+                    </Button>
+                  </div>
+                </AlertDescription>
               </Alert>
             )}
             
@@ -1143,12 +1173,13 @@ export default function ExchangeIntegration() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="source-folder">Quellordner *</Label>
-              {availableFolders.length > 0 ? (
+              {(availableFolders.length > 0 || useStandardFolders) ? (
                 <Select 
                   value={newMailboxSourceFolderId} 
                   onValueChange={(v) => {
                     setNewMailboxSourceFolderId(v);
-                    const folder = availableFolders.find(f => f.id === v);
+                    const folders = useStandardFolders ? standardFolders : availableFolders;
+                    const folder = folders.find(f => f.id === v);
                     setNewMailboxSourceFolderName(folder?.displayName || "");
                   }}
                 >
@@ -1156,7 +1187,7 @@ export default function ExchangeIntegration() {
                     <SelectValue placeholder="Ordner auswählen" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableFolders.map((folder) => (
+                    {(useStandardFolders ? standardFolders : availableFolders).map((folder) => (
                       <SelectItem key={folder.id} value={folder.id}>
                         {folder.displayName}
                       </SelectItem>
@@ -1197,12 +1228,13 @@ export default function ExchangeIntegration() {
             {newMailboxPostImportAction === "move_to_folder" && (
               <div className="space-y-2">
                 <Label htmlFor="target-folder">Zielordner</Label>
-                {availableFolders.length > 0 ? (
+                {(availableFolders.length > 0 || useStandardFolders) ? (
                   <Select 
                     value={newMailboxTargetFolderId} 
                     onValueChange={(v) => {
                       setNewMailboxTargetFolderId(v);
-                      const folder = availableFolders.find(f => f.id === v);
+                      const folders = useStandardFolders ? standardFolders : availableFolders;
+                      const folder = folders.find(f => f.id === v);
                       setNewMailboxTargetFolderName(folder?.displayName || "");
                     }}
                   >
@@ -1210,7 +1242,7 @@ export default function ExchangeIntegration() {
                       <SelectValue placeholder="Zielordner auswählen" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableFolders.map((folder) => (
+                      {(useStandardFolders ? standardFolders : availableFolders).map((folder) => (
                         <SelectItem key={folder.id} value={folder.id}>
                           {folder.displayName}
                         </SelectItem>

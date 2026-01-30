@@ -381,7 +381,12 @@ export class ExchangeService {
         throw new ExchangeError("MAILBOX_NOT_FOUND", mailboxEmail);
       }
       if (response.status === 403) {
-        throw new ExchangeError("PERMISSION_DENIED");
+        const errorText = await response.text();
+        logger.warn(this.logSource, "Keine Berechtigung für Ordner-Abruf", errorText);
+        throw new ExchangeError(
+          "PERMISSION_DENIED", 
+          "Fügen Sie in Azure 'Mail.Read' oder 'Mail.ReadBasic.All' als Application-Berechtigung hinzu und erteilen Sie Admin-Zustimmung"
+        );
       }
       const error = await response.text();
       throw new ExchangeError("NETWORK_ERROR", error);
