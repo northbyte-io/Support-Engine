@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { MainLayout } from "@/components/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   Mail, 
   Settings, 
@@ -33,7 +34,8 @@ import {
   Loader2,
   ArrowLeft,
   TestTube,
-  Info
+  Info,
+  Save
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -88,6 +90,7 @@ export default function ExchangeIntegration() {
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [isTestingFetch, setIsTestingFetch] = useState(false);
   const [isTestingSend, setIsTestingSend] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Form States
   const [isEnabled, setIsEnabled] = useState(false);
@@ -102,32 +105,105 @@ export default function ExchangeIntegration() {
   const [postImportActions, setPostImportActions] = useState<string[]>(["mark_as_read"]);
   const [fetchInterval, setFetchInterval] = useState("5");
 
-  // Simulated connection status (would come from API)
-  const connectionStatus = "not_configured";
+  // Load configuration from API
+  const { data: configData, isLoading: isLoadingConfig } = useQuery<any>({
+    queryKey: ["/api/exchange/configuration"],
+  });
+
+  // Update form states when config is loaded
+  useEffect(() => {
+    if (configData && configData.configured) {
+      setIsEnabled(configData.isEnabled || false);
+      setClientId(configData.clientId || "");
+      setTenantAzureId(configData.tenantAzureId || "");
+      setAuthType(configData.authType || "client_secret");
+    }
+  }, [configData]);
+
+  // Get connection status from API
+  const connectionStatus = configData?.connectionStatus || "not_configured";
+
+  // Save configuration mutation
+  const saveConfigMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/exchange/configuration", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/exchange/configuration"] });
+      toast({
+        title: "Konfiguration gespeichert",
+        description: "Die Exchange-Einstellungen wurden erfolgreich gespeichert.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Fehler beim Speichern",
+        description: error.message || "Die Konfiguration konnte nicht gespeichert werden.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Test connection mutation
+  const testConnectionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/exchange/test-connection", {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/exchange/configuration"] });
+      if (data.success) {
+        toast({
+          title: "Verbindung erfolgreich",
+          description: data.message || "Die Verbindung zu Microsoft Graph API wurde hergestellt.",
+        });
+      } else {
+        toast({
+          title: "Verbindungstest fehlgeschlagen",
+          description: data.message,
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Verbindungstest fehlgeschlagen",
+        description: error.message || "Die Verbindung konnte nicht hergestellt werden.",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Handler für Verbindungstest
   const handleTestConnection = async () => {
     setIsTestingConnection(true);
-    // Simulierte Verzögerung
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsTestingConnection(false);
-    toast({
-      title: "Verbindungstest",
-      description: "Die Exchange-Integration ist noch nicht konfiguriert. Bitte hinterlegen Sie zuerst die Azure-App-Daten.",
-      variant: "default",
-    });
+    try {
+      await testConnectionMutation.mutateAsync();
+    } finally {
+      setIsTestingConnection(false);
+    }
   };
 
   // Handler für Test-Mailabruf
   const handleTestFetch = async () => {
     setIsTestingFetch(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsTestingFetch(false);
-    toast({
-      title: "Test-Mailabruf",
-      description: "Verbinden Sie zuerst die Exchange-Integration, um E-Mails abzurufen.",
-      variant: "default",
-    });
+    try {
+      const response = await apiRequest("POST", "/api/exchange/sync", {});
+      const data = await response.json();
+      toast({
+        title: "Synchronisation abgeschlossen",
+        description: `${data.emailsProcessed || 0} E-Mails verarbeitet, ${data.ticketsCreated || 0} Tickets erstellt.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Fehler bei der Synchronisation",
+        description: error.message || "Die E-Mails konnten nicht abgerufen werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingFetch(false);
+    }
   };
 
   // Handler für Test-Mailversand
@@ -137,17 +213,25 @@ export default function ExchangeIntegration() {
     setIsTestingSend(false);
     toast({
       title: "Test-Mailversand",
-      description: "Verbinden Sie zuerst die Exchange-Integration, um E-Mails zu senden.",
+      description: "Diese Funktion ist noch nicht implementiert.",
       variant: "default",
     });
   };
 
   // Handler für Speichern
-  const handleSave = () => {
-    toast({
-      title: "Konfiguration gespeichert",
-      description: "Die Exchange-Einstellungen wurden gespeichert. Die Integration ist bereit zur Aktivierung.",
-    });
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await saveConfigMutation.mutateAsync({
+        clientId,
+        tenantAzureId,
+        authType,
+        clientSecret: clientSecret || undefined,
+        isEnabled,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Post-Import-Aktionen Toggle
@@ -665,8 +749,18 @@ export default function ExchangeIntegration() {
                     <Button variant="outline" onClick={() => setCurrentStep(5)} data-testid="button-prev-step">
                       Zurück
                     </Button>
-                    <Button onClick={handleSave} data-testid="button-save-config">
-                      Konfiguration speichern
+                    <Button onClick={handleSave} disabled={isSaving} data-testid="button-save-config">
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Speichern...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Konfiguration speichern
+                        </>
+                      )}
                     </Button>
                   </div>
                 </CardContent>

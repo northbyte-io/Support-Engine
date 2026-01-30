@@ -144,6 +144,23 @@ import {
   type InsertTlsCertificate,
   type TlsCertificateAction,
   type InsertTlsCertificateAction,
+  exchangeConfigurations,
+  exchangeMailboxes,
+  exchangeAssignmentRules,
+  exchangeEmails,
+  exchangeSyncLogs,
+  type ExchangeConfiguration,
+  type InsertExchangeConfiguration,
+  type UpdateExchangeConfiguration,
+  type ExchangeMailbox,
+  type InsertExchangeMailbox,
+  type UpdateExchangeMailbox,
+  type ExchangeAssignmentRule,
+  type InsertExchangeAssignmentRule,
+  type ExchangeEmail,
+  type InsertExchangeEmail,
+  type ExchangeSyncLog,
+  type InsertExchangeSyncLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, ilike, or, count, gt, lt } from "drizzle-orm";
@@ -423,6 +440,30 @@ export interface IStorage {
   getTlsChallengeByToken(token: string): Promise<{ keyAuthorization: string } | undefined>;
   completeTlsChallenge(token: string): Promise<void>;
   cleanupExpiredChallenges(): Promise<number>;
+
+  // Exchange Online Integration
+  getExchangeConfiguration(tenantId: string): Promise<ExchangeConfiguration | undefined>;
+  createExchangeConfiguration(config: InsertExchangeConfiguration): Promise<ExchangeConfiguration>;
+  updateExchangeConfiguration(tenantId: string, updates: Partial<UpdateExchangeConfiguration>): Promise<ExchangeConfiguration | undefined>;
+  deleteExchangeConfiguration(tenantId: string): Promise<void>;
+
+  getExchangeMailboxes(tenantId: string): Promise<ExchangeMailbox[]>;
+  getExchangeMailbox(id: string, tenantId: string): Promise<ExchangeMailbox | undefined>;
+  createExchangeMailbox(mailbox: InsertExchangeMailbox): Promise<ExchangeMailbox>;
+  updateExchangeMailbox(id: string, updates: Partial<UpdateExchangeMailbox>, tenantId: string): Promise<ExchangeMailbox | undefined>;
+  deleteExchangeMailbox(id: string, tenantId: string): Promise<void>;
+
+  getExchangeAssignmentRules(mailboxId: string, tenantId: string): Promise<ExchangeAssignmentRule[]>;
+  createExchangeAssignmentRule(rule: InsertExchangeAssignmentRule): Promise<ExchangeAssignmentRule>;
+  updateExchangeAssignmentRule(id: string, updates: Partial<InsertExchangeAssignmentRule>, tenantId: string): Promise<ExchangeAssignmentRule | undefined>;
+  deleteExchangeAssignmentRule(id: string, tenantId: string): Promise<void>;
+
+  getExchangeEmails(tenantId: string, params?: { mailboxId?: string; ticketId?: string; limit?: number }): Promise<ExchangeEmail[]>;
+  createExchangeEmail(email: InsertExchangeEmail): Promise<ExchangeEmail>;
+  updateExchangeEmail(id: string, updates: Partial<InsertExchangeEmail>, tenantId: string): Promise<ExchangeEmail | undefined>;
+
+  getExchangeSyncLogs(tenantId: string, params?: { mailboxId?: string; limit?: number }): Promise<ExchangeSyncLog[]>;
+  createExchangeSyncLog(log: InsertExchangeSyncLog): Promise<ExchangeSyncLog>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2642,6 +2683,135 @@ export class DatabaseStorage implements IStorage {
       .where(lt(tlsChallenges.expiresAt, new Date()))
       .returning();
     return result.length;
+  }
+
+  // Exchange Online Integration
+  async getExchangeConfiguration(tenantId: string): Promise<ExchangeConfiguration | undefined> {
+    const [config] = await db.select().from(exchangeConfigurations)
+      .where(eq(exchangeConfigurations.tenantId, tenantId));
+    return config || undefined;
+  }
+
+  async createExchangeConfiguration(config: InsertExchangeConfiguration): Promise<ExchangeConfiguration> {
+    const [result] = await db.insert(exchangeConfigurations).values(config).returning();
+    return result;
+  }
+
+  async updateExchangeConfiguration(tenantId: string, updates: Partial<UpdateExchangeConfiguration>): Promise<ExchangeConfiguration | undefined> {
+    const [result] = await db.update(exchangeConfigurations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(exchangeConfigurations.tenantId, tenantId))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteExchangeConfiguration(tenantId: string): Promise<void> {
+    await db.delete(exchangeConfigurations).where(eq(exchangeConfigurations.tenantId, tenantId));
+  }
+
+  async getExchangeMailboxes(tenantId: string): Promise<ExchangeMailbox[]> {
+    return db.select().from(exchangeMailboxes)
+      .where(eq(exchangeMailboxes.tenantId, tenantId))
+      .orderBy(desc(exchangeMailboxes.createdAt));
+  }
+
+  async getExchangeMailbox(id: string, tenantId: string): Promise<ExchangeMailbox | undefined> {
+    const [mailbox] = await db.select().from(exchangeMailboxes)
+      .where(and(eq(exchangeMailboxes.id, id), eq(exchangeMailboxes.tenantId, tenantId)));
+    return mailbox || undefined;
+  }
+
+  async createExchangeMailbox(mailbox: InsertExchangeMailbox): Promise<ExchangeMailbox> {
+    const [result] = await db.insert(exchangeMailboxes).values(mailbox).returning();
+    return result;
+  }
+
+  async updateExchangeMailbox(id: string, updates: Partial<UpdateExchangeMailbox>, tenantId: string): Promise<ExchangeMailbox | undefined> {
+    const [result] = await db.update(exchangeMailboxes)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(exchangeMailboxes.id, id), eq(exchangeMailboxes.tenantId, tenantId)))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteExchangeMailbox(id: string, tenantId: string): Promise<void> {
+    await db.delete(exchangeMailboxes)
+      .where(and(eq(exchangeMailboxes.id, id), eq(exchangeMailboxes.tenantId, tenantId)));
+  }
+
+  async getExchangeAssignmentRules(mailboxId: string, tenantId: string): Promise<ExchangeAssignmentRule[]> {
+    return db.select().from(exchangeAssignmentRules)
+      .where(and(eq(exchangeAssignmentRules.mailboxId, mailboxId), eq(exchangeAssignmentRules.tenantId, tenantId)))
+      .orderBy(desc(exchangeAssignmentRules.priority));
+  }
+
+  async createExchangeAssignmentRule(rule: InsertExchangeAssignmentRule): Promise<ExchangeAssignmentRule> {
+    const [result] = await db.insert(exchangeAssignmentRules).values(rule).returning();
+    return result;
+  }
+
+  async updateExchangeAssignmentRule(id: string, updates: Partial<InsertExchangeAssignmentRule>, tenantId: string): Promise<ExchangeAssignmentRule | undefined> {
+    const [result] = await db.update(exchangeAssignmentRules)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(exchangeAssignmentRules.id, id), eq(exchangeAssignmentRules.tenantId, tenantId)))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteExchangeAssignmentRule(id: string, tenantId: string): Promise<void> {
+    await db.delete(exchangeAssignmentRules)
+      .where(and(eq(exchangeAssignmentRules.id, id), eq(exchangeAssignmentRules.tenantId, tenantId)));
+  }
+
+  async getExchangeEmails(tenantId: string, params?: { mailboxId?: string; ticketId?: string; limit?: number }): Promise<ExchangeEmail[]> {
+    let query = db.select().from(exchangeEmails)
+      .where(eq(exchangeEmails.tenantId, tenantId))
+      .$dynamic();
+    
+    if (params?.mailboxId) {
+      query = query.where(eq(exchangeEmails.mailboxId, params.mailboxId)) as typeof query;
+    }
+    if (params?.ticketId) {
+      query = query.where(eq(exchangeEmails.ticketId, params.ticketId)) as typeof query;
+    }
+    query = query.orderBy(desc(exchangeEmails.receivedAt)) as typeof query;
+    if (params?.limit) {
+      query = query.limit(params.limit) as typeof query;
+    }
+    return query;
+  }
+
+  async createExchangeEmail(email: InsertExchangeEmail): Promise<ExchangeEmail> {
+    const [result] = await db.insert(exchangeEmails).values(email).returning();
+    return result;
+  }
+
+  async updateExchangeEmail(id: string, updates: Partial<InsertExchangeEmail>, tenantId: string): Promise<ExchangeEmail | undefined> {
+    const [result] = await db.update(exchangeEmails)
+      .set(updates)
+      .where(and(eq(exchangeEmails.id, id), eq(exchangeEmails.tenantId, tenantId)))
+      .returning();
+    return result || undefined;
+  }
+
+  async getExchangeSyncLogs(tenantId: string, params?: { mailboxId?: string; limit?: number }): Promise<ExchangeSyncLog[]> {
+    let query = db.select().from(exchangeSyncLogs)
+      .where(eq(exchangeSyncLogs.tenantId, tenantId))
+      .$dynamic();
+    
+    if (params?.mailboxId) {
+      query = query.where(eq(exchangeSyncLogs.mailboxId, params.mailboxId)) as typeof query;
+    }
+    query = query.orderBy(desc(exchangeSyncLogs.createdAt)) as typeof query;
+    if (params?.limit) {
+      query = query.limit(params.limit) as typeof query;
+    }
+    return query;
+  }
+
+  async createExchangeSyncLog(log: InsertExchangeSyncLog): Promise<ExchangeSyncLog> {
+    const [result] = await db.insert(exchangeSyncLogs).values(log).returning();
+    return result;
   }
 }
 

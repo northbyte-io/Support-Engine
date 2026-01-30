@@ -2969,5 +2969,287 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== Exchange Online Integration ====================
+  
+  // Get Exchange configuration
+  app.get("/api/exchange/configuration", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const config = await storage.getExchangeConfiguration(req.user!.tenantId);
+      if (!config) {
+        return res.json({ configured: false });
+      }
+      // Do not return encrypted secrets to frontend
+      const { clientSecretEncrypted, certificatePemEncrypted, accessToken, refreshToken, ...safeConfig } = config;
+      res.json({ 
+        configured: true, 
+        ...safeConfig,
+        hasClientSecret: !!clientSecretEncrypted,
+        hasCertificate: !!certificatePemEncrypted
+      });
+    } catch (error) {
+      logger.error("exchange", "Fehler beim Abrufen der Konfiguration", { description: String(error), cause: "Datenbankfehler", solution: "Überprüfen Sie die Datenbankverbindung" });
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Save/Update Exchange configuration
+  app.post("/api/exchange/configuration", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { ExchangeService } = await import("./exchange-service");
+      const tenantId = req.user!.tenantId;
+      const { clientId, tenantAzureId, authType, clientSecret, certificatePem, certificateThumbprint, isEnabled } = req.body;
+      
+      let existingConfig = await storage.getExchangeConfiguration(tenantId);
+      
+      const configData: any = {
+        tenantId,
+        clientId,
+        tenantAzureId,
+        authType: authType || "client_secret",
+        isEnabled: isEnabled ?? false,
+        configuredById: req.user!.id
+      };
+      
+      // Encrypt secrets before storing
+      if (clientSecret) {
+        configData.clientSecretEncrypted = ExchangeService.encryptSecret(clientSecret);
+      }
+      if (certificatePem) {
+        configData.certificatePemEncrypted = ExchangeService.encryptSecret(certificatePem);
+        configData.certificateThumbprint = certificateThumbprint;
+      }
+      
+      let result;
+      if (existingConfig) {
+        result = await storage.updateExchangeConfiguration(tenantId, configData);
+        logger.info("exchange", "Konfiguration aktualisiert", "Exchange-Konfiguration wurde aktualisiert", { userId: req.user!.id });
+      } else {
+        result = await storage.createExchangeConfiguration(configData);
+        logger.info("exchange", "Konfiguration erstellt", "Exchange-Konfiguration wurde erstellt", { userId: req.user!.id });
+      }
+      
+      res.json({ message: "Konfiguration gespeichert", id: result?.id });
+    } catch (error) {
+      logger.error("exchange", "Fehler beim Speichern der Konfiguration", { description: String(error), cause: "Speicherfehler", solution: "Überprüfen Sie die Eingabedaten" });
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Test Exchange connection
+  app.post("/api/exchange/test-connection", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { ExchangeService, ExchangeError } = await import("./exchange-service");
+      const tenantId = req.user!.tenantId;
+      const config = await storage.getExchangeConfiguration(tenantId);
+      
+      if (!config) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Exchange-Integration ist noch nicht konfiguriert. Bitte hinterlegen Sie zuerst die Azure-App-Daten." 
+        });
+      }
+      
+      if (!ExchangeService.isConfigurationValid(config)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Konfiguration ist unvollständig. Bitte überprüfen Sie alle erforderlichen Felder." 
+        });
+      }
+      
+      const result = await ExchangeService.testConnection(config);
+      
+      // Update connection status
+      await storage.updateExchangeConfiguration(tenantId, {
+        connectionStatus: result.success ? "connected" : "error",
+        lastConnectionTest: new Date(),
+        lastConnectionError: result.success ? null : result.message
+      });
+      
+      res.json(result);
+    } catch (error) {
+      if (error instanceof Error && error.name === "ExchangeError") {
+        const exchangeError = error as any;
+        res.status(400).json({ 
+          success: false, 
+          message: exchangeError.message,
+          solution: exchangeError.solution 
+        });
+      } else {
+        logger.error("exchange", "Fehler beim Verbindungstest", { description: String(error), cause: "Verbindungsfehler", solution: "Überprüfen Sie die Azure-Konfiguration" });
+        res.status(500).json({ success: false, message: "Interner Serverfehler" });
+      }
+    }
+  });
+
+  // Get Exchange mailboxes
+  app.get("/api/exchange/mailboxes", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const mailboxes = await storage.getExchangeMailboxes(req.user!.tenantId);
+      res.json(mailboxes);
+    } catch (error) {
+      logger.error("exchange", "Fehler beim Abrufen der Postfächer", { description: String(error), cause: "Datenbankfehler", solution: "Überprüfen Sie die Datenbankverbindung" });
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Create Exchange mailbox
+  app.post("/api/exchange/mailboxes", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const tenantId = req.user!.tenantId;
+      const config = await storage.getExchangeConfiguration(tenantId);
+      
+      if (!config) {
+        return res.status(400).json({ message: "Exchange ist nicht konfiguriert" });
+      }
+      
+      const mailbox = await storage.createExchangeMailbox({
+        ...req.body,
+        configurationId: config.id,
+        tenantId
+      });
+      
+      logger.info("exchange", "Postfach hinzugefügt", `Postfach ${mailbox.emailAddress} wurde hinzugefügt`, { userId: req.user!.id });
+      res.json(mailbox);
+    } catch (error) {
+      logger.error("exchange", "Fehler beim Erstellen des Postfachs", { description: String(error), cause: "Erstellungsfehler", solution: "Überprüfen Sie die Postfach-Daten" });
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Update Exchange mailbox
+  app.patch("/api/exchange/mailboxes/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const mailbox = await storage.updateExchangeMailbox(req.params.id, req.body, req.user!.tenantId);
+      if (!mailbox) {
+        return res.status(404).json({ message: "Postfach nicht gefunden" });
+      }
+      res.json(mailbox);
+    } catch (error) {
+      logger.error("exchange", "Fehler beim Aktualisieren des Postfachs", { description: String(error), cause: "Aktualisierungsfehler", solution: "Überprüfen Sie die Postfach-Daten" });
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Delete Exchange mailbox
+  app.delete("/api/exchange/mailboxes/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.deleteExchangeMailbox(req.params.id, req.user!.tenantId);
+      res.json({ message: "Postfach gelöscht" });
+    } catch (error) {
+      logger.error("exchange", "Fehler beim Löschen des Postfachs", { description: String(error), cause: "Löschfehler", solution: "Überprüfen Sie die Postfach-ID" });
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Get assignment rules for a mailbox
+  app.get("/api/exchange/mailboxes/:mailboxId/rules", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const rules = await storage.getExchangeAssignmentRules(req.params.mailboxId, req.user!.tenantId);
+      res.json(rules);
+    } catch (error) {
+      logger.error("exchange", "Fehler beim Abrufen der Regeln", { description: String(error), cause: "Datenbankfehler", solution: "Überprüfen Sie die Datenbankverbindung" });
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Create assignment rule
+  app.post("/api/exchange/mailboxes/:mailboxId/rules", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const rule = await storage.createExchangeAssignmentRule({
+        ...req.body,
+        mailboxId: req.params.mailboxId,
+        tenantId: req.user!.tenantId
+      });
+      res.json(rule);
+    } catch (error) {
+      logger.error("exchange", "Fehler beim Erstellen der Regel", { description: String(error), cause: "Erstellungsfehler", solution: "Überprüfen Sie die Regel-Daten" });
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Update assignment rule
+  app.patch("/api/exchange/rules/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const rule = await storage.updateExchangeAssignmentRule(req.params.id, req.body, req.user!.tenantId);
+      if (!rule) {
+        return res.status(404).json({ message: "Regel nicht gefunden" });
+      }
+      res.json(rule);
+    } catch (error) {
+      logger.error("exchange", "Fehler beim Aktualisieren der Regel", { description: String(error), cause: "Aktualisierungsfehler", solution: "Überprüfen Sie die Regel-Daten" });
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Delete assignment rule
+  app.delete("/api/exchange/rules/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.deleteExchangeAssignmentRule(req.params.id, req.user!.tenantId);
+      res.json({ message: "Regel gelöscht" });
+    } catch (error) {
+      logger.error("exchange", "Fehler beim Löschen der Regel", { description: String(error), cause: "Löschfehler", solution: "Überprüfen Sie die Regel-ID" });
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Get sync logs
+  app.get("/api/exchange/sync-logs", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      const mailboxId = req.query.mailboxId as string | undefined;
+      const logs = await storage.getExchangeSyncLogs(req.user!.tenantId, { mailboxId, limit });
+      res.json(logs);
+    } catch (error) {
+      logger.error("exchange", "Fehler beim Abrufen der Sync-Logs", { description: String(error), cause: "Datenbankfehler", solution: "Überprüfen Sie die Datenbankverbindung" });
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Manual sync trigger
+  app.post("/api/exchange/sync", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { ExchangeService } = await import("./exchange-service");
+      const tenantId = req.user!.tenantId;
+      const config = await storage.getExchangeConfiguration(tenantId);
+      
+      if (!config || !ExchangeService.isConfigurationValid(config)) {
+        return res.status(400).json({ message: "Exchange ist nicht konfiguriert oder nicht aktiviert" });
+      }
+      
+      const mailboxes = await storage.getExchangeMailboxes(tenantId);
+      const incomingMailboxes = mailboxes.filter(m => m.mailboxType === "incoming" && m.isActive);
+      
+      if (incomingMailboxes.length === 0) {
+        return res.status(400).json({ message: "Keine aktiven eingehenden Postfächer konfiguriert" });
+      }
+      
+      let totalEmails = 0;
+      let totalTickets = 0;
+      const errors: string[] = [];
+      
+      for (const mailbox of incomingMailboxes) {
+        try {
+          const result = await ExchangeService.fetchEmails(config, mailbox, storage, tenantId);
+          totalEmails += result.emailsProcessed;
+          totalTickets += result.ticketsCreated;
+        } catch (error) {
+          errors.push(`${mailbox.emailAddress}: ${error}`);
+        }
+      }
+      
+      logger.info("exchange", "Manuelle Synchronisation", `${totalEmails} E-Mails verarbeitet, ${totalTickets} Tickets erstellt`, { userId: req.user!.id });
+      
+      res.json({ 
+        message: "Synchronisation abgeschlossen",
+        emailsProcessed: totalEmails,
+        ticketsCreated: totalTickets,
+        errors: errors.length > 0 ? errors : undefined
+      });
+    } catch (error) {
+      logger.error("exchange", "Fehler bei der Synchronisation", { description: String(error), cause: "Synchronisationsfehler", solution: "Überprüfen Sie die Exchange-Konfiguration" });
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
   return httpServer;
 }

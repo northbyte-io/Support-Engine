@@ -9,6 +9,7 @@
  */
 
 import { logger, type LogSource } from "./logger";
+import crypto from "crypto";
 import type {
   ExchangeConfiguration,
   ExchangeMailbox,
@@ -170,7 +171,6 @@ export class ExchangeService {
    * HINWEIS: In Produktion sollte ein sichererer Algorithmus verwendet werden
    */
   static encryptSecret(secret: string): string {
-    const crypto = require("crypto");
     const algorithm = "aes-256-gcm";
     const key = crypto.scryptSync(process.env.SESSION_SECRET || "default-key", "salt", 32);
     const iv = crypto.randomBytes(16);
@@ -185,7 +185,6 @@ export class ExchangeService {
    * Entschlüsselt ein gespeichertes Client-Secret
    */
   static decryptSecret(encryptedSecret: string): string {
-    const crypto = require("crypto");
     const algorithm = "aes-256-gcm";
     const key = crypto.scryptSync(process.env.SESSION_SECRET || "default-key", "salt", 32);
     const parts = encryptedSecret.split(":");
