@@ -101,6 +101,7 @@ export default function ExchangeIntegration() {
   const [isSaving, setIsSaving] = useState(false);
   const [showMailboxDialog, setShowMailboxDialog] = useState(false);
   const [isSavingMailbox, setIsSavingMailbox] = useState(false);
+  const [editingMailbox, setEditingMailbox] = useState<any>(null);
   
   // Test-E-Mail Dialog
   const [showTestEmailDialog, setShowTestEmailDialog] = useState(false);
@@ -141,6 +142,7 @@ export default function ExchangeIntegration() {
   const [newMailboxTargetFolderId, setNewMailboxTargetFolderId] = useState("");
   const [newMailboxTargetFolderName, setNewMailboxTargetFolderName] = useState("");
   const [newMailboxPostImportAction, setNewMailboxPostImportAction] = useState<"mark_as_read" | "move_to_folder" | "archive" | "delete" | "keep_unchanged">("mark_as_read");
+  const [newMailboxFetchUnreadOnly, setNewMailboxFetchUnreadOnly] = useState(true);
   const [availableFolders, setAvailableFolders] = useState<Array<{ id: string; displayName: string }>>([]);
   const [isLoadingFolders, setIsLoadingFolders] = useState(false);
   const [foldersError, setFoldersError] = useState<string | null>(null);
@@ -279,6 +281,30 @@ export default function ExchangeIntegration() {
     },
   });
 
+  // Mutation zum Aktualisieren eines Postfachs
+  const updateMailboxMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const response = await apiRequest("PATCH", `/api/exchange/mailboxes/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/exchange/mailboxes"] });
+      setShowMailboxDialog(false);
+      resetMailboxForm();
+      toast({
+        title: "Postfach aktualisiert",
+        description: "Die Postfach-Einstellungen wurden gespeichert.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Fehler beim Aktualisieren",
+        description: error.message || "Das Postfach konnte nicht aktualisiert werden.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Mutation zum Löschen eines Postfachs
   const deleteMailboxMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -354,6 +380,7 @@ export default function ExchangeIntegration() {
 
   // Reset mailbox form
   const resetMailboxForm = () => {
+    setEditingMailbox(null);
     setNewMailboxEmail("");
     setNewMailboxDisplayName("");
     setNewMailboxType("shared");
@@ -362,9 +389,26 @@ export default function ExchangeIntegration() {
     setNewMailboxTargetFolderId("");
     setNewMailboxTargetFolderName("");
     setNewMailboxPostImportAction("mark_as_read");
+    setNewMailboxFetchUnreadOnly(true);
     setAvailableFolders([]);
     setFoldersError(null);
     setUseStandardFolders(false);
+  };
+
+  // Postfach-Bearbeitung öffnen
+  const openEditMailboxDialog = (mailbox: any) => {
+    setEditingMailbox(mailbox);
+    setNewMailboxEmail(mailbox.emailAddress);
+    setNewMailboxDisplayName(mailbox.displayName || "");
+    setNewMailboxType(mailbox.mailboxType || "shared");
+    setNewMailboxSourceFolderId(mailbox.sourceFolderId || "");
+    setNewMailboxSourceFolderName(mailbox.sourceFolderName || "");
+    setNewMailboxTargetFolderId(mailbox.targetFolderId || "");
+    setNewMailboxTargetFolderName(mailbox.targetFolderName || "");
+    setNewMailboxPostImportAction(mailbox.postImportActions?.[0] || "mark_as_read");
+    setNewMailboxFetchUnreadOnly(mailbox.fetchUnreadOnly !== false);
+    setUseStandardFolders(true); // Verwende Standard-Ordner im Edit-Modus
+    setShowMailboxDialog(true);
   };
 
   // Reset rule form
@@ -523,8 +567,8 @@ export default function ExchangeIntegration() {
     }
   }, [showRuleDialog]);
 
-  // Handler für Postfach hinzufügen
-  const handleAddMailbox = async () => {
+  // Handler für Postfach speichern (hinzufügen oder bearbeiten)
+  const handleSaveMailbox = async () => {
     if (!newMailboxEmail) {
       toast({
         title: "E-Mail-Adresse erforderlich",
@@ -545,7 +589,7 @@ export default function ExchangeIntegration() {
     
     setIsSavingMailbox(true);
     try {
-      await saveMailboxMutation.mutateAsync({
+      const mailboxData = {
         emailAddress: newMailboxEmail,
         displayName: newMailboxDisplayName || newMailboxEmail,
         mailboxType: newMailboxType,
@@ -553,9 +597,19 @@ export default function ExchangeIntegration() {
         sourceFolderName: newMailboxSourceFolderName,
         targetFolderId: newMailboxTargetFolderId || undefined,
         targetFolderName: newMailboxTargetFolderName || undefined,
-        postImportAction: newMailboxPostImportAction,
-        isActive: true,
-      });
+        postImportActions: [newMailboxPostImportAction],
+        fetchUnreadOnly: newMailboxFetchUnreadOnly,
+        isActive: editingMailbox?.isActive ?? true,
+      };
+      
+      if (editingMailbox) {
+        await updateMailboxMutation.mutateAsync({
+          id: editingMailbox.id,
+          data: mailboxData,
+        });
+      } else {
+        await saveMailboxMutation.mutateAsync(mailboxData);
+      }
     } finally {
       setIsSavingMailbox(false);
     }
@@ -1053,6 +1107,14 @@ export default function ExchangeIntegration() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              onClick={() => openEditMailboxDialog(mailbox)}
+                              data-testid={`button-edit-mailbox-${mailbox.id}`}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => deleteMailboxMutation.mutate(mailbox.id)}
                               data-testid={`button-delete-mailbox-${mailbox.id}`}
                             >
@@ -1364,13 +1426,19 @@ export default function ExchangeIntegration() {
         </Tabs>
       </div>
 
-      {/* Postfach hinzufügen Dialog */}
-      <Dialog open={showMailboxDialog} onOpenChange={setShowMailboxDialog}>
+      {/* Postfach hinzufügen/bearbeiten Dialog */}
+      <Dialog open={showMailboxDialog} onOpenChange={(open) => {
+        setShowMailboxDialog(open);
+        if (!open) resetMailboxForm();
+      }}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Postfach hinzufügen</DialogTitle>
+            <DialogTitle>{editingMailbox ? "Postfach bearbeiten" : "Postfach hinzufügen"}</DialogTitle>
             <DialogDescription>
-              Konfigurieren Sie ein neues E-Mail-Postfach für die Exchange-Integration
+              {editingMailbox 
+                ? "Bearbeiten Sie die Einstellungen des Postfachs"
+                : "Konfigurieren Sie ein neues E-Mail-Postfach für die Exchange-Integration"
+              }
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1492,13 +1560,30 @@ export default function ExchangeIntegration() {
                 Der Ordner, aus dem E-Mails importiert werden
               </p>
             </div>
+            
+            <Separator />
+            
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="fetch-unread-only">Nur ungelesene E-Mails</Label>
+                <p className="text-xs text-muted-foreground">
+                  Wenn deaktiviert, werden auch bereits gelesene E-Mails importiert
+                </p>
+              </div>
+              <Switch
+                id="fetch-unread-only"
+                checked={newMailboxFetchUnreadOnly}
+                onCheckedChange={setNewMailboxFetchUnreadOnly}
+                data-testid="switch-fetch-unread-only"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowMailboxDialog(false)}>
               Abbrechen
             </Button>
             <Button 
-              onClick={handleAddMailbox} 
+              onClick={handleSaveMailbox} 
               disabled={isSavingMailbox || !newMailboxEmail || !newMailboxSourceFolderId}
               data-testid="button-save-mailbox"
             >
@@ -1508,7 +1593,7 @@ export default function ExchangeIntegration() {
                   Speichern...
                 </>
               ) : (
-                "Postfach hinzufügen"
+                editingMailbox ? "Speichern" : "Postfach hinzufügen"
               )}
             </Button>
           </DialogFooter>

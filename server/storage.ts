@@ -222,6 +222,7 @@ export interface IStorage {
 
   // Attachments
   getAttachments(ticketId: string): Promise<Attachment[]>;
+  getAttachment(id: string): Promise<Attachment | undefined>;
   createAttachment(attachment: InsertAttachment): Promise<Attachment>;
   deleteAttachment(id: string): Promise<void>;
 
@@ -794,6 +795,11 @@ export class DatabaseStorage implements IStorage {
   // Attachments
   async getAttachments(ticketId: string): Promise<Attachment[]> {
     return db.select().from(attachments).where(eq(attachments.ticketId, ticketId));
+  }
+
+  async getAttachment(id: string): Promise<Attachment | undefined> {
+    const [attachment] = await db.select().from(attachments).where(eq(attachments.id, id));
+    return attachment || undefined;
   }
 
   async createAttachment(attachment: InsertAttachment): Promise<Attachment> {

@@ -716,6 +716,48 @@ export class ExchangeService {
   }
 
   /**
+   * Ruft den rohen MIME-Inhalt einer E-Mail ab (für .eml Export)
+   * Gibt Buffer zurück um binäre MIME-Teile korrekt zu behandeln
+   */
+  static async getRawEmailContent(
+    config: ExchangeConfiguration,
+    mailboxEmail: string,
+    messageId: string
+  ): Promise<Buffer | null> {
+    if (!this.isConfigurationValid(config)) {
+      throw new ExchangeError("NOT_CONFIGURED");
+    }
+
+    const token = await this.getAccessToken(config);
+
+    try {
+      const response = await fetch(
+        `${GRAPH_API_BASE}/users/${mailboxEmail}/messages/${messageId}/$value`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        logger.warn(this.logSource, "MIME-Abruf fehlgeschlagen", `Status: ${response.status}`);
+        return null;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    } catch (error) {
+      logger.error(this.logSource, "MIME-Abruf fehlgeschlagen", { 
+        description: String(error),
+        cause: "Graph API Fehler"
+      });
+      return null;
+    }
+  }
+
+  /**
    * Konvertiert eine Graph-E-Mail in das interne Format
    */
   static graphEmailToInsert(

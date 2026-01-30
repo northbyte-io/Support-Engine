@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { Client as ObjectStorageClient } from "@replit/object-storage";
 import { storage } from "./storage";
 import { logger } from "./logger";
 import { 
@@ -444,6 +445,58 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error) {
       console.error("Delete ticket error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Ticket Attachments - Liste abrufen
+  app.get("/api/tickets/:id/attachments", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const ticket = await storage.getTicket(req.params.id);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket nicht gefunden" });
+      }
+      if (ticket.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      const ticketAttachments = await storage.getAttachments(req.params.id);
+      res.json(ticketAttachments);
+    } catch (error) {
+      console.error("Get attachments error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Attachment herunterladen
+  app.get("/api/attachments/:id/download", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const attachment = await storage.getAttachment(req.params.id);
+      if (!attachment) {
+        return res.status(404).json({ message: "Anhang nicht gefunden" });
+      }
+      
+      // Prüfen ob der Benutzer Zugriff auf das Ticket hat
+      if (attachment.ticketId) {
+        const ticket = await storage.getTicket(attachment.ticketId);
+        if (!ticket || ticket.tenantId !== req.tenantId) {
+          return res.status(403).json({ message: "Zugriff verweigert" });
+        }
+      }
+      
+      // Datei aus Object Storage abrufen
+      const objectStorage = new ObjectStorageClient();
+      const fileContent = await objectStorage.downloadAsBytes(attachment.storagePath);
+      
+      if (!fileContent.ok) {
+        return res.status(404).json({ message: "Datei nicht gefunden" });
+      }
+      
+      res.setHeader("Content-Type", attachment.mimeType);
+      res.setHeader("Content-Disposition", `attachment; filename="${attachment.fileName}"`);
+      res.setHeader("Content-Length", attachment.fileSize);
+      res.send(Buffer.from(fileContent.value));
+    } catch (error) {
+      console.error("Download attachment error:", error);
       res.status(500).json({ message: "Interner Serverfehler" });
     }
   });
@@ -3313,6 +3366,33 @@ export async function registerRoutes(
               // E-Mail mit Ticket verknüpfen
               await storage.updateExchangeEmail(savedEmail.id, { ticketId: ticket.id }, tenantId);
               mailboxTickets++;
+              
+              // .eml Datei als Anhang speichern
+              try {
+                const rawEmailContent = await ExchangeService.getRawEmailContent(config, mailbox.emailAddress, graphEmail.id);
+                if (rawEmailContent) {
+                  const objectStorage = new ObjectStorageClient();
+                  const fileName = `email_${ticket.ticketNumber}_${Date.now()}.eml`;
+                  const storagePath = `.private/emails/${tenantId}/${fileName}`;
+                  
+                  // In Object Storage speichern (als Buffer für binäre Daten)
+                  await objectStorage.uploadFromBytes(storagePath, rawEmailContent);
+                  
+                  // Attachment-Record erstellen
+                  await storage.createAttachment({
+                    ticketId: ticket.id,
+                    fileName: fileName,
+                    fileSize: rawEmailContent.length,
+                    mimeType: "message/rfc822",
+                    storagePath: storagePath,
+                    uploadedById: null, // System-generiert
+                  });
+                  
+                  logger.debug("exchange", ".eml gespeichert", `E-Mail als ${fileName} an Ticket ${ticket.ticketNumber} angehängt`);
+                }
+              } catch (emlError) {
+                logger.warn("exchange", ".eml Speicherung fehlgeschlagen", `Konnte .eml nicht speichern: ${emlError}`);
+              }
               
               logger.info("exchange", "Ticket erstellt", `Ticket ${ticket.ticketNumber} aus E-Mail von ${graphEmail.from?.emailAddress?.address} erstellt`);
               
