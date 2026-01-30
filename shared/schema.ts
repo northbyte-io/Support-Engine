@@ -1432,8 +1432,9 @@ export const emailProcessingRules = pgTable("email_processing_rules", {
   description: text("description"),
   priority: integer("priority").default(0), // Höher = wird zuerst geprüft
   isActive: boolean("is_active").default(true),
-  // Bedingung
-  conditionType: emailProcessingRuleConditionTypeEnum("condition_type").notNull(),
+  // Bedingungen (Mehrfachauswahl mit logischen Operatoren)
+  conditions: text("conditions"), // JSON-Array von Bedingungen mit Operator [{type, value, operator}]
+  conditionType: emailProcessingRuleConditionTypeEnum("condition_type"), // Legacy: einzelne Bedingung
   conditionValue: text("condition_value"), // Wert für die Bedingung (z.B. "@spam.com")
   // Aktionen (Mehrfachauswahl)
   actions: text("actions").array(), // Array von Aktionstypen

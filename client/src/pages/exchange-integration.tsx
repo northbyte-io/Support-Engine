@@ -43,7 +43,9 @@ import {
   ArrowRight,
   User,
   Tag,
-  Zap
+  Zap,
+  ChevronUp,
+  ChevronDown
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -110,8 +112,15 @@ export default function ExchangeIntegration() {
   const [editingRule, setEditingRule] = useState<any>(null);
   const [ruleName, setRuleName] = useState("");
   const [ruleDescription, setRuleDescription] = useState("");
-  const [ruleConditionType, setRuleConditionType] = useState("all_emails");
-  const [ruleConditionValue, setRuleConditionValue] = useState("");
+  // Einzelne Bedingung vs. Mehrfachbedingungen
+  const [ruleConditions, setRuleConditions] = useState<{
+    type: string;
+    value: string;
+    operator: "AND" | "OR" | "NOT" | "XOR";
+  }[]>([{ type: "all_emails", value: "", operator: "AND" }]);
+  // Legacy-Kompatibilität
+  const ruleConditionType = ruleConditions[0]?.type || "all_emails";
+  const ruleConditionValue = ruleConditions[0]?.value || "";
   const [ruleActions, setRuleActions] = useState<string[]>(["mark_as_read"]);
   const [ruleActionValue, setRuleActionValue] = useState("");
   const [ruleActionFolderId, setRuleActionFolderId] = useState("");
@@ -137,7 +146,7 @@ export default function ExchangeIntegration() {
   const [foldersError, setFoldersError] = useState<string | null>(null);
   const [useStandardFolders, setUseStandardFolders] = useState(false);
 
-  // Standard Exchange-Ordner (Well-Known Folder Names)
+  // Standard Exchange-Ordner (Well-Known Folder Names) - Fallback
   const standardFolders = [
     { id: "inbox", displayName: "Posteingang (Inbox)" },
     { id: "drafts", displayName: "Entwürfe (Drafts)" },
@@ -146,6 +155,10 @@ export default function ExchangeIntegration() {
     { id: "archive", displayName: "Archiv" },
     { id: "junkemail", displayName: "Junk-E-Mail" },
   ];
+
+  // Ordner für Regel-Dialog (mit Unterordnern von Exchange)
+  const [ruleFolders, setRuleFolders] = useState<{id: string, displayName: string}[]>([]);
+  const [isLoadingRuleFolders, setIsLoadingRuleFolders] = useState(false);
 
   // Form States
   const [isEnabled, setIsEnabled] = useState(false);
@@ -359,8 +372,7 @@ export default function ExchangeIntegration() {
     setEditingRule(null);
     setRuleName("");
     setRuleDescription("");
-    setRuleConditionType("all_emails");
-    setRuleConditionValue("");
+    setRuleConditions([{ type: "all_emails", value: "", operator: "AND" }]);
     setRuleActions(["mark_as_read"]);
     setRuleActionValue("");
     setRuleActionFolderId("");
@@ -377,8 +389,27 @@ export default function ExchangeIntegration() {
     setEditingRule(rule);
     setRuleName(rule.name);
     setRuleDescription(rule.description || "");
-    setRuleConditionType(rule.conditionType);
-    setRuleConditionValue(rule.conditionValue || "");
+    // Support both old single condition and new conditions array/JSON
+    if (rule.conditions) {
+      try {
+        const parsed = typeof rule.conditions === 'string' 
+          ? JSON.parse(rule.conditions) 
+          : rule.conditions;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setRuleConditions(parsed);
+        } else {
+          setRuleConditions([{ type: rule.conditionType || "all_emails", value: rule.conditionValue || "", operator: "AND" }]);
+        }
+      } catch (e) {
+        setRuleConditions([{ type: rule.conditionType || "all_emails", value: rule.conditionValue || "", operator: "AND" }]);
+      }
+    } else {
+      setRuleConditions([{ 
+        type: rule.conditionType || "all_emails", 
+        value: rule.conditionValue || "", 
+        operator: "AND" 
+      }]);
+    }
     // Support both old single actionType and new actions array
     const actions = rule.actions || (rule.actionType ? [rule.actionType] : ["mark_as_read"]);
     setRuleActions(Array.isArray(actions) ? actions : [actions]);
@@ -409,8 +440,9 @@ export default function ExchangeIntegration() {
       await saveRuleMutation.mutateAsync({
         name: ruleName,
         description: ruleDescription || undefined,
-        conditionType: ruleConditionType,
-        conditionValue: ruleConditionValue || undefined,
+        conditions: JSON.stringify(ruleConditions),
+        conditionType: ruleConditions[0]?.type || "all_emails",
+        conditionValue: ruleConditions[0]?.value || undefined,
         actions: ruleActions,
         actionValue: ruleActionValue || undefined,
         actionFolderId: ruleActions.includes("move_to_folder") ? ruleActionFolderId : undefined,
@@ -456,6 +488,40 @@ export default function ExchangeIntegration() {
       setIsLoadingFolders(false);
     }
   };
+
+  // Handler zum Laden der Ordner für Regel-Dialog (mit Unterordnern)
+  const loadRuleFolders = async () => {
+    // Verwende das erste konfigurierte Postfach um Ordner zu laden
+    const firstMailbox = mailboxesData?.[0];
+    if (!firstMailbox) {
+      // Fallback auf Standard-Ordner
+      setRuleFolders(standardFolders);
+      return;
+    }
+
+    setIsLoadingRuleFolders(true);
+    try {
+      const response = await apiRequest("GET", `/api/exchange/folders/${encodeURIComponent(firstMailbox.emailAddress)}`, undefined);
+      const folders = await response.json();
+      if (folders && folders.length > 0) {
+        setRuleFolders(folders);
+      } else {
+        setRuleFolders(standardFolders);
+      }
+    } catch (error) {
+      // Fallback auf Standard-Ordner bei Fehler
+      setRuleFolders(standardFolders);
+    } finally {
+      setIsLoadingRuleFolders(false);
+    }
+  };
+
+  // Ordner laden wenn Regel-Dialog geöffnet wird
+  useEffect(() => {
+    if (showRuleDialog && ruleFolders.length === 0) {
+      loadRuleFolders();
+    }
+  }, [showRuleDialog]);
 
   // Handler für Postfach hinzufügen
   const handleAddMailbox = async () => {
@@ -1118,23 +1184,46 @@ export default function ExchangeIntegration() {
                         </div>
                         {/* Regel-Details */}
                         <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground pl-11">
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 flex-wrap">
                             <Filter className="w-3 h-3" />
-                            {rule.conditionType === "all_emails" ? "Alle E-Mails" :
-                             rule.conditionType === "sender_contains" ? `Absender enthält "${rule.conditionValue}"` :
-                             rule.conditionType === "sender_equals" ? `Absender = ${rule.conditionValue}` :
-                             rule.conditionType === "sender_domain" ? `Domain = ${rule.conditionValue}` :
-                             rule.conditionType === "recipient_contains" ? `Empfänger enthält "${rule.conditionValue}"` :
-                             rule.conditionType === "recipient_equals" ? `Empfänger = ${rule.conditionValue}` :
-                             rule.conditionType === "subject_contains" ? `Betreff enthält "${rule.conditionValue}"` :
-                             rule.conditionType === "subject_starts_with" ? `Betreff beginnt mit "${rule.conditionValue}"` :
-                             rule.conditionType === "body_contains" ? `Text enthält "${rule.conditionValue}"` :
-                             rule.conditionType === "has_attachments" ? "Hat Anhänge" :
-                             rule.conditionType === "no_attachments" ? "Keine Anhänge" :
-                             rule.conditionType === "is_reply" ? "Ist Antwort" :
-                             rule.conditionType === "is_forward" ? "Ist Weiterleitung" :
-                             rule.conditionType === "imported_emails" ? "Importierte E-Mails" :
-                             rule.conditionType}
+                            {(() => {
+                              // Parse conditions JSON or use legacy single condition
+                              let conditions: {type: string, value: string, operator: string}[] = [];
+                              try {
+                                if (rule.conditions) {
+                                  conditions = typeof rule.conditions === 'string' 
+                                    ? JSON.parse(rule.conditions) 
+                                    : rule.conditions;
+                                }
+                              } catch (e) {}
+                              
+                              if (!conditions || conditions.length === 0) {
+                                conditions = [{ type: rule.conditionType, value: rule.conditionValue, operator: 'AND' }];
+                              }
+
+                              const conditionLabels: Record<string, (v: string) => string> = {
+                                all_emails: () => "Alle E-Mails",
+                                imported_emails: () => "Importiert",
+                                sender_contains: (v) => `Abs. ⊃ "${v}"`,
+                                sender_equals: (v) => `Abs. = ${v}`,
+                                sender_domain: (v) => `Domain = ${v}`,
+                                recipient_contains: (v) => `Empf. ⊃ "${v}"`,
+                                recipient_equals: (v) => `Empf. = ${v}`,
+                                subject_contains: (v) => `Betreff ⊃ "${v}"`,
+                                subject_starts_with: (v) => `Betreff ^ "${v}"`,
+                                body_contains: (v) => `Text ⊃ "${v}"`,
+                                has_attachments: () => "Hat Anhänge",
+                                no_attachments: () => "Keine Anhänge",
+                                is_reply: () => "Antwort",
+                                is_forward: () => "Weiterleitung",
+                              };
+
+                              return conditions.map((c, i) => {
+                                const label = conditionLabels[c.type]?.(c.value || "") || c.type;
+                                const prefix = i > 0 ? ` ${c.operator} ` : "";
+                                return prefix + label;
+                              }).join("");
+                            })()}
                           </span>
                           <ArrowRight className="w-3 h-3" />
                           <span className="flex items-center gap-1 flex-wrap">
@@ -1554,54 +1643,135 @@ export default function ExchangeIntegration() {
 
             <Separator />
 
-            {/* Bedingung */}
+            {/* Bedingungen (Mehrfachauswahl mit logischen Operatoren) */}
             <div className="space-y-3">
-              <h4 className="font-medium flex items-center gap-2">
-                <Filter className="w-4 h-4" />
-                Bedingung
-              </h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="rule-condition-type">Filtertyp *</Label>
-                  <Select value={ruleConditionType} onValueChange={setRuleConditionType}>
-                    <SelectTrigger id="rule-condition-type" data-testid="select-condition-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all_emails">Alle E-Mails</SelectItem>
-                      <SelectItem value="imported_emails">Importierte E-Mails</SelectItem>
-                      <SelectItem value="sender_contains">Absender enthält</SelectItem>
-                      <SelectItem value="sender_equals">Absender ist genau</SelectItem>
-                      <SelectItem value="sender_domain">Absender-Domain</SelectItem>
-                      <SelectItem value="recipient_contains">Empfänger enthält</SelectItem>
-                      <SelectItem value="recipient_equals">Empfänger ist genau</SelectItem>
-                      <SelectItem value="subject_contains">Betreff enthält</SelectItem>
-                      <SelectItem value="subject_starts_with">Betreff beginnt mit</SelectItem>
-                      <SelectItem value="body_contains">Text enthält</SelectItem>
-                      <SelectItem value="has_attachments">Hat Anhänge</SelectItem>
-                      <SelectItem value="no_attachments">Keine Anhänge</SelectItem>
-                      <SelectItem value="is_reply">Ist Antwort (RE:)</SelectItem>
-                      <SelectItem value="is_forward">Ist Weiterleitung (FW:)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {!["all_emails", "imported_emails", "has_attachments", "no_attachments", "is_reply", "is_forward", "priority_high"].includes(ruleConditionType) && (
-                  <div className="space-y-2">
-                    <Label htmlFor="rule-condition-value">Wert</Label>
-                    <Input 
-                      id="rule-condition-value"
-                      value={ruleConditionValue}
-                      onChange={(e) => setRuleConditionValue(e.target.value)}
-                      placeholder={
-                        ruleConditionType.includes("sender") ? "z.B. @spam.com" :
-                        ruleConditionType.includes("recipient") ? "z.B. support@" :
-                        ruleConditionType.includes("subject") ? "z.B. DRINGEND" :
-                        "Suchbegriff"
-                      }
-                      data-testid="input-condition-value"
-                    />
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium flex items-center gap-2">
+                  <Filter className="w-4 h-4" />
+                  Bedingungen
+                </h4>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRuleConditions([...ruleConditions, { type: "sender_contains", value: "", operator: "AND" }])}
+                  data-testid="button-add-condition"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Bedingung
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Kombinieren Sie mehrere Bedingungen mit UND, ODER, NICHT oder XOR
+              </p>
+              
+              <div className="space-y-3">
+                {ruleConditions.map((condition, index) => (
+                  <div key={index} className="space-y-2 p-3 border rounded-md bg-muted/30">
+                    {/* Logischer Operator (für alle außer dem ersten) */}
+                    {index > 0 && (
+                      <div className="flex items-center gap-2 pb-2 border-b">
+                        <Select 
+                          value={condition.operator} 
+                          onValueChange={(v) => {
+                            const newConditions = [...ruleConditions];
+                            newConditions[index].operator = v as any;
+                            setRuleConditions(newConditions);
+                          }}
+                        >
+                          <SelectTrigger className="w-24" data-testid={`select-operator-${index}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="AND">UND</SelectItem>
+                            <SelectItem value="OR">ODER</SelectItem>
+                            <SelectItem value="NOT">NICHT</SelectItem>
+                            <SelectItem value="XOR">XOR</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span className="text-xs text-muted-foreground flex-1">
+                          {condition.operator === "AND" && "Diese Bedingung muss zusätzlich erfüllt sein"}
+                          {condition.operator === "OR" && "Diese Bedingung kann alternativ erfüllt sein"}
+                          {condition.operator === "NOT" && "Diese Bedingung darf nicht erfüllt sein"}
+                          {condition.operator === "XOR" && "Entweder diese oder die vorherige, aber nicht beide"}
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Filtertyp</Label>
+                        <Select 
+                          value={condition.type} 
+                          onValueChange={(v) => {
+                            const newConditions = [...ruleConditions];
+                            newConditions[index].type = v;
+                            setRuleConditions(newConditions);
+                          }}
+                        >
+                          <SelectTrigger data-testid={`select-condition-type-${index}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all_emails">Alle E-Mails</SelectItem>
+                            <SelectItem value="imported_emails">Importierte E-Mails</SelectItem>
+                            <SelectItem value="sender_contains">Absender enthält</SelectItem>
+                            <SelectItem value="sender_equals">Absender ist genau</SelectItem>
+                            <SelectItem value="sender_domain">Absender-Domain</SelectItem>
+                            <SelectItem value="recipient_contains">Empfänger enthält</SelectItem>
+                            <SelectItem value="recipient_equals">Empfänger ist genau</SelectItem>
+                            <SelectItem value="subject_contains">Betreff enthält</SelectItem>
+                            <SelectItem value="subject_starts_with">Betreff beginnt mit</SelectItem>
+                            <SelectItem value="body_contains">Text enthält</SelectItem>
+                            <SelectItem value="has_attachments">Hat Anhänge</SelectItem>
+                            <SelectItem value="no_attachments">Keine Anhänge</SelectItem>
+                            <SelectItem value="is_reply">Ist Antwort (RE:)</SelectItem>
+                            <SelectItem value="is_forward">Ist Weiterleitung (FW:)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      {!["all_emails", "imported_emails", "has_attachments", "no_attachments", "is_reply", "is_forward"].includes(condition.type) && (
+                        <div className="space-y-1">
+                          <Label className="text-xs">Wert</Label>
+                          <Input 
+                            value={condition.value}
+                            onChange={(e) => {
+                              const newConditions = [...ruleConditions];
+                              newConditions[index].value = e.target.value;
+                              setRuleConditions(newConditions);
+                            }}
+                            placeholder={
+                              condition.type.includes("sender") ? "@example.com" :
+                              condition.type.includes("recipient") ? "support@" :
+                              condition.type.includes("subject") ? "DRINGEND" :
+                              "Suchbegriff"
+                            }
+                            data-testid={`input-condition-value-${index}`}
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Löschen-Button (nicht für erste Bedingung) */}
+                      {ruleConditions.length > 1 && (
+                        <div className="flex items-end">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 text-destructive hover:text-destructive"
+                            onClick={() => {
+                              setRuleConditions(ruleConditions.filter((_, i) => i !== index));
+                            }}
+                            data-testid={`button-remove-condition-${index}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
             </div>
 
@@ -1652,6 +1822,71 @@ export default function ExchangeIntegration() {
                 ))}
               </div>
 
+              {/* Reihenfolge der Aktionen anzeigen */}
+              {ruleActions.length > 1 && (
+                <div className="space-y-2 pt-2 border-t">
+                  <Label className="text-sm">Ausführungsreihenfolge</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Aktionen werden in dieser Reihenfolge ausgeführt. Pfeile zum Ändern nutzen.
+                  </p>
+                  <div className="space-y-1">
+                    {ruleActions.map((actionValue, index) => {
+                      const actionLabels: Record<string, string> = {
+                        mark_as_read: "Als gelesen markieren",
+                        mark_as_unread: "Als ungelesen markieren",
+                        move_to_folder: "In Ordner verschieben",
+                        archive: "Archivieren",
+                        delete: "Löschen",
+                        reject: "Ablehnen / Bounce",
+                        forward_to: "Weiterleiten an",
+                        set_priority: "Ticket-Priorität setzen",
+                        add_tag: "Tag hinzufügen",
+                        skip_import: "Import überspringen",
+                        auto_reply: "Auto-Antwort senden",
+                      };
+                      return (
+                        <div key={actionValue} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                          <span className="text-xs text-muted-foreground w-5">{index + 1}.</span>
+                          <span className="flex-1 text-sm">{actionLabels[actionValue] || actionValue}</span>
+                          <div className="flex gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              disabled={index === 0}
+                              onClick={() => {
+                                const newActions = [...ruleActions];
+                                [newActions[index - 1], newActions[index]] = [newActions[index], newActions[index - 1]];
+                                setRuleActions(newActions);
+                              }}
+                              data-testid={`button-move-up-${actionValue}`}
+                            >
+                              <ChevronUp className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              disabled={index === ruleActions.length - 1}
+                              onClick={() => {
+                                const newActions = [...ruleActions];
+                                [newActions[index], newActions[index + 1]] = [newActions[index + 1], newActions[index]];
+                                setRuleActions(newActions);
+                              }}
+                              data-testid={`button-move-down-${actionValue}`}
+                            >
+                              <ChevronDown className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Weiterleitung / Tag Eingabe */}
               {(ruleActions.includes("forward_to") || ruleActions.includes("add_tag")) && (
                 <div className="space-y-2 pt-2">
@@ -1678,27 +1913,35 @@ export default function ExchangeIntegration() {
               {ruleActions.includes("move_to_folder") && (
                 <div className="space-y-2 pt-2">
                   <Label htmlFor="rule-action-folder">Zielordner</Label>
-                  <Select 
-                    value={ruleActionFolderId} 
-                    onValueChange={(v) => {
-                      setRuleActionFolderId(v);
-                      const folder = standardFolders.find(f => f.id === v);
-                      setRuleActionFolderName(folder?.displayName || v);
-                    }}
-                  >
-                    <SelectTrigger id="rule-action-folder" data-testid="select-action-folder">
-                      <SelectValue placeholder="Ordner auswählen" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {standardFolders.map((folder) => (
-                        <SelectItem key={folder.id} value={folder.id}>
-                          {folder.displayName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {isLoadingRuleFolders ? (
+                    <div className="flex items-center gap-2 p-2 text-sm text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Ordner werden geladen...
+                    </div>
+                  ) : (
+                    <Select 
+                      value={ruleActionFolderId} 
+                      onValueChange={(v) => {
+                        setRuleActionFolderId(v);
+                        const folders = ruleFolders.length > 0 ? ruleFolders : standardFolders;
+                        const folder = folders.find(f => f.id === v);
+                        setRuleActionFolderName(folder?.displayName || v);
+                      }}
+                    >
+                      <SelectTrigger id="rule-action-folder" data-testid="select-action-folder">
+                        <SelectValue placeholder="Ordner auswählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(ruleFolders.length > 0 ? ruleFolders : standardFolders).map((folder) => (
+                          <SelectItem key={folder.id} value={folder.id}>
+                            {folder.displayName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <p className="text-xs text-muted-foreground">
-                    Der Ordner, in den die E-Mail verschoben werden soll
+                    Der Ordner, in den die E-Mail verschoben werden soll (inkl. Unterordner)
                   </p>
                 </div>
               )}
