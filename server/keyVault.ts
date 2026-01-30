@@ -47,7 +47,9 @@ export function decryptSecret(encrypted: EncryptedData): string {
   const authTag = Buffer.from(encrypted.authTag, "base64");
   const ciphertext = Buffer.from(encrypted.ciphertext, "base64");
   
-  const decipher = crypto.createDecipheriv(ALGORITHM, masterKey, iv);
+  const decipher = crypto.createDecipheriv(ALGORITHM, masterKey, iv, {
+    authTagLength: AUTH_TAG_LENGTH,
+  });
   decipher.setAuthTag(authTag);
   
   let plaintext = decipher.update(ciphertext);
