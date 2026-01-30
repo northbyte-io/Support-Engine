@@ -270,6 +270,8 @@ function addToBuffer(entry: LogEntry, timestamp: Date) {
 // Main logger class
 class Logger {
   private maskSensitiveData(text: string): string {
+    // Handle undefined/null gracefully
+    if (!text) return text ?? '';
     // Mask passwords
     let masked = text.replace(/password['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'password: [MASKIERT]');
     // Mask API keys
