@@ -3259,24 +3259,153 @@ export async function registerRoutes(
       
       let totalEmails = 0;
       let totalTickets = 0;
+      let totalSkipped = 0;
       const errors: string[] = [];
       
       for (const mailbox of incomingMailboxes) {
+        // Per-Mailbox Zähler
+        let mailboxImported = 0;
+        let mailboxTickets = 0;
+        let mailboxSkipped = 0;
+        const mailboxErrors: string[] = [];
+        const syncStartedAt = new Date();
+        
         try {
           const emails = await ExchangeService.fetchEmails(config, mailbox);
-          totalEmails += emails.length;
-          // TODO: Ticket-Erstellung aus E-Mails implementieren
-          // Für jetzt nur E-Mails zählen
+          logger.info("exchange", "E-Mails gefunden", `${emails.length} E-Mails in ${mailbox.emailAddress} gefunden`);
+          
+          for (const graphEmail of emails) {
+            try {
+              // Prüfen ob E-Mail bereits importiert wurde (über Graph Message ID)
+              const existingEmail = await storage.getExchangeEmailByMessageId(tenantId, graphEmail.id);
+              if (existingEmail) {
+                logger.debug("exchange", "E-Mail übersprungen", `E-Mail ${graphEmail.id} bereits importiert`);
+                mailboxSkipped++;
+                continue;
+              }
+              
+              // E-Mail in Datenbank speichern
+              const emailData = ExchangeService.graphEmailToInsert(graphEmail, mailbox.id, tenantId);
+              const savedEmail = await storage.createExchangeEmail(emailData);
+              mailboxImported++;
+              
+              // Ticket erstellen
+              const ticketTitle = graphEmail.subject || "E-Mail ohne Betreff";
+              const ticketDescription = graphEmail.bodyPreview || graphEmail.body?.content || "";
+              
+              const ticket = await storage.createTicket({
+                tenantId,
+                title: ticketTitle,
+                description: ticketDescription,
+                status: "open",
+                priority: mailbox.defaultPriority || "medium",
+                ticketTypeId: mailbox.defaultTicketTypeId || null,
+                createdById: null, // System-generiert
+                customerId: null,
+                customFieldValues: {
+                  emailSource: mailbox.emailAddress,
+                  fromAddress: graphEmail.from?.emailAddress?.address,
+                  fromName: graphEmail.from?.emailAddress?.name,
+                  originalMessageId: graphEmail.id
+                }
+              });
+              
+              // E-Mail mit Ticket verknüpfen
+              await storage.updateExchangeEmail(savedEmail.id, { ticketId: ticket.id }, tenantId);
+              mailboxTickets++;
+              
+              logger.info("exchange", "Ticket erstellt", `Ticket ${ticket.ticketNumber} aus E-Mail von ${graphEmail.from?.emailAddress?.address} erstellt`);
+              
+              // Post-Import-Aktionen ausführen
+              const postActions = mailbox.postImportActions || [];
+              
+              for (const action of postActions) {
+                try {
+                  if (action === "mark_as_read") {
+                    await ExchangeService.markAsRead(config, mailbox.emailAddress, graphEmail.id);
+                    logger.debug("exchange", "Als gelesen markiert", `E-Mail ${graphEmail.id} als gelesen markiert`);
+                  } else if (action === "move_to_folder" && mailbox.targetFolderId) {
+                    await ExchangeService.moveEmail(config, mailbox.emailAddress, graphEmail.id, mailbox.targetFolderId);
+                    logger.debug("exchange", "E-Mail verschoben", `E-Mail ${graphEmail.id} nach ${mailbox.targetFolderName} verschoben`);
+                  } else if (action === "delete") {
+                    await ExchangeService.deleteEmail(config, mailbox.emailAddress, graphEmail.id);
+                    logger.debug("exchange", "E-Mail gelöscht", `E-Mail ${graphEmail.id} gelöscht`);
+                  }
+                } catch (actionError) {
+                  logger.warn("exchange", "Post-Import-Aktion fehlgeschlagen", `Aktion ${action} für E-Mail ${graphEmail.id} fehlgeschlagen: ${actionError}`);
+                }
+              }
+              
+            } catch (emailError) {
+              logger.error("exchange", "E-Mail-Verarbeitung fehlgeschlagen", { 
+                description: `Fehler bei E-Mail ${graphEmail.id}`, 
+                cause: String(emailError) 
+              });
+              mailboxErrors.push(`E-Mail ${graphEmail.subject}: ${emailError}`);
+            }
+          }
+          
+          // Mailbox-Statistiken aktualisieren (mit per-mailbox Zählern)
+          await storage.updateExchangeMailbox(mailbox.id, {
+            lastFetchAt: new Date(),
+            lastFetchEmailCount: emails.length,
+            totalImportedEmails: (mailbox.totalImportedEmails || 0) + mailboxImported,
+            totalCreatedTickets: (mailbox.totalCreatedTickets || 0) + mailboxTickets,
+            lastFetchError: null
+          }, tenantId);
+          
+          // Sync-Log pro Mailbox erstellen
+          await storage.createExchangeSyncLog({
+            tenantId,
+            mailboxId: mailbox.id,
+            syncType: "fetch",
+            status: mailboxErrors.length > 0 ? "partial" : "success",
+            startedAt: syncStartedAt,
+            completedAt: new Date(),
+            emailsFetched: mailboxImported + mailboxSkipped,
+            ticketsCreated: mailboxTickets,
+            errorsCount: mailboxErrors.length,
+            errorMessage: mailboxErrors.length > 0 ? mailboxErrors.join("; ") : null
+          });
+          
         } catch (error) {
-          errors.push(`${mailbox.emailAddress}: ${error}`);
+          const errorMsg = String(error);
+          mailboxErrors.push(errorMsg);
+          
+          // Fehler im Postfach speichern
+          await storage.updateExchangeMailbox(mailbox.id, {
+            lastFetchAt: new Date(),
+            lastFetchError: errorMsg
+          }, tenantId);
+          
+          // Sync-Log mit Fehler erstellen
+          await storage.createExchangeSyncLog({
+            tenantId,
+            mailboxId: mailbox.id,
+            syncType: "fetch",
+            status: "failed",
+            startedAt: syncStartedAt,
+            completedAt: new Date(),
+            emailsFetched: 0,
+            ticketsCreated: 0,
+            errorsCount: 1,
+            errorMessage: errorMsg
+          });
         }
+        
+        // Zu Gesamtzählern addieren
+        totalEmails += mailboxImported;
+        totalTickets += mailboxTickets;
+        totalSkipped += mailboxSkipped;
+        errors.push(...mailboxErrors);
       }
       
-      logger.info("exchange", "Manuelle Synchronisation", `${totalEmails} E-Mails verarbeitet, ${totalTickets} Tickets erstellt`, { userId: req.user!.id });
+      logger.info("exchange", "Manuelle Synchronisation", `${totalEmails} E-Mails importiert, ${totalTickets} Tickets erstellt, ${totalSkipped} übersprungen`, { userId: req.user!.id });
       
       res.json({ 
         message: "Synchronisation abgeschlossen",
         emailsProcessed: totalEmails,
+        emailsSkipped: totalSkipped,
         ticketsCreated: totalTickets,
         errors: errors.length > 0 ? errors : undefined
       });

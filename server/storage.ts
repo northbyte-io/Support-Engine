@@ -463,6 +463,7 @@ export interface IStorage {
   deleteExchangeAssignmentRule(id: string, tenantId: string): Promise<void>;
 
   getExchangeEmails(tenantId: string, params?: { mailboxId?: string; ticketId?: string; limit?: number }): Promise<ExchangeEmail[]>;
+  getExchangeEmailByMessageId(tenantId: string, messageId: string): Promise<ExchangeEmail | undefined>;
   createExchangeEmail(email: InsertExchangeEmail): Promise<ExchangeEmail>;
   updateExchangeEmail(id: string, updates: Partial<InsertExchangeEmail>, tenantId: string): Promise<ExchangeEmail | undefined>;
 
@@ -2790,6 +2791,12 @@ export class DatabaseStorage implements IStorage {
       query = query.limit(params.limit) as typeof query;
     }
     return query;
+  }
+
+  async getExchangeEmailByMessageId(tenantId: string, messageId: string): Promise<ExchangeEmail | undefined> {
+    const [result] = await db.select().from(exchangeEmails)
+      .where(and(eq(exchangeEmails.tenantId, tenantId), eq(exchangeEmails.messageId, messageId)));
+    return result || undefined;
   }
 
   async createExchangeEmail(email: InsertExchangeEmail): Promise<ExchangeEmail> {
