@@ -1133,6 +1133,7 @@ export default function ExchangeIntegration() {
                              rule.conditionType === "no_attachments" ? "Keine Anhänge" :
                              rule.conditionType === "is_reply" ? "Ist Antwort" :
                              rule.conditionType === "is_forward" ? "Ist Weiterleitung" :
+                             rule.conditionType === "imported_emails" ? "Importierte E-Mails" :
                              rule.conditionType}
                           </span>
                           <ArrowRight className="w-3 h-3" />
@@ -1568,6 +1569,7 @@ export default function ExchangeIntegration() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all_emails">Alle E-Mails</SelectItem>
+                      <SelectItem value="imported_emails">Importierte E-Mails</SelectItem>
                       <SelectItem value="sender_contains">Absender enthält</SelectItem>
                       <SelectItem value="sender_equals">Absender ist genau</SelectItem>
                       <SelectItem value="sender_domain">Absender-Domain</SelectItem>
@@ -1583,7 +1585,7 @@ export default function ExchangeIntegration() {
                     </SelectContent>
                   </Select>
                 </div>
-                {!["all_emails", "has_attachments", "no_attachments", "is_reply", "is_forward", "priority_high"].includes(ruleConditionType) && (
+                {!["all_emails", "imported_emails", "has_attachments", "no_attachments", "is_reply", "is_forward", "priority_high"].includes(ruleConditionType) && (
                   <div className="space-y-2">
                     <Label htmlFor="rule-condition-value">Wert</Label>
                     <Input 
