@@ -74,14 +74,11 @@ function ConnectionStatusBadge({ status }: { status: string }) {
   }
 }
 
-// Einrichtungsassistent-Schritte
+// Einrichtungsassistent-Schritte (vereinfacht - Postfächer werden separat verwaltet)
 const setupSteps = [
   { id: 1, title: "Aktivierung", description: "Exchange-Integration aktivieren" },
   { id: 2, title: "Azure-App", description: "App-Registrierung konfigurieren" },
-  { id: 3, title: "Postfach", description: "E-Mail-Postfach auswählen" },
-  { id: 4, title: "Ordner", description: "Quellordner festlegen" },
-  { id: 5, title: "Aktionen", description: "Nach-Import-Aktionen definieren" },
-  { id: 6, title: "Test", description: "Verbindung testen" },
+  { id: 3, title: "Test", description: "Verbindung testen" },
 ];
 
 export default function ExchangeIntegration() {
@@ -91,6 +88,7 @@ export default function ExchangeIntegration() {
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [isTestingFetch, setIsTestingFetch] = useState(false);
   const [isTestingSend, setIsTestingSend] = useState(false);
+  const [testingMailboxId, setTestingMailboxId] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showMailboxDialog, setShowMailboxDialog] = useState(false);
   const [isSavingMailbox, setIsSavingMailbox] = useState(false);
@@ -381,6 +379,58 @@ export default function ExchangeIntegration() {
     });
   };
 
+  // Handler für Test-Mailabruf für ein bestimmtes Postfach
+  const handleTestFetchForMailbox = async (mailboxEmail: string) => {
+    const mailbox = mailboxesData?.find((m: any) => m.emailAddress === mailboxEmail);
+    if (mailbox) {
+      setTestingMailboxId(mailbox.id);
+    }
+    setIsTestingFetch(true);
+    try {
+      const response = await apiRequest("POST", "/api/exchange/sync", { mailboxEmail });
+      const data = await response.json();
+      toast({
+        title: "Synchronisation abgeschlossen",
+        description: `${data.emailsProcessed || 0} E-Mails verarbeitet, ${data.ticketsCreated || 0} Tickets erstellt.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Fehler bei der Synchronisation",
+        description: error.message || "Die E-Mails konnten nicht abgerufen werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingFetch(false);
+      setTestingMailboxId(null);
+    }
+  };
+
+  // Handler für Test-Mailversand für ein bestimmtes Postfach
+  const handleTestSendForMailbox = async (mailboxEmail: string) => {
+    const mailbox = mailboxesData?.find((m: any) => m.emailAddress === mailboxEmail);
+    if (mailbox) {
+      setTestingMailboxId(mailbox.id);
+    }
+    setIsTestingSend(true);
+    try {
+      const response = await apiRequest("POST", "/api/exchange/send-test", { mailboxEmail });
+      const data = await response.json();
+      toast({
+        title: "Test-Mail gesendet",
+        description: data.message || "Die Test-E-Mail wurde erfolgreich gesendet.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Fehler beim Senden",
+        description: error.message || "Die Test-E-Mail konnte nicht gesendet werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingSend(false);
+      setTestingMailboxId(null);
+    }
+  };
+
   // Handler für Speichern
   const handleSave = async () => {
     setIsSaving(true);
@@ -653,198 +703,13 @@ export default function ExchangeIntegration() {
               </Card>
             )}
 
-            {/* Schritt 3: Postfach */}
+            {/* Schritt 3: Test */}
             {currentStep === 3 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Schritt 3: Postfach auswählen</CardTitle>
+                  <CardTitle>Schritt 3: Verbindung testen</CardTitle>
                   <CardDescription>
-                    Wählen Sie das Postfach für den E-Mail-Import
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4">
-                    <div className="space-y-2">
-                      <Label>Postfachtyp</Label>
-                      <Select value={mailboxType} onValueChange={setMailboxType}>
-                        <SelectTrigger data-testid="select-mailbox-type">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="shared">Freigegebenes Postfach</SelectItem>
-                          <SelectItem value="user">Benutzerpostfach</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="mailboxEmail">
-                        <Mail className="w-4 h-4 inline mr-2" />
-                        E-Mail-Adresse des Postfachs
-                      </Label>
-                      <Input
-                        id="mailboxEmail"
-                        type="email"
-                        placeholder="support@ihrefirma.de"
-                        value={mailboxEmail}
-                        onChange={(e) => setMailboxEmail(e.target.value)}
-                        data-testid="input-mailbox-email"
-                      />
-                    </div>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <Button variant="outline" onClick={() => setCurrentStep(2)} data-testid="button-prev-step">
-                      Zurück
-                    </Button>
-                    <Button 
-                      onClick={() => setCurrentStep(4)}
-                      disabled={!mailboxEmail}
-                      data-testid="button-next-step"
-                    >
-                      Weiter
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Schritt 4: Ordner */}
-            {currentStep === 4 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Schritt 4: E-Mail-Ordner</CardTitle>
-                  <CardDescription>
-                    Wählen Sie den Quellordner für den E-Mail-Import
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4">
-                    <div className="space-y-2">
-                      <Label>
-                        <FolderOpen className="w-4 h-4 inline mr-2" />
-                        Quellordner
-                      </Label>
-                      <Select value={sourceFolder} onValueChange={setSourceFolder}>
-                        <SelectTrigger data-testid="select-source-folder">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="inbox">Posteingang</SelectItem>
-                          <SelectItem value="support">Support</SelectItem>
-                          <SelectItem value="helpdesk">Helpdesk</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        E-Mails werden aus diesem Ordner importiert
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="targetFolder">
-                        <FolderOpen className="w-4 h-4 inline mr-2" />
-                        Zielordner (optional)
-                      </Label>
-                      <Input
-                        id="targetFolder"
-                        placeholder="Verarbeitet"
-                        value={targetFolder}
-                        onChange={(e) => setTargetFolder(e.target.value)}
-                        data-testid="input-target-folder"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        E-Mails werden nach Import hierhin verschoben
-                      </p>
-                    </div>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <Button variant="outline" onClick={() => setCurrentStep(3)} data-testid="button-prev-step">
-                      Zurück
-                    </Button>
-                    <Button onClick={() => setCurrentStep(5)} data-testid="button-next-step">
-                      Weiter
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Schritt 5: Aktionen */}
-            {currentStep === 5 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Schritt 5: Nach-Import-Aktionen</CardTitle>
-                  <CardDescription>
-                    Wählen Sie, was nach dem Import einer E-Mail passieren soll
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-3">
-                    {[
-                      { id: "mark_as_read", label: "Als gelesen markieren", icon: CheckCircle2 },
-                      { id: "move_to_folder", label: "In Zielordner verschieben", icon: FolderOpen },
-                      { id: "archive", label: "Archivieren", icon: Download },
-                      { id: "delete", label: "Löschen", icon: Trash2 },
-                      { id: "keep_unchanged", label: "Unverändert belassen", icon: Settings },
-                    ].map(action => (
-                      <div 
-                        key={action.id}
-                        className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer hover-elevate ${
-                          postImportActions.includes(action.id) 
-                            ? "border-primary bg-primary/5" 
-                            : "border-border"
-                        }`}
-                        onClick={() => togglePostImportAction(action.id)}
-                        data-testid={`action-${action.id}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <action.icon className="w-4 h-4" />
-                          <span>{action.label}</span>
-                        </div>
-                        <Switch
-                          checked={postImportActions.includes(action.id)}
-                          onCheckedChange={() => togglePostImportAction(action.id)}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="space-y-2">
-                    <Label>
-                      <Clock className="w-4 h-4 inline mr-2" />
-                      Abrufintervall
-                    </Label>
-                    <Select value={fetchInterval} onValueChange={setFetchInterval}>
-                      <SelectTrigger data-testid="select-fetch-interval">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">Jede Minute</SelectItem>
-                        <SelectItem value="5">Alle 5 Minuten</SelectItem>
-                        <SelectItem value="15">Alle 15 Minuten</SelectItem>
-                        <SelectItem value="30">Alle 30 Minuten</SelectItem>
-                        <SelectItem value="60">Stündlich</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <Button variant="outline" onClick={() => setCurrentStep(4)} data-testid="button-prev-step">
-                      Zurück
-                    </Button>
-                    <Button onClick={() => setCurrentStep(6)} data-testid="button-next-step">
-                      Weiter
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Schritt 6: Test */}
-            {currentStep === 6 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Schritt 6: Verbindung testen</CardTitle>
-                  <CardDescription>
-                    Testen Sie die Verbindung und Funktionen der Exchange-Integration
+                    Testen Sie die Verbindung zur Microsoft Graph API und speichern Sie die Konfiguration
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -868,48 +733,17 @@ export default function ExchangeIntegration() {
                         </div>
                       </div>
                     </Button>
-                    <Button
-                      variant="outline"
-                      className="justify-start h-auto py-4"
-                      onClick={handleTestFetch}
-                      disabled={isTestingFetch}
-                      data-testid="button-test-fetch"
-                    >
-                      {isTestingFetch ? (
-                        <Loader2 className="w-4 h-4 mr-3 animate-spin" />
-                      ) : (
-                        <Download className="w-4 h-4 mr-3" />
-                      )}
-                      <div className="text-left">
-                        <div className="font-medium">Test-Mailabruf</div>
-                        <div className="text-xs text-muted-foreground">
-                          Ruft eine Test-E-Mail aus dem Postfach ab
-                        </div>
-                      </div>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="justify-start h-auto py-4"
-                      onClick={handleTestSend}
-                      disabled={isTestingSend}
-                      data-testid="button-test-send"
-                    >
-                      {isTestingSend ? (
-                        <Loader2 className="w-4 h-4 mr-3 animate-spin" />
-                      ) : (
-                        <Send className="w-4 h-4 mr-3" />
-                      )}
-                      <div className="text-left">
-                        <div className="font-medium">Test-Mailversand</div>
-                        <div className="text-xs text-muted-foreground">
-                          Sendet eine Test-E-Mail über das Postfach
-                        </div>
-                      </div>
-                    </Button>
                   </div>
+                  <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Hinweis</AlertTitle>
+                    <AlertDescription>
+                      Nach erfolgreicher Einrichtung können Sie im Tab "Postfächer" einzelne E-Mail-Postfächer hinzufügen und dort jeweils den Mailabruf und -versand testen.
+                    </AlertDescription>
+                  </Alert>
                   <Separator />
                   <div className="flex justify-between">
-                    <Button variant="outline" onClick={() => setCurrentStep(5)} data-testid="button-prev-step">
+                    <Button variant="outline" onClick={() => setCurrentStep(2)} data-testid="button-prev-step">
                       Zurück
                     </Button>
                     <Button onClick={handleSave} disabled={isSaving} data-testid="button-save-config">
@@ -959,29 +793,76 @@ export default function ExchangeIntegration() {
                 ) : mailboxesData && mailboxesData.length > 0 ? (
                   <div className="space-y-4">
                     {mailboxesData.map((mailbox: any) => (
-                      <div key={mailbox.id} className="flex items-center justify-between p-4 border rounded-md">
-                        <div className="flex items-center gap-3">
-                          <Mail className="w-5 h-5 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">{mailbox.displayName || mailbox.emailAddress}</p>
-                            <p className="text-sm text-muted-foreground">{mailbox.emailAddress}</p>
+                      <div key={mailbox.id} className="p-4 border rounded-md space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Mail className="w-5 h-5 text-muted-foreground" />
+                            <div>
+                              <p className="font-medium">{mailbox.displayName || mailbox.emailAddress}</p>
+                              <p className="text-sm text-muted-foreground">{mailbox.emailAddress}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={mailbox.isActive ? "default" : "secondary"}>
+                              {mailbox.isActive ? "Aktiv" : "Inaktiv"}
+                            </Badge>
+                            <Badge variant="outline">
+                              {mailbox.mailboxType === "incoming" ? "Eingehend" : 
+                               mailbox.mailboxType === "outgoing" ? "Ausgehend" : "Gemeinsam"}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteMailboxMutation.mutate(mailbox.id)}
+                              data-testid={`button-delete-mailbox-${mailbox.id}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={mailbox.isActive ? "default" : "secondary"}>
-                            {mailbox.isActive ? "Aktiv" : "Inaktiv"}
-                          </Badge>
-                          <Badge variant="outline">
-                            {mailbox.mailboxType === "incoming" ? "Eingehend" : 
-                             mailbox.mailboxType === "outgoing" ? "Ausgehend" : "Gemeinsam"}
-                          </Badge>
+                        {/* Details und Ordner-Info */}
+                        <div className="text-sm text-muted-foreground pl-8 flex items-center gap-4">
+                          <span className="flex items-center gap-1">
+                            <FolderOpen className="w-3 h-3" />
+                            {mailbox.sourceFolderName || "Nicht konfiguriert"}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Settings className="w-3 h-3" />
+                            {mailbox.postImportAction === "mark_as_read" ? "Als gelesen markieren" :
+                             mailbox.postImportAction === "move_to_folder" ? "In Ordner verschieben" :
+                             mailbox.postImportAction === "archive" ? "Archivieren" :
+                             mailbox.postImportAction === "delete" ? "Löschen" : "Unverändert"}
+                          </span>
+                        </div>
+                        {/* Test-Buttons für jedes Postfach */}
+                        <div className="flex gap-2 pl-8">
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteMailboxMutation.mutate(mailbox.id)}
-                            data-testid={`button-delete-mailbox-${mailbox.id}`}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleTestFetchForMailbox(mailbox.emailAddress)}
+                            disabled={testingMailboxId === mailbox.id && isTestingFetch}
+                            data-testid={`button-test-fetch-${mailbox.id}`}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            {testingMailboxId === mailbox.id && isTestingFetch ? (
+                              <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                            ) : (
+                              <Download className="w-3 h-3 mr-2" />
+                            )}
+                            Mails abrufen
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleTestSendForMailbox(mailbox.emailAddress)}
+                            disabled={testingMailboxId === mailbox.id && isTestingSend}
+                            data-testid={`button-test-send-${mailbox.id}`}
+                          >
+                            {testingMailboxId === mailbox.id && isTestingSend ? (
+                              <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                            ) : (
+                              <Send className="w-3 h-3 mr-2" />
+                            )}
+                            Test-Mail senden
                           </Button>
                         </div>
                       </div>

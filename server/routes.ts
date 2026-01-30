@@ -3235,6 +3235,7 @@ export async function registerRoutes(
     try {
       const { ExchangeService } = await import("./exchange-service");
       const tenantId = req.user!.tenantId;
+      const { mailboxEmail } = req.body;
       const config = await storage.getExchangeConfiguration(tenantId);
       
       if (!config || !ExchangeService.isConfigurationValid(config)) {
@@ -3242,10 +3243,15 @@ export async function registerRoutes(
       }
       
       const mailboxes = await storage.getExchangeMailboxes(tenantId);
-      // Hole alle aktiven Postfächer, die E-Mails empfangen können (incoming oder shared)
-      const incomingMailboxes = mailboxes.filter(m => 
-        (m.mailboxType === "incoming" || m.mailboxType === "shared") && m.isActive
+      // Hole alle aktiven Postfächer, die E-Mails empfangen können (incoming, shared oder user für Legacy)
+      let incomingMailboxes = mailboxes.filter(m => 
+        (m.mailboxType === "incoming" || m.mailboxType === "shared" || m.mailboxType === "user") && m.isActive
       );
+      
+      // Falls eine spezifische E-Mail-Adresse angegeben wurde, nur dieses Postfach synchronisieren
+      if (mailboxEmail) {
+        incomingMailboxes = incomingMailboxes.filter(m => m.emailAddress === mailboxEmail);
+      }
       
       if (incomingMailboxes.length === 0) {
         return res.status(400).json({ message: "Keine aktiven Postfächer für den E-Mail-Abruf konfiguriert (Typ: Eingehend oder Gemeinsam)" });
@@ -3257,9 +3263,10 @@ export async function registerRoutes(
       
       for (const mailbox of incomingMailboxes) {
         try {
-          const result = await ExchangeService.fetchEmails(config, mailbox, storage, tenantId);
-          totalEmails += result.emailsProcessed;
-          totalTickets += result.ticketsCreated;
+          const emails = await ExchangeService.fetchEmails(config, mailbox);
+          totalEmails += emails.length;
+          // TODO: Ticket-Erstellung aus E-Mails implementieren
+          // Für jetzt nur E-Mails zählen
         } catch (error) {
           errors.push(`${mailbox.emailAddress}: ${error}`);
         }
@@ -3276,6 +3283,56 @@ export async function registerRoutes(
     } catch (error) {
       logger.error("exchange", "Fehler bei der Synchronisation", { description: String(error), cause: "Synchronisationsfehler", solution: "Überprüfen Sie die Exchange-Konfiguration" });
       res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Test-E-Mail senden
+  app.post("/api/exchange/send-test", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { ExchangeService } = await import("./exchange-service");
+      const tenantId = req.user!.tenantId;
+      const { mailboxEmail } = req.body;
+      
+      if (!mailboxEmail) {
+        return res.status(400).json({ message: "E-Mail-Adresse des Postfachs ist erforderlich" });
+      }
+      
+      const config = await storage.getExchangeConfiguration(tenantId);
+      
+      if (!config || !ExchangeService.isConfigurationValid(config)) {
+        return res.status(400).json({ message: "Exchange ist nicht konfiguriert oder nicht aktiviert" });
+      }
+      
+      const mailboxes = await storage.getExchangeMailboxes(tenantId);
+      const mailbox = mailboxes.find(m => m.emailAddress === mailboxEmail);
+      
+      if (!mailbox) {
+        return res.status(404).json({ message: "Postfach nicht gefunden" });
+      }
+      
+      if (!mailbox.isActive) {
+        return res.status(400).json({ message: "Das Postfach ist deaktiviert. Aktivieren Sie es zuerst." });
+      }
+      
+      // Legacy "user" Typ kann auch senden (wie "shared")
+      if (mailbox.mailboxType !== "outgoing" && mailbox.mailboxType !== "shared" && mailbox.mailboxType !== "user") {
+        return res.status(400).json({ message: "Dieses Postfach kann keine E-Mails senden (Typ muss Ausgehend oder Gemeinsam sein)" });
+      }
+      
+      await ExchangeService.sendTestEmail(config, mailboxEmail);
+      
+      logger.info("exchange", "Test-Mail gesendet", `Über Postfach: ${mailboxEmail}`, { userId: req.user!.id });
+      
+      res.json({ 
+        message: `Test-E-Mail wurde erfolgreich über ${mailboxEmail} gesendet`
+      });
+    } catch (error: any) {
+      logger.error("exchange", "Fehler beim Test-Mailversand", { 
+        description: String(error), 
+        cause: "Senden fehlgeschlagen",
+        solution: "Überprüfen Sie die Mail.Send-Berechtigung in Azure AD"
+      });
+      res.status(500).json({ message: error.message || "Fehler beim Senden der Test-E-Mail" });
     }
   });
 

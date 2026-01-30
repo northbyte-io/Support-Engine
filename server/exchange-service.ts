@@ -561,6 +561,70 @@ export class ExchangeService {
   }
 
   /**
+   * Sendet eine Test-E-Mail zur Verifizierung der Konfiguration
+   */
+  static async sendTestEmail(
+    config: ExchangeConfiguration,
+    mailboxEmail: string
+  ): Promise<boolean> {
+    if (!this.isConfigurationValid(config)) {
+      throw new ExchangeError("NOT_CONFIGURED");
+    }
+
+    const token = await this.getAccessToken(config);
+    
+    logger.info(this.logSource, "Test-Mail", `Sende Test-E-Mail von ${mailboxEmail}`);
+
+    const emailMessage = {
+      message: {
+        subject: "Ticket-System Test-E-Mail",
+        body: {
+          contentType: "HTML",
+          content: `<html><body>
+            <h2>Exchange Online Integration - Testmail</h2>
+            <p>Diese E-Mail wurde automatisch vom Ticket-System gesendet, um die Exchange-Integration zu testen.</p>
+            <p><strong>Zeitpunkt:</strong> ${new Date().toLocaleString("de-DE")}</p>
+            <p><strong>Postfach:</strong> ${mailboxEmail}</p>
+            <hr>
+            <p style="color: #666; font-size: 12px;">Diese Test-E-Mail wurde an das gleiche Postfach gesendet, von dem sie stammt.</p>
+          </body></html>`
+        },
+        toRecipients: [{
+          emailAddress: { address: mailboxEmail }
+        }]
+      },
+      saveToSentItems: true
+    };
+
+    const url = `${GRAPH_API_BASE}/users/${mailboxEmail}/sendMail`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(emailMessage)
+    });
+
+    if (!response.ok) {
+      if (response.status === 403) {
+        throw new ExchangeError("PERMISSION_DENIED", "Fügen Sie in Azure 'Mail.Send' als Application-Berechtigung hinzu und erteilen Sie Admin-Zustimmung");
+      }
+      const error = await response.text();
+      logger.error(this.logSource, "Test-Mail-Fehler", {
+        description: "Test-Mail-Versand fehlgeschlagen",
+        cause: error,
+        solution: "Überprüfen Sie die Mail.Send-Berechtigung"
+      });
+      throw new ExchangeError("NETWORK_ERROR", error);
+    }
+
+    logger.info(this.logSource, "Test-Mail gesendet", `Test-E-Mail erfolgreich von ${mailboxEmail} gesendet`);
+    return true;
+  }
+
+  /**
    * Markiert eine E-Mail als gelesen
    */
   static async markAsRead(

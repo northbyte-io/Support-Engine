@@ -1260,7 +1260,9 @@ export type InsertTlsChallenge = z.infer<typeof insertTlsChallengeSchema>;
 // ========================================
 
 export const exchangeAuthTypeEnum = pgEnum("exchange_auth_type", ["client_secret", "certificate"]);
-export const exchangeMailboxTypeEnum = pgEnum("exchange_mailbox_type", ["shared", "user"]);
+// Postfachtypen: shared=Empfang+Versand, incoming=nur Empfang, outgoing=nur Versand
+// "user" wurde in älterer Version verwendet und ist hier als Legacy-Unterstützung enthalten
+export const exchangeMailboxTypeEnum = pgEnum("exchange_mailbox_type", ["shared", "incoming", "outgoing", "user"]);
 export const exchangePostImportActionEnum = pgEnum("exchange_post_import_action", [
   "move_to_folder",    // In Zielordner verschieben
   "delete",            // Löschen
