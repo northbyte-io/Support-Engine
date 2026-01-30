@@ -189,6 +189,7 @@ Preferred communication style: Simple, everyday language (German).
 - `NOTICE` - Copyright notice
 - `CONTRIBUTING.md` - Contribution guidelines
 - `ANLEITUNG.md` - Betriebs- und Administrationsanleitung
+- `EXCHANGE_EINRICHTUNG.md` - Einrichtungsanleitung für Exchange Online Integration
 
 ## Demo Credentials
 
