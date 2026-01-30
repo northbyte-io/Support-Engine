@@ -414,7 +414,8 @@ export class ExchangeService {
     logger.info(this.logSource, "E-Mail-Abruf", `Rufe E-Mails aus ${mailbox.emailAddress} ab`);
 
     let url = `${GRAPH_API_BASE}/users/${mailbox.emailAddress}/mailFolders/${mailbox.sourceFolderId || "inbox"}/messages`;
-    url += `?$top=${Math.min(limit, mailbox.maxEmailsPerFetch || 50)}`;
+    const maxEmails = Number(mailbox.maxEmailsPerFetch) || 50;
+    url += `?$top=${Math.min(limit, maxEmails)}`;
     url += "&$orderby=receivedDateTime desc";
     url += "&$select=id,internetMessageId,conversationId,subject,bodyPreview,body,from,toRecipients,ccRecipients,hasAttachments,receivedDateTime,sentDateTime,isRead";
     

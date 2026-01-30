@@ -99,9 +99,14 @@ export default function ExchangeIntegration() {
   const [newMailboxEmail, setNewMailboxEmail] = useState("");
   const [newMailboxDisplayName, setNewMailboxDisplayName] = useState("");
   const [newMailboxType, setNewMailboxType] = useState<"incoming" | "outgoing" | "shared">("shared");
-  const [newMailboxSourceFolder, setNewMailboxSourceFolder] = useState("Inbox");
-  const [newMailboxTargetFolder, setNewMailboxTargetFolder] = useState("");
+  const [newMailboxSourceFolderId, setNewMailboxSourceFolderId] = useState("");
+  const [newMailboxSourceFolderName, setNewMailboxSourceFolderName] = useState("");
+  const [newMailboxTargetFolderId, setNewMailboxTargetFolderId] = useState("");
+  const [newMailboxTargetFolderName, setNewMailboxTargetFolderName] = useState("");
   const [newMailboxPostImportAction, setNewMailboxPostImportAction] = useState<"mark_as_read" | "move_to_folder" | "archive" | "delete" | "keep_unchanged">("mark_as_read");
+  const [availableFolders, setAvailableFolders] = useState<Array<{ id: string; displayName: string }>>([]);
+  const [isLoadingFolders, setIsLoadingFolders] = useState(false);
+  const [foldersError, setFoldersError] = useState<string | null>(null);
 
   // Form States
   const [isEnabled, setIsEnabled] = useState(false);
@@ -243,9 +248,44 @@ export default function ExchangeIntegration() {
     setNewMailboxEmail("");
     setNewMailboxDisplayName("");
     setNewMailboxType("shared");
-    setNewMailboxSourceFolder("Inbox");
-    setNewMailboxTargetFolder("");
+    setNewMailboxSourceFolderId("");
+    setNewMailboxSourceFolderName("");
+    setNewMailboxTargetFolderId("");
+    setNewMailboxTargetFolderName("");
     setNewMailboxPostImportAction("mark_as_read");
+    setAvailableFolders([]);
+    setFoldersError(null);
+  };
+
+  // Handler zum Laden der Ordner
+  const handleLoadFolders = async (email: string) => {
+    if (!email || !email.includes("@")) return;
+    
+    setIsLoadingFolders(true);
+    setFoldersError(null);
+    setAvailableFolders([]);
+    
+    try {
+      const response = await apiRequest("GET", `/api/exchange/folders/${encodeURIComponent(email)}`, undefined);
+      const folders = await response.json();
+      setAvailableFolders(folders);
+      
+      // Automatisch "Inbox" auswählen wenn vorhanden
+      const inbox = folders.find((f: any) => f.displayName.toLowerCase() === "inbox" || f.displayName === "Posteingang");
+      if (inbox) {
+        setNewMailboxSourceFolderId(inbox.id);
+        setNewMailboxSourceFolderName(inbox.displayName);
+      }
+    } catch (error: any) {
+      setFoldersError(error.message || "Ordner konnten nicht geladen werden");
+      toast({
+        title: "Fehler beim Laden der Ordner",
+        description: error.message || "Die Ordner konnten nicht abgerufen werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingFolders(false);
+    }
   };
 
   // Handler für Postfach hinzufügen
@@ -259,14 +299,25 @@ export default function ExchangeIntegration() {
       return;
     }
     
+    if (!newMailboxSourceFolderId) {
+      toast({
+        title: "Quellordner erforderlich",
+        description: "Bitte wählen Sie einen Quellordner aus.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsSavingMailbox(true);
     try {
       await saveMailboxMutation.mutateAsync({
         emailAddress: newMailboxEmail,
         displayName: newMailboxDisplayName || newMailboxEmail,
         mailboxType: newMailboxType,
-        sourceFolder: newMailboxSourceFolder,
-        targetFolder: newMailboxTargetFolder || undefined,
+        sourceFolderId: newMailboxSourceFolderId,
+        sourceFolderName: newMailboxSourceFolderName,
+        targetFolderId: newMailboxTargetFolderId || undefined,
+        targetFolderName: newMailboxTargetFolderName || undefined,
         postImportAction: newMailboxPostImportAction,
         isActive: true,
       });
@@ -1031,15 +1082,42 @@ export default function ExchangeIntegration() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="mailbox-email">E-Mail-Adresse *</Label>
-              <Input
-                id="mailbox-email"
-                type="email"
-                placeholder="support@ihre-domain.de"
-                value={newMailboxEmail}
-                onChange={(e) => setNewMailboxEmail(e.target.value)}
-                data-testid="input-mailbox-email"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="mailbox-email"
+                  type="email"
+                  placeholder="support@ihre-domain.de"
+                  value={newMailboxEmail}
+                  onChange={(e) => setNewMailboxEmail(e.target.value)}
+                  data-testid="input-mailbox-email"
+                  className="flex-1"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={() => handleLoadFolders(newMailboxEmail)}
+                  disabled={!newMailboxEmail || !newMailboxEmail.includes("@") || isLoadingFolders}
+                  data-testid="button-load-folders"
+                >
+                  {isLoadingFolders ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FolderOpen className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Geben Sie die E-Mail-Adresse ein und klicken Sie auf den Ordner-Button, um die verfügbaren Ordner zu laden
+              </p>
             </div>
+            
+            {foldersError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{foldersError}</AlertDescription>
+              </Alert>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="mailbox-name">Anzeigename</Label>
               <Input
@@ -1064,16 +1142,41 @@ export default function ExchangeIntegration() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="source-folder">Quellordner</Label>
-              <Input
-                id="source-folder"
-                placeholder="Inbox"
-                value={newMailboxSourceFolder}
-                onChange={(e) => setNewMailboxSourceFolder(e.target.value)}
-                data-testid="input-source-folder"
-              />
+              <Label htmlFor="source-folder">Quellordner *</Label>
+              {availableFolders.length > 0 ? (
+                <Select 
+                  value={newMailboxSourceFolderId} 
+                  onValueChange={(v) => {
+                    setNewMailboxSourceFolderId(v);
+                    const folder = availableFolders.find(f => f.id === v);
+                    setNewMailboxSourceFolderName(folder?.displayName || "");
+                  }}
+                >
+                  <SelectTrigger id="source-folder" data-testid="select-source-folder">
+                    <SelectValue placeholder="Ordner auswählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableFolders.map((folder) => (
+                      <SelectItem key={folder.id} value={folder.id}>
+                        {folder.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="text-sm text-muted-foreground p-3 border rounded-md bg-muted/50">
+                  {isLoadingFolders ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Lade Ordner...
+                    </div>
+                  ) : (
+                    "Bitte zuerst E-Mail-Adresse eingeben und Ordner laden"
+                  )}
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
-                Der Ordner, aus dem E-Mails importiert werden (z.B. Inbox, Support)
+                Der Ordner, aus dem E-Mails importiert werden
               </p>
             </div>
             <div className="space-y-2">
@@ -1094,13 +1197,31 @@ export default function ExchangeIntegration() {
             {newMailboxPostImportAction === "move_to_folder" && (
               <div className="space-y-2">
                 <Label htmlFor="target-folder">Zielordner</Label>
-                <Input
-                  id="target-folder"
-                  placeholder="Verarbeitet"
-                  value={newMailboxTargetFolder}
-                  onChange={(e) => setNewMailboxTargetFolder(e.target.value)}
-                  data-testid="input-target-folder"
-                />
+                {availableFolders.length > 0 ? (
+                  <Select 
+                    value={newMailboxTargetFolderId} 
+                    onValueChange={(v) => {
+                      setNewMailboxTargetFolderId(v);
+                      const folder = availableFolders.find(f => f.id === v);
+                      setNewMailboxTargetFolderName(folder?.displayName || "");
+                    }}
+                  >
+                    <SelectTrigger id="target-folder" data-testid="select-target-folder">
+                      <SelectValue placeholder="Zielordner auswählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableFolders.map((folder) => (
+                        <SelectItem key={folder.id} value={folder.id}>
+                          {folder.displayName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="text-sm text-muted-foreground p-3 border rounded-md bg-muted/50">
+                    Bitte zuerst Ordner laden
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1110,7 +1231,7 @@ export default function ExchangeIntegration() {
             </Button>
             <Button 
               onClick={handleAddMailbox} 
-              disabled={isSavingMailbox || !newMailboxEmail}
+              disabled={isSavingMailbox || !newMailboxEmail || !newMailboxSourceFolderId}
               data-testid="button-save-mailbox"
             >
               {isSavingMailbox ? (

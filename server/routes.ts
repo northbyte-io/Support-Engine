@@ -3192,6 +3192,31 @@ export async function registerRoutes(
     }
   });
 
+  // Get mail folders for a specific email address
+  app.get("/api/exchange/folders/:emailAddress", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { ExchangeService } = await import("./exchange-service");
+      const tenantId = req.user!.tenantId;
+      const config = await storage.getExchangeConfiguration(tenantId);
+      
+      if (!config || !ExchangeService.isConfigurationValid(config)) {
+        return res.status(400).json({ message: "Exchange ist nicht konfiguriert oder nicht aktiviert" });
+      }
+      
+      const emailAddress = decodeURIComponent(req.params.emailAddress);
+      const folders = await ExchangeService.listMailFolders(config, emailAddress);
+      
+      res.json(folders);
+    } catch (error: any) {
+      logger.error("exchange", "Fehler beim Abrufen der Ordner", { 
+        description: error.message || String(error), 
+        cause: "API-Fehler", 
+        solution: "Überprüfen Sie die Berechtigungen" 
+      });
+      res.status(500).json({ message: error.message || "Fehler beim Abrufen der Ordner" });
+    }
+  });
+
   // Get sync logs
   app.get("/api/exchange/sync-logs", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
