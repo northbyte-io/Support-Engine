@@ -367,6 +367,18 @@ export class ExchangeService {
     
     logger.info(this.logSource, "Ordner-Abruf", `Rufe E-Mail-Ordner für ${mailboxEmail} ab`);
 
+    // Debug: Token-Berechtigungen prüfen
+    try {
+      const tokenParts = token.split('.');
+      if (tokenParts.length === 3) {
+        const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+        const roles = payload.roles || [];
+        logger.info(this.logSource, "Token-Berechtigungen", `Rollen im Token: ${roles.join(', ') || 'Keine Rollen gefunden'}`);
+      }
+    } catch (e) {
+      logger.debug(this.logSource, "Token-Debug", "Konnte Token nicht dekodieren");
+    }
+
     const response = await fetch(
       `${GRAPH_API_BASE}/users/${mailboxEmail}/mailFolders?$top=100`,
       {
