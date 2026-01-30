@@ -36,7 +36,14 @@ import {
   ArrowLeft,
   TestTube,
   Info,
-  Save
+  Save,
+  Filter,
+  Edit,
+  Power,
+  ArrowRight,
+  User,
+  Tag,
+  Zap
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -92,6 +99,29 @@ export default function ExchangeIntegration() {
   const [isSaving, setIsSaving] = useState(false);
   const [showMailboxDialog, setShowMailboxDialog] = useState(false);
   const [isSavingMailbox, setIsSavingMailbox] = useState(false);
+  
+  // Test-E-Mail Dialog
+  const [showTestEmailDialog, setShowTestEmailDialog] = useState(false);
+  const [testEmailMailbox, setTestEmailMailbox] = useState("");
+  const [testEmailRecipient, setTestEmailRecipient] = useState("");
+  
+  // Verarbeitungsregeln Dialog
+  const [showRuleDialog, setShowRuleDialog] = useState(false);
+  const [editingRule, setEditingRule] = useState<any>(null);
+  const [ruleName, setRuleName] = useState("");
+  const [ruleDescription, setRuleDescription] = useState("");
+  const [ruleConditionType, setRuleConditionType] = useState("all_emails");
+  const [ruleConditionValue, setRuleConditionValue] = useState("");
+  const [ruleActionType, setRuleActionType] = useState("mark_as_read");
+  const [ruleActionValue, setRuleActionValue] = useState("");
+  const [ruleActionFolderId, setRuleActionFolderId] = useState("");
+  const [ruleActionFolderName, setRuleActionFolderName] = useState("");
+  const [ruleActionPriority, setRuleActionPriority] = useState<"low" | "medium" | "high" | "urgent">("medium");
+  const [ruleAutoReplyTemplate, setRuleAutoReplyTemplate] = useState("");
+  const [ruleMailboxId, setRuleMailboxId] = useState("");
+  const [rulePriority, setRulePriority] = useState(0);
+  const [ruleIsActive, setRuleIsActive] = useState(true);
+  const [isSavingRule, setIsSavingRule] = useState(false);
 
   // Mailbox Form States
   const [newMailboxEmail, setNewMailboxEmail] = useState("");
@@ -206,6 +236,12 @@ export default function ExchangeIntegration() {
     enabled: configData?.configured === true,
   });
 
+  // Query für Verarbeitungsregeln
+  const { data: processingRulesData, isLoading: isLoadingRules } = useQuery<any[]>({
+    queryKey: ["/api/exchange/processing-rules"],
+    enabled: configData?.configured === true,
+  });
+
   // Mutation zum Speichern eines Postfachs
   const saveMailboxMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -252,6 +288,57 @@ export default function ExchangeIntegration() {
     },
   });
 
+  // Mutation zum Speichern einer Verarbeitungsregel
+  const saveRuleMutation = useMutation({
+    mutationFn: async (data: any) => {
+      if (editingRule) {
+        const response = await apiRequest("PATCH", `/api/exchange/processing-rules/${editingRule.id}`, data);
+        return response.json();
+      } else {
+        const response = await apiRequest("POST", "/api/exchange/processing-rules", data);
+        return response.json();
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/exchange/processing-rules"] });
+      setShowRuleDialog(false);
+      resetRuleForm();
+      toast({
+        title: editingRule ? "Regel aktualisiert" : "Regel erstellt",
+        description: editingRule ? "Die Verarbeitungsregel wurde aktualisiert." : "Die Verarbeitungsregel wurde erstellt.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Fehler beim Speichern",
+        description: error.message || "Die Regel konnte nicht gespeichert werden.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation zum Löschen einer Verarbeitungsregel
+  const deleteRuleMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/exchange/processing-rules/${id}`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/exchange/processing-rules"] });
+      toast({
+        title: "Regel gelöscht",
+        description: "Die Verarbeitungsregel wurde entfernt.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Fehler beim Löschen",
+        description: error.message || "Die Regel konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Reset mailbox form
   const resetMailboxForm = () => {
     setNewMailboxEmail("");
@@ -265,6 +352,76 @@ export default function ExchangeIntegration() {
     setAvailableFolders([]);
     setFoldersError(null);
     setUseStandardFolders(false);
+  };
+
+  // Reset rule form
+  const resetRuleForm = () => {
+    setEditingRule(null);
+    setRuleName("");
+    setRuleDescription("");
+    setRuleConditionType("all_emails");
+    setRuleConditionValue("");
+    setRuleActionType("mark_as_read");
+    setRuleActionValue("");
+    setRuleActionFolderId("");
+    setRuleActionFolderName("");
+    setRuleActionPriority("medium");
+    setRuleAutoReplyTemplate("");
+    setRuleMailboxId("");
+    setRulePriority(0);
+    setRuleIsActive(true);
+  };
+
+  // Regel zum Bearbeiten öffnen
+  const openEditRule = (rule: any) => {
+    setEditingRule(rule);
+    setRuleName(rule.name);
+    setRuleDescription(rule.description || "");
+    setRuleConditionType(rule.conditionType);
+    setRuleConditionValue(rule.conditionValue || "");
+    setRuleActionType(rule.actionType);
+    setRuleActionValue(rule.actionValue || "");
+    setRuleActionFolderId(rule.actionFolderId || "");
+    setRuleActionFolderName(rule.actionFolderName || "");
+    setRuleActionPriority(rule.actionPriority || "medium");
+    setRuleAutoReplyTemplate(rule.actionAutoReplyTemplate || "");
+    setRuleMailboxId(rule.mailboxId || "");
+    setRulePriority(rule.priority || 0);
+    setRuleIsActive(rule.isActive !== false);
+    setShowRuleDialog(true);
+  };
+
+  // Regel speichern
+  const handleSaveRule = async () => {
+    if (!ruleName) {
+      toast({
+        title: "Name erforderlich",
+        description: "Bitte geben Sie einen Namen für die Regel ein.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSavingRule(true);
+    try {
+      await saveRuleMutation.mutateAsync({
+        name: ruleName,
+        description: ruleDescription || undefined,
+        conditionType: ruleConditionType,
+        conditionValue: ruleConditionValue || undefined,
+        actionType: ruleActionType,
+        actionValue: ruleActionValue || undefined,
+        actionFolderId: ruleActionFolderId || undefined,
+        actionFolderName: ruleActionFolderName || undefined,
+        actionPriority: ruleActionType === "set_priority" ? ruleActionPriority : undefined,
+        actionAutoReplyTemplate: ruleActionType === "auto_reply" ? ruleAutoReplyTemplate : undefined,
+        mailboxId: ruleMailboxId || undefined,
+        priority: rulePriority,
+        isActive: ruleIsActive,
+      });
+    } finally {
+      setIsSavingRule(false);
+    }
   };
 
   // Handler zum Laden der Ordner
@@ -405,20 +562,31 @@ export default function ExchangeIntegration() {
     }
   };
 
-  // Handler für Test-Mailversand für ein bestimmtes Postfach
-  const handleTestSendForMailbox = async (mailboxEmail: string) => {
-    const mailbox = mailboxesData?.find((m: any) => m.emailAddress === mailboxEmail);
+  // Handler für Test-Mailversand für ein bestimmtes Postfach (öffnet Dialog)
+  const handleTestSendForMailbox = (mailboxEmail: string) => {
+    setTestEmailMailbox(mailboxEmail);
+    setTestEmailRecipient(mailboxEmail); // Standardmäßig an sich selbst
+    setShowTestEmailDialog(true);
+  };
+
+  // Handler für das tatsächliche Senden der Test-Mail
+  const handleSendTestEmail = async () => {
+    const mailbox = mailboxesData?.find((m: any) => m.emailAddress === testEmailMailbox);
     if (mailbox) {
       setTestingMailboxId(mailbox.id);
     }
     setIsTestingSend(true);
     try {
-      const response = await apiRequest("POST", "/api/exchange/send-test", { mailboxEmail });
+      const response = await apiRequest("POST", "/api/exchange/send-test", { 
+        mailboxEmail: testEmailMailbox,
+        recipientEmail: testEmailRecipient 
+      });
       const data = await response.json();
       toast({
         title: "Test-Mail gesendet",
         description: data.message || "Die Test-E-Mail wurde erfolgreich gesendet.",
       });
+      setShowTestEmailDialog(false);
     } catch (error: any) {
       toast({
         title: "Fehler beim Senden",
@@ -496,7 +664,7 @@ export default function ExchangeIntegration() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="setup" data-testid="tab-setup">
               <Settings className="w-4 h-4 mr-2" />
               Einrichtung
@@ -504,6 +672,10 @@ export default function ExchangeIntegration() {
             <TabsTrigger value="mailboxes" data-testid="tab-mailboxes">
               <Mail className="w-4 h-4 mr-2" />
               Postfächer
+            </TabsTrigger>
+            <TabsTrigger value="processing" data-testid="tab-processing">
+              <Shield className="w-4 h-4 mr-2" />
+              E-Mail Verarbeitung
             </TabsTrigger>
             <TabsTrigger value="monitoring" data-testid="tab-monitoring">
               <RefreshCw className="w-4 h-4 mr-2" />
@@ -881,6 +1053,147 @@ export default function ExchangeIntegration() {
             </Card>
           </TabsContent>
 
+          {/* E-Mail Verarbeitung Tab */}
+          <TabsContent value="processing" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-4">
+                <div>
+                  <CardTitle>E-Mail Verarbeitungsregeln</CardTitle>
+                  <CardDescription>
+                    Definieren Sie Regeln für die automatische Verarbeitung eingehender E-Mails
+                  </CardDescription>
+                </div>
+                <Button 
+                  data-testid="button-add-rule"
+                  onClick={() => {
+                    resetRuleForm();
+                    setShowRuleDialog(true);
+                  }}
+                  disabled={!configData?.configured}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Regel hinzufügen
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {isLoadingRules ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="w-8 h-8 mx-auto animate-spin text-muted-foreground" />
+                    <p className="mt-2 text-muted-foreground">Lade Regeln...</p>
+                  </div>
+                ) : processingRulesData && processingRulesData.length > 0 ? (
+                  <div className="space-y-3">
+                    {processingRulesData.map((rule: any) => (
+                      <div key={rule.id} className="p-4 border rounded-md">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-lg ${rule.isActive ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'}`}>
+                              <Filter className={`w-4 h-4 ${rule.isActive ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`} />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium">{rule.name}</p>
+                                <Badge variant={rule.isActive ? "default" : "secondary"} className="text-xs">
+                                  {rule.isActive ? "Aktiv" : "Inaktiv"}
+                                </Badge>
+                              </div>
+                              {rule.description && (
+                                <p className="text-sm text-muted-foreground">{rule.description}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditRule(rule)}
+                              data-testid={`button-edit-rule-${rule.id}`}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteRuleMutation.mutate(rule.id)}
+                              data-testid={`button-delete-rule-${rule.id}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        {/* Regel-Details */}
+                        <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground pl-11">
+                          <span className="flex items-center gap-1">
+                            <Filter className="w-3 h-3" />
+                            {rule.conditionType === "all_emails" ? "Alle E-Mails" :
+                             rule.conditionType === "sender_contains" ? `Absender enthält "${rule.conditionValue}"` :
+                             rule.conditionType === "sender_equals" ? `Absender = ${rule.conditionValue}` :
+                             rule.conditionType === "sender_domain" ? `Domain = ${rule.conditionValue}` :
+                             rule.conditionType === "recipient_contains" ? `Empfänger enthält "${rule.conditionValue}"` :
+                             rule.conditionType === "recipient_equals" ? `Empfänger = ${rule.conditionValue}` :
+                             rule.conditionType === "subject_contains" ? `Betreff enthält "${rule.conditionValue}"` :
+                             rule.conditionType === "subject_starts_with" ? `Betreff beginnt mit "${rule.conditionValue}"` :
+                             rule.conditionType === "body_contains" ? `Text enthält "${rule.conditionValue}"` :
+                             rule.conditionType === "has_attachments" ? "Hat Anhänge" :
+                             rule.conditionType === "no_attachments" ? "Keine Anhänge" :
+                             rule.conditionType === "is_reply" ? "Ist Antwort" :
+                             rule.conditionType === "is_forward" ? "Ist Weiterleitung" :
+                             rule.conditionType}
+                          </span>
+                          <ArrowRight className="w-3 h-3" />
+                          <span className="flex items-center gap-1">
+                            <Zap className="w-3 h-3" />
+                            {rule.actionType === "mark_as_read" ? "Als gelesen markieren" :
+                             rule.actionType === "mark_as_unread" ? "Als ungelesen markieren" :
+                             rule.actionType === "move_to_folder" ? `In Ordner verschieben${rule.actionFolderName ? ` (${rule.actionFolderName})` : ''}` :
+                             rule.actionType === "archive" ? "Archivieren" :
+                             rule.actionType === "delete" ? "Löschen" :
+                             rule.actionType === "reject" ? "Ablehnen" :
+                             rule.actionType === "forward_to" ? `Weiterleiten an ${rule.actionValue}` :
+                             rule.actionType === "set_priority" ? `Priorität: ${rule.actionPriority}` :
+                             rule.actionType === "assign_to_user" ? "Bearbeiter zuweisen" :
+                             rule.actionType === "assign_to_ticket_type" ? "Ticket-Typ zuweisen" :
+                             rule.actionType === "add_tag" ? `Tag hinzufügen: ${rule.actionValue}` :
+                             rule.actionType === "skip_import" ? "Import überspringen" :
+                             rule.actionType === "auto_reply" ? "Auto-Antwort senden" :
+                             rule.actionType}
+                          </span>
+                          {rule.priority > 0 && (
+                            <Badge variant="outline" className="text-xs">
+                              Priorität: {rule.priority}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Filter className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Noch keine Verarbeitungsregeln definiert</p>
+                    <p className="text-sm">
+                      Erstellen Sie Regeln, um eingehende E-Mails automatisch zu verarbeiten
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Hilfetext */}
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertTitle>So funktionieren Verarbeitungsregeln</AlertTitle>
+              <AlertDescription>
+                <ul className="list-disc pl-4 mt-2 space-y-1 text-sm">
+                  <li>Regeln werden nach Priorität geprüft (höchste zuerst)</li>
+                  <li>Wenn eine Bedingung zutrifft, wird die entsprechende Aktion ausgeführt</li>
+                  <li>Regeln ohne Postfachzuordnung gelten für alle Postfächer</li>
+                  <li>Mehrere Regeln können kombiniert werden</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
+          </TabsContent>
+
           {/* Monitoring Tab */}
           <TabsContent value="monitoring" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -1154,6 +1467,341 @@ export default function ExchangeIntegration() {
                 </>
               ) : (
                 "Postfach hinzufügen"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Test-E-Mail Dialog */}
+      <Dialog open={showTestEmailDialog} onOpenChange={setShowTestEmailDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Test-E-Mail senden</DialogTitle>
+            <DialogDescription>
+              Senden Sie eine Test-E-Mail über das Postfach {testEmailMailbox}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="test-sender">Absender (Postfach)</Label>
+              <Input 
+                id="test-sender"
+                value={testEmailMailbox}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="test-recipient">Empfänger *</Label>
+              <Input 
+                id="test-recipient"
+                type="email"
+                value={testEmailRecipient}
+                onChange={(e) => setTestEmailRecipient(e.target.value)}
+                placeholder="empfaenger@example.com"
+                data-testid="input-test-recipient"
+              />
+              <p className="text-xs text-muted-foreground">
+                Die E-Mail-Adresse, an die die Test-Mail gesendet werden soll
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTestEmailDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button 
+              onClick={handleSendTestEmail} 
+              disabled={isTestingSend || !testEmailRecipient}
+              data-testid="button-confirm-send-test"
+            >
+              {isTestingSend ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Senden...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Test-Mail senden
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Regel-Dialog */}
+      <Dialog open={showRuleDialog} onOpenChange={(open) => {
+        setShowRuleDialog(open);
+        if (!open) resetRuleForm();
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingRule ? "Regel bearbeiten" : "Neue Verarbeitungsregel"}</DialogTitle>
+            <DialogDescription>
+              Definieren Sie eine Bedingung und die entsprechende Aktion
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Grundeinstellungen */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="rule-name">Regelname *</Label>
+                <Input 
+                  id="rule-name"
+                  value={ruleName}
+                  onChange={(e) => setRuleName(e.target.value)}
+                  placeholder="z.B. Spam-Filter"
+                  data-testid="input-rule-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="rule-priority">Priorität</Label>
+                <Input 
+                  id="rule-priority"
+                  type="number"
+                  value={rulePriority}
+                  onChange={(e) => setRulePriority(parseInt(e.target.value) || 0)}
+                  placeholder="0"
+                  data-testid="input-rule-priority"
+                />
+                <p className="text-xs text-muted-foreground">Höher = wird zuerst geprüft</p>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="rule-description">Beschreibung</Label>
+              <Input 
+                id="rule-description"
+                value={ruleDescription}
+                onChange={(e) => setRuleDescription(e.target.value)}
+                placeholder="Optionale Beschreibung der Regel"
+                data-testid="input-rule-description"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="rule-mailbox">Gilt für Postfach (optional)</Label>
+              <Select value={ruleMailboxId} onValueChange={setRuleMailboxId}>
+                <SelectTrigger id="rule-mailbox" data-testid="select-rule-mailbox">
+                  <SelectValue placeholder="Alle Postfächer" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Alle Postfächer</SelectItem>
+                  {mailboxesData?.map((mailbox: any) => (
+                    <SelectItem key={mailbox.id} value={mailbox.id}>
+                      {mailbox.displayName || mailbox.emailAddress}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Separator />
+
+            {/* Bedingung */}
+            <div className="space-y-3">
+              <h4 className="font-medium flex items-center gap-2">
+                <Filter className="w-4 h-4" />
+                Bedingung
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="rule-condition-type">Filtertyp *</Label>
+                  <Select value={ruleConditionType} onValueChange={setRuleConditionType}>
+                    <SelectTrigger id="rule-condition-type" data-testid="select-condition-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all_emails">Alle E-Mails</SelectItem>
+                      <SelectItem value="sender_contains">Absender enthält</SelectItem>
+                      <SelectItem value="sender_equals">Absender ist genau</SelectItem>
+                      <SelectItem value="sender_domain">Absender-Domain</SelectItem>
+                      <SelectItem value="recipient_contains">Empfänger enthält</SelectItem>
+                      <SelectItem value="recipient_equals">Empfänger ist genau</SelectItem>
+                      <SelectItem value="subject_contains">Betreff enthält</SelectItem>
+                      <SelectItem value="subject_starts_with">Betreff beginnt mit</SelectItem>
+                      <SelectItem value="body_contains">Text enthält</SelectItem>
+                      <SelectItem value="has_attachments">Hat Anhänge</SelectItem>
+                      <SelectItem value="no_attachments">Keine Anhänge</SelectItem>
+                      <SelectItem value="is_reply">Ist Antwort (RE:)</SelectItem>
+                      <SelectItem value="is_forward">Ist Weiterleitung (FW:)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {!["all_emails", "has_attachments", "no_attachments", "is_reply", "is_forward", "priority_high"].includes(ruleConditionType) && (
+                  <div className="space-y-2">
+                    <Label htmlFor="rule-condition-value">Wert</Label>
+                    <Input 
+                      id="rule-condition-value"
+                      value={ruleConditionValue}
+                      onChange={(e) => setRuleConditionValue(e.target.value)}
+                      placeholder={
+                        ruleConditionType.includes("sender") ? "z.B. @spam.com" :
+                        ruleConditionType.includes("recipient") ? "z.B. support@" :
+                        ruleConditionType.includes("subject") ? "z.B. DRINGEND" :
+                        "Suchbegriff"
+                      }
+                      data-testid="input-condition-value"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Aktion */}
+            <div className="space-y-3">
+              <h4 className="font-medium flex items-center gap-2">
+                <Zap className="w-4 h-4" />
+                Aktion
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="rule-action-type">Aktionstyp *</Label>
+                  <Select value={ruleActionType} onValueChange={setRuleActionType}>
+                    <SelectTrigger id="rule-action-type" data-testid="select-action-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mark_as_read">Als gelesen markieren</SelectItem>
+                      <SelectItem value="mark_as_unread">Als ungelesen markieren</SelectItem>
+                      <SelectItem value="move_to_folder">In Ordner verschieben</SelectItem>
+                      <SelectItem value="archive">Archivieren</SelectItem>
+                      <SelectItem value="delete">Löschen</SelectItem>
+                      <SelectItem value="reject">Ablehnen / Bounce</SelectItem>
+                      <SelectItem value="forward_to">Weiterleiten an</SelectItem>
+                      <SelectItem value="set_priority">Ticket-Priorität setzen</SelectItem>
+                      <SelectItem value="add_tag">Tag hinzufügen</SelectItem>
+                      <SelectItem value="skip_import">Import überspringen</SelectItem>
+                      <SelectItem value="auto_reply">Auto-Antwort senden</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {["forward_to", "add_tag"].includes(ruleActionType) && (
+                  <div className="space-y-2">
+                    <Label htmlFor="rule-action-value">
+                      {ruleActionType === "forward_to" ? "Weiterleitungs-E-Mail" : "Tag-Name"}
+                    </Label>
+                    <Input 
+                      id="rule-action-value"
+                      value={ruleActionValue}
+                      onChange={(e) => setRuleActionValue(e.target.value)}
+                      placeholder={
+                        ruleActionType === "forward_to" ? "admin@example.com" : "z.B. wichtig"
+                      }
+                      data-testid="input-action-value"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Ordner-Auswahl für move_to_folder */}
+              {ruleActionType === "move_to_folder" && (
+                <div className="space-y-2">
+                  <Label htmlFor="rule-action-folder">Zielordner</Label>
+                  <Select 
+                    value={ruleActionFolderId} 
+                    onValueChange={(v) => {
+                      setRuleActionFolderId(v);
+                      const folder = standardFolders.find(f => f.id === v);
+                      setRuleActionFolderName(folder?.displayName || v);
+                    }}
+                  >
+                    <SelectTrigger id="rule-action-folder" data-testid="select-action-folder">
+                      <SelectValue placeholder="Ordner auswählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {standardFolders.map((folder) => (
+                        <SelectItem key={folder.id} value={folder.id}>
+                          {folder.displayName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Der Ordner, in den die E-Mail verschoben werden soll
+                  </p>
+                </div>
+              )}
+
+              {/* Priorität-Auswahl für set_priority */}
+              {ruleActionType === "set_priority" && (
+                <div className="space-y-2">
+                  <Label htmlFor="rule-action-priority">Ticket-Priorität</Label>
+                  <Select value={ruleActionPriority} onValueChange={(v) => setRuleActionPriority(v as any)}>
+                    <SelectTrigger id="rule-action-priority" data-testid="select-action-priority">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Niedrig</SelectItem>
+                      <SelectItem value="medium">Normal</SelectItem>
+                      <SelectItem value="high">Hoch</SelectItem>
+                      <SelectItem value="urgent">Dringend</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Die Priorität, die dem erstellten Ticket zugewiesen wird
+                  </p>
+                </div>
+              )}
+
+              {/* Auto-Antwort Template für auto_reply */}
+              {ruleActionType === "auto_reply" && (
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="rule-auto-reply">Auto-Antwort Text</Label>
+                  <textarea 
+                    id="rule-auto-reply"
+                    className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={ruleAutoReplyTemplate}
+                    onChange={(e) => setRuleAutoReplyTemplate(e.target.value)}
+                    placeholder="Vielen Dank für Ihre E-Mail. Wir haben Ihre Anfrage erhalten und werden uns schnellstmöglich bei Ihnen melden."
+                    data-testid="textarea-auto-reply"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Der Text, der automatisch als Antwort gesendet wird
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Aktiv-Status */}
+            <div className="flex items-center gap-3">
+              <Switch 
+                id="rule-active" 
+                checked={ruleIsActive} 
+                onCheckedChange={setRuleIsActive}
+                data-testid="switch-rule-active"
+              />
+              <Label htmlFor="rule-active" className="cursor-pointer">
+                Regel ist aktiv
+              </Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowRuleDialog(false);
+              resetRuleForm();
+            }}>
+              Abbrechen
+            </Button>
+            <Button 
+              onClick={handleSaveRule} 
+              disabled={isSavingRule || !ruleName}
+              data-testid="button-save-rule"
+            >
+              {isSavingRule ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Speichern...
+                </>
+              ) : (
+                editingRule ? "Regel aktualisieren" : "Regel erstellen"
               )}
             </Button>
           </DialogFooter>
