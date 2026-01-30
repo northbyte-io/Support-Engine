@@ -1404,7 +1404,8 @@ export const emailProcessingRuleConditionTypeEnum = pgEnum("email_rule_condition
   "priority_high",        // Hohe Priorität
   "is_reply",             // Ist Antwort (RE:)
   "is_forward",           // Ist Weiterleitung (FW:)
-  "all_emails"            // Alle E-Mails (Standard)
+  "all_emails",           // Alle E-Mails (Standard)
+  "imported_emails"       // Importierte E-Mails
 ]);
 
 export const emailProcessingRuleActionTypeEnum = pgEnum("email_rule_action_type", [
