@@ -379,33 +379,61 @@ export class ExchangeService {
       logger.debug(this.logSource, "Token-Debug", "Konnte Token nicht dekodieren");
     }
 
-    const response = await fetch(
-      `${GRAPH_API_BASE}/users/${mailboxEmail}/mailFolders?$top=100`,
-      {
+    // Hole alle Ordner inklusive Unterordner
+    const allFolders: GraphFolder[] = [];
+    
+    const fetchFoldersRecursive = async (parentFolderId?: string, depth: number = 0, prefix: string = ""): Promise<void> => {
+      if (depth > 3) return; // Maximale Tiefe begrenzen
+      
+      let url: string;
+      if (parentFolderId) {
+        url = `${GRAPH_API_BASE}/users/${mailboxEmail}/mailFolders/${parentFolderId}/childFolders?$top=100`;
+      } else {
+        url = `${GRAPH_API_BASE}/users/${mailboxEmail}/mailFolders?$top=100`;
+      }
+      
+      const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${token}`
         }
-      }
-    );
+      });
 
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new ExchangeError("MAILBOX_NOT_FOUND", mailboxEmail);
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new ExchangeError("MAILBOX_NOT_FOUND", mailboxEmail);
+        }
+        if (response.status === 403) {
+          const errorText = await response.text();
+          logger.warn(this.logSource, "Keine Berechtigung für Ordner-Abruf", errorText);
+          throw new ExchangeError(
+            "PERMISSION_DENIED", 
+            "Fügen Sie in Azure 'Mail.Read' oder 'Mail.ReadBasic.All' als Application-Berechtigung hinzu und erteilen Sie Admin-Zustimmung"
+          );
+        }
+        const error = await response.text();
+        throw new ExchangeError("NETWORK_ERROR", error);
       }
-      if (response.status === 403) {
-        const errorText = await response.text();
-        logger.warn(this.logSource, "Keine Berechtigung für Ordner-Abruf", errorText);
-        throw new ExchangeError(
-          "PERMISSION_DENIED", 
-          "Fügen Sie in Azure 'Mail.Read' oder 'Mail.ReadBasic.All' als Application-Berechtigung hinzu und erteilen Sie Admin-Zustimmung"
-        );
-      }
-      const error = await response.text();
-      throw new ExchangeError("NETWORK_ERROR", error);
-    }
 
-    const data = await response.json();
-    return data.value as GraphFolder[];
+      const data = await response.json();
+      const folders = data.value as GraphFolder[];
+      
+      for (const folder of folders) {
+        // Füge Präfix für Einrückung hinzu
+        const displayFolder = {
+          ...folder,
+          displayName: prefix + folder.displayName
+        };
+        allFolders.push(displayFolder);
+        
+        // Hole Unterordner wenn vorhanden
+        if (folder.childFolderCount && folder.childFolderCount > 0) {
+          await fetchFoldersRecursive(folder.id, depth + 1, prefix + "  └ ");
+        }
+      }
+    };
+    
+    await fetchFoldersRecursive();
+    return allFolders;
   }
 
   /**
