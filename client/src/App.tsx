@@ -32,6 +32,7 @@ import OrganizationsPage from "@/pages/organizations";
 import LogsPage from "@/pages/logs";
 import BrandingPage from "@/pages/branding";
 import TlsCertificatesPage from "@/pages/tls-certificates";
+import ExchangeIntegrationPage from "@/pages/exchange-integration";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -243,6 +244,12 @@ function Router() {
       <Route path="/tls-certificates">
         <AdminRoute>
           <TlsCertificatesPage />
+        </AdminRoute>
+      </Route>
+
+      <Route path="/exchange-integration">
+        <AdminRoute>
+          <ExchangeIntegrationPage />
         </AdminRoute>
       </Route>
 

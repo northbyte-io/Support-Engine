@@ -20,6 +20,7 @@ Preferred communication style: Simple, everyday language (German).
 - **December 2024**: Added Admin-only Logs UI page with filtering, search, pagination, and export (TXT, CSV, JSON)
 - **December 2024**: Fixed Select component issues preventing form submissions
 - **December 2024**: Auto-generated customer numbers (KD-XXXXX format)
+- **January 2026**: Added Exchange Online integration with Microsoft Graph API support
 
 ## System Architecture
 
@@ -105,7 +106,7 @@ Preferred communication style: Simple, everyday language (German).
 
 ### System Logging
 - Log levels: debug, info, warn, error, security, performance
-- Sources: api, auth, ticket, sla, crm, email, integration, database, system
+- Sources: api, auth, ticket, sla, crm, email, integration, database, system, exchange
 - Features: Color-coded console, daily rotation (2GB max), 7-day retention
 - Sensitive data masking (passwords, API keys, tokens, emails)
 - Admin UI with filtering, search, pagination, export
@@ -129,6 +130,17 @@ Preferred communication style: Simple, everyday language (German).
 - Certificate history and action logging
 - Admin UI with settings, certificates list, and history tabs
 - Secure private key storage in database
+
+### Exchange Online Integration
+- Microsoft Graph API integration for Exchange Online
+- Authentication: Client Secret or Certificate (Azure Entra ID)
+- Multi-mailbox support (incoming/outgoing/shared)
+- Configurable post-import actions (mark as read, move to folder, archive, delete, keep unchanged)
+- Assignment rules for automatic ticket creation (subject, sender, keywords)
+- Email synchronization with detailed logging
+- Admin UI with 6-step setup wizard (Azure-Konfiguration, Postfächer, Import-Aktionen, Zuweisungsregeln, Synchronisation, Zusammenfassung)
+- Disabled by default until explicitly configured
+- Required Azure AD permissions: Mail.Read, Mail.ReadWrite, Mail.Send
 
 ## External Dependencies
 
@@ -166,6 +178,8 @@ Preferred communication style: Simple, everyday language (German).
 - `server/logger.ts` - Logging system
 - `server/auth.ts` - Authentication middleware
 - `server/tls-service.ts` - TLS certificate management with ACME/Let's Encrypt
+- `server/exchange-service.ts` - Exchange Online integration with Microsoft Graph API
+- `client/src/pages/exchange-integration.tsx` - Exchange settings UI with 6-step wizard
 - `client/src/components/MainLayout.tsx` - Main page layout with license footer
 - `client/src/components/AppSidebar.tsx` - Navigation sidebar
 - `client/src/lib/branding.tsx` - Tenant branding provider

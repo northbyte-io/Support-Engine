@@ -249,7 +249,11 @@ export class ExchangeService {
 
       if (!response.ok) {
         const error = await response.text();
-        logger.error(this.logSource, "Token-Fehler", `Azure AD Token-Anfrage fehlgeschlagen: ${error}`);
+        logger.error(this.logSource, "Token-Fehler", {
+          description: "Azure AD Token-Anfrage fehlgeschlagen",
+          cause: error,
+          solution: "Überprüfen Sie Client-ID, Tenant-ID und Client-Secret"
+        });
         throw new ExchangeError("AUTH_FAILED", error);
       }
 
@@ -260,7 +264,11 @@ export class ExchangeService {
       return tokenData.access_token;
     } catch (error) {
       if (error instanceof ExchangeError) throw error;
-      logger.error(this.logSource, "Token-Fehler", `Unerwarteter Fehler: ${error}`);
+      logger.error(this.logSource, "Token-Fehler", {
+        description: "Unerwarteter Fehler bei Token-Anfrage",
+        cause: String(error),
+        solution: "Überprüfen Sie die Netzwerkverbindung"
+      });
       throw new ExchangeError("NETWORK_ERROR", String(error));
     }
   }
@@ -308,7 +316,11 @@ export class ExchangeService {
       };
     } catch (error) {
       const message = error instanceof ExchangeError ? error.message : String(error);
-      logger.error(this.logSource, "Verbindungstest-Fehler", message);
+      logger.error(this.logSource, "Verbindungstest-Fehler", {
+        description: "Verbindungstest zu Microsoft Graph fehlgeschlagen",
+        cause: message,
+        solution: error instanceof ExchangeError ? error.solution : "Überprüfen Sie die Konfiguration"
+      });
       return {
         success: false,
         message,
@@ -467,7 +479,11 @@ export class ExchangeService {
         throw new ExchangeError("PERMISSION_DENIED");
       }
       const error = await response.text();
-      logger.error(this.logSource, "Versand-Fehler", `E-Mail-Versand fehlgeschlagen: ${error}`);
+      logger.error(this.logSource, "Versand-Fehler", {
+        description: "E-Mail-Versand fehlgeschlagen",
+        cause: error,
+        solution: "Überprüfen Sie die Mail.Send-Berechtigung"
+      });
       throw new ExchangeError("NETWORK_ERROR", error);
     }
 

@@ -1,7 +1,7 @@
 import { useLocation } from "wouter";
 import { MainLayout } from "@/components/MainLayout";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, Palette, Bell, Shield, Building, ScrollText, Lock } from "lucide-react";
+import { Clock, Palette, Bell, Shield, Building, ScrollText, Lock, Mail } from "lucide-react";
 
 interface SettingItem {
   title: string;
@@ -38,6 +38,13 @@ const settingItems: SettingItem[] = [
     description: "SSL/TLS-Zertifikate mit Let's Encrypt verwalten",
     icon: Lock,
     url: "/tls-certificates",
+    available: true,
+  },
+  {
+    title: "Exchange-Integration",
+    description: "Microsoft Exchange Online E-Mail-Integration",
+    icon: Mail,
+    url: "/exchange-integration",
     available: true,
   },
   {
