@@ -367,7 +367,7 @@ export default function ExchangeIntegration() {
     setRuleActionFolderName("");
     setRuleActionPriority("medium");
     setRuleAutoReplyTemplate("");
-    setRuleMailboxId("");
+    setRuleMailboxId("__all__");
     setRulePriority(0);
     setRuleIsActive(true);
   };
@@ -385,7 +385,7 @@ export default function ExchangeIntegration() {
     setRuleActionFolderName(rule.actionFolderName || "");
     setRuleActionPriority(rule.actionPriority || "medium");
     setRuleAutoReplyTemplate(rule.actionAutoReplyTemplate || "");
-    setRuleMailboxId(rule.mailboxId || "");
+    setRuleMailboxId(rule.mailboxId || "__all__");
     setRulePriority(rule.priority || 0);
     setRuleIsActive(rule.isActive !== false);
     setShowRuleDialog(true);
@@ -415,7 +415,7 @@ export default function ExchangeIntegration() {
         actionFolderName: ruleActionFolderName || undefined,
         actionPriority: ruleActionType === "set_priority" ? ruleActionPriority : undefined,
         actionAutoReplyTemplate: ruleActionType === "auto_reply" ? ruleAutoReplyTemplate : undefined,
-        mailboxId: ruleMailboxId || undefined,
+        mailboxId: ruleMailboxId && ruleMailboxId !== "__all__" ? ruleMailboxId : undefined,
         priority: rulePriority,
         isActive: ruleIsActive,
       });
@@ -998,13 +998,6 @@ export default function ExchangeIntegration() {
                             <FolderOpen className="w-3 h-3" />
                             {mailbox.sourceFolderName || "Nicht konfiguriert"}
                           </span>
-                          <span className="flex items-center gap-1">
-                            <Settings className="w-3 h-3" />
-                            {mailbox.postImportAction === "mark_as_read" ? "Als gelesen markieren" :
-                             mailbox.postImportAction === "move_to_folder" ? "In Ordner verschieben" :
-                             mailbox.postImportAction === "archive" ? "Archivieren" :
-                             mailbox.postImportAction === "delete" ? "Löschen" : "Unverändert"}
-                          </span>
                         </div>
                         {/* Test-Buttons für jedes Postfach */}
                         <div className="flex gap-2 pl-8">
@@ -1404,52 +1397,6 @@ export default function ExchangeIntegration() {
                 Der Ordner, aus dem E-Mails importiert werden
               </p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="post-import-action">Nach-Import-Aktion</Label>
-              <Select value={newMailboxPostImportAction} onValueChange={(v) => setNewMailboxPostImportAction(v as any)}>
-                <SelectTrigger id="post-import-action" data-testid="select-post-import-action">
-                  <SelectValue placeholder="Aktion auswählen" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="mark_as_read">Als gelesen markieren</SelectItem>
-                  <SelectItem value="move_to_folder">In Ordner verschieben</SelectItem>
-                  <SelectItem value="archive">Archivieren</SelectItem>
-                  <SelectItem value="delete">Löschen</SelectItem>
-                  <SelectItem value="keep_unchanged">Unverändert lassen</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {newMailboxPostImportAction === "move_to_folder" && (
-              <div className="space-y-2">
-                <Label htmlFor="target-folder">Zielordner</Label>
-                {(availableFolders.length > 0 || useStandardFolders) ? (
-                  <Select 
-                    value={newMailboxTargetFolderId} 
-                    onValueChange={(v) => {
-                      setNewMailboxTargetFolderId(v);
-                      const folders = useStandardFolders ? standardFolders : availableFolders;
-                      const folder = folders.find(f => f.id === v);
-                      setNewMailboxTargetFolderName(folder?.displayName || "");
-                    }}
-                  >
-                    <SelectTrigger id="target-folder" data-testid="select-target-folder">
-                      <SelectValue placeholder="Zielordner auswählen" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(useStandardFolders ? standardFolders : availableFolders).map((folder) => (
-                        <SelectItem key={folder.id} value={folder.id}>
-                          {folder.displayName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="text-sm text-muted-foreground p-3 border rounded-md bg-muted/50">
-                    Bitte zuerst Ordner laden
-                  </div>
-                )}
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowMailboxDialog(false)}>
@@ -1589,7 +1536,7 @@ export default function ExchangeIntegration() {
                   <SelectValue placeholder="Alle Postfächer" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Alle Postfächer</SelectItem>
+                  <SelectItem value="__all__">Alle Postfächer</SelectItem>
                   {mailboxesData?.map((mailbox: any) => (
                     <SelectItem key={mailbox.id} value={mailbox.id}>
                       {mailbox.displayName || mailbox.emailAddress}
