@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
@@ -91,6 +92,16 @@ export default function ExchangeIntegration() {
   const [isTestingFetch, setIsTestingFetch] = useState(false);
   const [isTestingSend, setIsTestingSend] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showMailboxDialog, setShowMailboxDialog] = useState(false);
+  const [isSavingMailbox, setIsSavingMailbox] = useState(false);
+
+  // Mailbox Form States
+  const [newMailboxEmail, setNewMailboxEmail] = useState("");
+  const [newMailboxDisplayName, setNewMailboxDisplayName] = useState("");
+  const [newMailboxType, setNewMailboxType] = useState<"incoming" | "outgoing" | "shared">("shared");
+  const [newMailboxSourceFolder, setNewMailboxSourceFolder] = useState("Inbox");
+  const [newMailboxTargetFolder, setNewMailboxTargetFolder] = useState("");
+  const [newMailboxPostImportAction, setNewMailboxPostImportAction] = useState<"mark_as_read" | "move_to_folder" | "archive" | "delete" | "keep_unchanged">("mark_as_read");
 
   // Form States
   const [isEnabled, setIsEnabled] = useState(false);
@@ -174,6 +185,95 @@ export default function ExchangeIntegration() {
       });
     },
   });
+
+  // Query für Postfächer
+  const { data: mailboxesData, isLoading: isLoadingMailboxes } = useQuery<any[]>({
+    queryKey: ["/api/exchange/mailboxes"],
+    enabled: configData?.configured === true,
+  });
+
+  // Mutation zum Speichern eines Postfachs
+  const saveMailboxMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/exchange/mailboxes", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/exchange/mailboxes"] });
+      setShowMailboxDialog(false);
+      resetMailboxForm();
+      toast({
+        title: "Postfach hinzugefügt",
+        description: "Das Postfach wurde erfolgreich konfiguriert.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Fehler beim Speichern",
+        description: error.message || "Das Postfach konnte nicht gespeichert werden.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation zum Löschen eines Postfachs
+  const deleteMailboxMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/exchange/mailboxes/${id}`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/exchange/mailboxes"] });
+      toast({
+        title: "Postfach gelöscht",
+        description: "Das Postfach wurde erfolgreich entfernt.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Fehler beim Löschen",
+        description: error.message || "Das Postfach konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reset mailbox form
+  const resetMailboxForm = () => {
+    setNewMailboxEmail("");
+    setNewMailboxDisplayName("");
+    setNewMailboxType("shared");
+    setNewMailboxSourceFolder("Inbox");
+    setNewMailboxTargetFolder("");
+    setNewMailboxPostImportAction("mark_as_read");
+  };
+
+  // Handler für Postfach hinzufügen
+  const handleAddMailbox = async () => {
+    if (!newMailboxEmail) {
+      toast({
+        title: "E-Mail-Adresse erforderlich",
+        description: "Bitte geben Sie eine E-Mail-Adresse für das Postfach ein.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsSavingMailbox(true);
+    try {
+      await saveMailboxMutation.mutateAsync({
+        emailAddress: newMailboxEmail,
+        displayName: newMailboxDisplayName || newMailboxEmail,
+        mailboxType: newMailboxType,
+        sourceFolder: newMailboxSourceFolder,
+        targetFolder: newMailboxTargetFolder || undefined,
+        postImportAction: newMailboxPostImportAction,
+        isActive: true,
+      });
+    } finally {
+      setIsSavingMailbox(false);
+    }
+  };
 
   // Handler für Verbindungstest
   const handleTestConnection = async () => {
@@ -778,19 +878,61 @@ export default function ExchangeIntegration() {
                     Verwalten Sie die E-Mail-Postfächer für die Integration
                   </CardDescription>
                 </div>
-                <Button data-testid="button-add-mailbox">
+                <Button 
+                  data-testid="button-add-mailbox"
+                  onClick={() => setShowMailboxDialog(true)}
+                  disabled={!configData?.configured || connectionStatus === "not_configured"}
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   Postfach hinzufügen
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Mail className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Noch keine Postfächer konfiguriert</p>
-                  <p className="text-sm">
-                    Schließen Sie zuerst den Einrichtungsassistenten ab
-                  </p>
-                </div>
+                {isLoadingMailboxes ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="w-8 h-8 mx-auto animate-spin text-muted-foreground" />
+                    <p className="mt-2 text-muted-foreground">Lade Postfächer...</p>
+                  </div>
+                ) : mailboxesData && mailboxesData.length > 0 ? (
+                  <div className="space-y-4">
+                    {mailboxesData.map((mailbox: any) => (
+                      <div key={mailbox.id} className="flex items-center justify-between p-4 border rounded-md">
+                        <div className="flex items-center gap-3">
+                          <Mail className="w-5 h-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">{mailbox.displayName || mailbox.emailAddress}</p>
+                            <p className="text-sm text-muted-foreground">{mailbox.emailAddress}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={mailbox.isActive ? "default" : "secondary"}>
+                            {mailbox.isActive ? "Aktiv" : "Inaktiv"}
+                          </Badge>
+                          <Badge variant="outline">
+                            {mailbox.mailboxType === "incoming" ? "Eingehend" : 
+                             mailbox.mailboxType === "outgoing" ? "Ausgehend" : "Gemeinsam"}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteMailboxMutation.mutate(mailbox.id)}
+                            data-testid={`button-delete-mailbox-${mailbox.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Mail className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Noch keine Postfächer konfiguriert</p>
+                    <p className="text-sm">
+                      {configData?.configured ? "Klicken Sie auf 'Postfach hinzufügen', um zu beginnen" : "Schließen Sie zuerst den Einrichtungsassistenten ab"}
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -876,6 +1018,113 @@ export default function ExchangeIntegration() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Postfach hinzufügen Dialog */}
+      <Dialog open={showMailboxDialog} onOpenChange={setShowMailboxDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Postfach hinzufügen</DialogTitle>
+            <DialogDescription>
+              Konfigurieren Sie ein neues E-Mail-Postfach für die Exchange-Integration
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="mailbox-email">E-Mail-Adresse *</Label>
+              <Input
+                id="mailbox-email"
+                type="email"
+                placeholder="support@ihre-domain.de"
+                value={newMailboxEmail}
+                onChange={(e) => setNewMailboxEmail(e.target.value)}
+                data-testid="input-mailbox-email"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mailbox-name">Anzeigename</Label>
+              <Input
+                id="mailbox-name"
+                placeholder="Support-Postfach"
+                value={newMailboxDisplayName}
+                onChange={(e) => setNewMailboxDisplayName(e.target.value)}
+                data-testid="input-mailbox-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mailbox-type">Postfachtyp</Label>
+              <Select value={newMailboxType} onValueChange={(v) => setNewMailboxType(v as any)}>
+                <SelectTrigger id="mailbox-type" data-testid="select-mailbox-type">
+                  <SelectValue placeholder="Typ auswählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="shared">Gemeinsames Postfach</SelectItem>
+                  <SelectItem value="incoming">Nur eingehend</SelectItem>
+                  <SelectItem value="outgoing">Nur ausgehend</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="source-folder">Quellordner</Label>
+              <Input
+                id="source-folder"
+                placeholder="Inbox"
+                value={newMailboxSourceFolder}
+                onChange={(e) => setNewMailboxSourceFolder(e.target.value)}
+                data-testid="input-source-folder"
+              />
+              <p className="text-xs text-muted-foreground">
+                Der Ordner, aus dem E-Mails importiert werden (z.B. Inbox, Support)
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="post-import-action">Nach-Import-Aktion</Label>
+              <Select value={newMailboxPostImportAction} onValueChange={(v) => setNewMailboxPostImportAction(v as any)}>
+                <SelectTrigger id="post-import-action" data-testid="select-post-import-action">
+                  <SelectValue placeholder="Aktion auswählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mark_as_read">Als gelesen markieren</SelectItem>
+                  <SelectItem value="move_to_folder">In Ordner verschieben</SelectItem>
+                  <SelectItem value="archive">Archivieren</SelectItem>
+                  <SelectItem value="delete">Löschen</SelectItem>
+                  <SelectItem value="keep_unchanged">Unverändert lassen</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {newMailboxPostImportAction === "move_to_folder" && (
+              <div className="space-y-2">
+                <Label htmlFor="target-folder">Zielordner</Label>
+                <Input
+                  id="target-folder"
+                  placeholder="Verarbeitet"
+                  value={newMailboxTargetFolder}
+                  onChange={(e) => setNewMailboxTargetFolder(e.target.value)}
+                  data-testid="input-target-folder"
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMailboxDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button 
+              onClick={handleAddMailbox} 
+              disabled={isSavingMailbox || !newMailboxEmail}
+              data-testid="button-save-mailbox"
+            >
+              {isSavingMailbox ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Speichern...
+                </>
+              ) : (
+                "Postfach hinzufügen"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
