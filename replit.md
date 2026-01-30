@@ -21,6 +21,7 @@ Preferred communication style: Simple, everyday language (German).
 - **December 2024**: Fixed Select component issues preventing form submissions
 - **December 2024**: Auto-generated customer numbers (KD-XXXXX format)
 - **January 2026**: Added Exchange Online integration with Microsoft Graph API support
+- **January 2026**: Enhanced Exchange integration: editable mailbox settings, fetchUnreadOnly toggle, .eml attachments on imported tickets
 
 ## System Architecture
 
