@@ -4,7 +4,7 @@
 
 **Enterprise-grade Helpdesk & Ticket Management Platform**
 
-[![Release](https://img.shields.io/badge/release-v0.1.0-blue?style=flat-square)](https://github.com/northbyte-io/Support-Engine/releases)
+[![Release](https://img.shields.io/badge/release-v0.2.0-blue?style=flat-square)](https://github.com/northbyte-io/Support-Engine/releases)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-purple?style=flat-square)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen?style=flat-square)](https://nodejs.org/)
 [![Build](https://img.shields.io/badge/build-passing-success?style=flat-square)]()
@@ -17,7 +17,7 @@
 [![Express](https://img.shields.io/badge/Express-4.x-000000?style=flat-square&logo=express&logoColor=white)]()
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)]()
 
-Multi-Tenant | REST API | SLA Management | CRM | Knowledge Base | Asset Management
+Multi-Tenant | REST API | SLA Management | CRM | Knowledge Base | Asset Management | Exchange Online
 
 </div>
 
@@ -261,7 +261,7 @@ Das **German Ticket System** ist eine moderne Helpdesk-Lösung, die speziell fü
   - ❌ Error: Fehler mit Ursache und Lösungsvorschlag
   - 🛡️ Security: Sicherheitsrelevante Ereignisse
   - ⚡ Performance: Leistungsmetriken
-- ✅ **Log-Quellen**: API, Auth, Ticket, SLA, CRM, E-Mail, Integration, Datenbank, System
+- ✅ **Log-Quellen**: API, Auth, Ticket, SLA, CRM, E-Mail, Integration, Datenbank, System, Exchange
 - ✅ **Features**:
   - 🎨 Farbkodierte Konsolenausgabe
   - 🔄 Tägliche Logrotation (max. 2GB pro Datei)
@@ -377,6 +377,96 @@ Das **German Ticket System** ist eine moderne Helpdesk-Lösung, die speziell fü
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+#### 📧 Exchange Online Integration
+
+- ✅ **Microsoft Graph API**: Vollständige Integration für Exchange Online
+- ✅ **Authentifizierung**: Client Secret oder Zertifikat (Azure Entra ID)
+- ✅ **Postfach-Typen**:
+  - 📥 Eingehend: E-Mails werden als Tickets importiert
+  - 📤 Ausgehend: Für Ticket-Benachrichtigungen
+  - 📧 Geteilt: Kombinierte Funktionalität
+- ✅ **Post-Import-Aktionen**:
+  - Als gelesen markieren
+  - In Ordner verschieben
+  - Archivieren
+  - Löschen
+  - Unverändert lassen
+- ✅ **Zuweisungsregeln**: Automatische Ticket-Erstellung basierend auf:
+  - 📋 Betreff-Schlüsselwörter
+  - 👤 Absender-E-Mail/Domain
+  - 📝 E-Mail-Text-Schlüsselwörter
+- ✅ **Synchronisation**:
+  - Konfigurierbare Intervalle (5/15/30/60 Minuten)
+  - Manuelle Synchronisation
+  - Detailliertes Sync-Protokoll
+- ✅ **Admin-UI**: 6-Schritte-Einrichtungsassistent
+- ✅ **Sicherheit**: AES-256-GCM verschlüsselte Client-Secrets
+
+> **Erforderliche Azure AD Berechtigungen**: Mail.Read, Mail.ReadWrite, Mail.Send
+> 
+> **Siehe auch**: [EXCHANGE_EINRICHTUNG.md](./EXCHANGE_EINRICHTUNG.md) für eine vollständige Einrichtungsanleitung
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     📧 Exchange Online Integration                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ │
+│  │1. Azure  │→│2. Post-  │→│3. Import │→│4. Regeln │→│5. Sync   │ │
+│  │  Config  │ │  fächer  │ │ Aktionen │ │          │ │          │ │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘ │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │  Azure AD Konfiguration                                     │   │
+│  ├─────────────────────────────────────────────────────────────┤   │
+│  │  Tenant-ID:    [xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx]       │   │
+│  │  Client-ID:    [xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx]       │   │
+│  │  Auth-Typ:     [Client Secret ▼]                            │   │
+│  │  Client-Secret:[********************************]            │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│  Status: ✅ Verbunden     [🔄 Verbindung testen] [💾 Speichern]    │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     📬 E-Mail → Ticket Workflow                      │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   📧 Eingehende E-Mail                                              │
+│          │                                                          │
+│          ▼                                                          │
+│   ┌──────────────┐                                                  │
+│   │ Graph API    │  ← Microsoft 365                                 │
+│   │ Abruf        │                                                  │
+│   └──────┬───────┘                                                  │
+│          │                                                          │
+│          ▼                                                          │
+│   ┌──────────────┐                                                  │
+│   │ Zuweisungs-  │  ← Betreff, Absender, Schlüsselwörter prüfen    │
+│   │ regeln       │                                                  │
+│   └──────┬───────┘                                                  │
+│          │                                                          │
+│    ┌─────┴─────┐                                                    │
+│    │           │                                                    │
+│    ▼           ▼                                                    │
+│ ┌──────┐  ┌──────────┐                                             │
+│ │ 🎫   │  │ Standard │  ← Keine Regel matched                      │
+│ │Ticket│  │ Zuweisung│                                              │
+│ └──┬───┘  └────┬─────┘                                             │
+│    │           │                                                    │
+│    └─────┬─────┘                                                    │
+│          │                                                          │
+│          ▼                                                          │
+│   ┌──────────────┐                                                  │
+│   │ Post-Import  │  ← Als gelesen/Verschieben/Archivieren/Löschen  │
+│   │ Aktion       │                                                  │
+│   └──────────────┘                                                  │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
 #### 🎨 Design & UX
 
 - ✅ Dark/Light Mode
@@ -400,9 +490,244 @@ Das **German Ticket System** ist eine moderne Helpdesk-Lösung, die speziell fü
 | 📊 System-Logging | ✅ Fertig | Umfassendes Logging mit Admin-UI |
 | 🎨 Mandanten-Branding | ✅ Fertig | Logos, Farben, Schriftarten, E-Mail-Templates, Custom CSS |
 | 🔐 TLS-Zertifikatsverwaltung | ✅ Fertig | Let's Encrypt Integration, ACME-Protokoll, Auto-Erneuerung |
+| 📧 Exchange Online Integration | ✅ Fertig | Microsoft Graph API, E-Mail-Import, Zuweisungsregeln |
 | 📈 Erweiterte Berichte | 🔜 Geplant | Report Builder, CSV/PDF Export |
 | ✅ Genehmigungsworkflows | 🔜 Geplant | Multi-Step-Approval |
-| 🔗 Microsoft-Integration | 📅 Später | Azure AD, Teams, Outlook |
+| 🔗 Microsoft-Integration | 🔄 Teilweise | Exchange Online fertig, Azure AD/Teams geplant |
+| 🤖 AI-Funktionen | 📅 Später | Auto-Kategorisierung, Vorschläge |
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+
+| Technologie | Beschreibung |
+|-------------|--------------|
+| ⚛️ React 18 | UI-Framework mit TypeScript |
+| ⚡ Vite 6 | Build-Tool mit HMR |
+| 🎨 TailwindCSS 4 | Utility-First CSS |
+| 🧩 Shadcn UI | Komponenten (Radix UI) |
+| 📝 React Hook Form | Formular-Verwaltung |
+| ✅ Zod | Schema-Validierung |
+| 🔄 TanStack Query 5 | Server State |
+| 🛤️ Wouter | Routing |
+| 🎯 Lucide React | Icons |
+| 🎬 Framer Motion | Animationen |
+| 🖱️ dnd-kit | Drag-and-Drop |
+
+### Backend
+
+| Technologie | Beschreibung |
+|-------------|--------------|
+| 🟢 Node.js 20 | JavaScript Runtime |
+| 🚂 Express 4 | HTTP-Server |
+| 📘 TypeScript 5 | Type Safety |
+| 🔐 bcryptjs | Passwort-Hashing |
+| 🎫 jsonwebtoken | JWT-Auth |
+| 📊 Winston | Logging-Framework |
+| ✅ Zod | API-Validierung |
+
+### Datenbank
+
+| Technologie | Beschreibung |
+|-------------|--------------|
+| 🐘 PostgreSQL 16 | Relationale DB |
+| 🌿 Drizzle ORM | Type-safe ORM |
+| 🔧 Drizzle Kit | Schema-Management |
+
+---
+
+## 🏗️ Architektur
+
+### 📁 Projektstruktur
+
+```
+📦 german-ticket-system
+├── 📂 client/                 # Frontend
+│   ├── 📂 src/
+│   │   ├── 📂 components/     # UI-Komponenten
+│   │   │   └── 📂 ui/         # Shadcn UI
+│   │   ├── 📂 hooks/          # Custom Hooks
+│   │   ├── 📂 lib/            # Utilities
+│   │   ├── 📂 pages/          # Seiten
+│   │   └── 📄 App.tsx         # Haupt-App
+│   └── 📄 index.html
+├── 📂 server/                 # Backend
+│   ├── 📄 auth.ts             # Authentifizierung
+│   ├── 📄 exchange-service.ts # Exchange Online Integration
+│   ├── 📄 logger.ts           # Logging-System
+│   ├── 📄 routes.ts           # API-Routen
+│   ├── 📄 storage.ts          # Datenbankzugriff
+│   ├── 📄 tls-service.ts      # TLS-Zertifikatsverwaltung
+│   └── 📄 index.ts            # Server-Start
+├── 📂 shared/                 # Geteilter Code
+│   └── 📄 schema.ts           # Drizzle-Schema
+├── 📂 logs/                   # Log-Dateien
+├── 📄 EXCHANGE_EINRICHTUNG.md # Exchange Setup-Anleitung
+└── 📄 design_guidelines.md    # Design-System
+```
+
+### 🔄 Systemarchitektur
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                           🌐 Client                                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                 │
+│  │   React     │  │  TanStack   │  │   Shadcn    │                 │
+│  │   + Vite    │  │   Query     │  │     UI      │                 │
+│  └──────┬──────┘  └──────┬──────┘  └─────────────┘                 │
+│         │                │                                          │
+│         └────────┬───────┘                                          │
+│                  │                                                  │
+│                  ▼                                                  │
+│         ┌───────────────┐                                          │
+│         │  REST API     │                                          │
+│         │  (JSON)       │                                          │
+│         └───────┬───────┘                                          │
+└─────────────────┼───────────────────────────────────────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                           🖥️ Server                                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌───────────┐  │
+│  │   Express   │  │    Auth     │  │   Winston   │  │ Exchange  │  │
+│  │   Router    │──│  Middleware │──│   Logger    │──│  Service  │  │
+│  └──────┬──────┘  └─────────────┘  └─────────────┘  └─────┬─────┘  │
+│         │                                                  │        │
+│         ▼                                                  ▼        │
+│  ┌─────────────┐                                   ┌────────────┐  │
+│  │   Storage   │                                   │ Graph API  │  │
+│  │   Layer     │                                   │ (M365)     │  │
+│  └──────┬──────┘                                   └────────────┘  │
+└─────────┼───────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                        🗄️ PostgreSQL                                │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐       │
+│  │  Tenants   │ │   Users    │ │  Tickets   │ │    CRM     │       │
+│  └────────────┘ └────────────┘ └────────────┘ └────────────┘       │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐                      │
+│  │  Exchange  │ │    TLS     │ │  Branding  │                      │
+│  └────────────┘ └────────────┘ └────────────┘                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 💾 Datenbank-Schema
+
+### 🗄️ Kern-Tabellen
+
+| Tabelle | Beschreibung |
+|---------|--------------|
+| 🏢 `tenants` | Mandanten/Unternehmen |
+| 👤 `users` | Benutzerkonten |
+| 🎫 `tickets` | Tickets/Anfragen |
+| 📋 `ticketTypes` | Tickettypen |
+| 👥 `ticketAssignees` | Zuweisungen |
+| 💬 `ticketComments` | Kommentare |
+| 📎 `ticketAttachments` | Anhänge |
+
+### ⏱️ SLA & Eskalation
+
+| Tabelle | Beschreibung |
+|---------|--------------|
+| ⏰ `slaDefinitions` | SLA-Definitionen |
+| 🚨 `slaEscalations` | Eskalationsregeln |
+
+### 📚 Wissensmanagement
+
+| Tabelle | Beschreibung |
+|---------|--------------|
+| 📄 `kbArticles` | Artikel |
+| 📝 `kbArticleVersions` | Versionen |
+| 📁 `kbCategories` | Kategorien |
+| 🔗 `ticketArticleLinks` | Verknüpfungen |
+
+### ⏰ Zeiterfassung
+
+| Tabelle | Beschreibung |
+|---------|--------------|
+| ⏱️ `timeEntries` | Zeiteinträge |
+
+### 📊 Umfragen
+
+| Tabelle | Beschreibung |
+|---------|--------------|
+| 📋 `surveys` | Umfragen |
+| ❓ `surveyQuestions` | Fragen |
+| 📧 `surveyInvitations` | Einladungen |
+| ✅ `surveyResponses` | Antworten |
+
+### 🖥️ Asset-Management
+
+| Tabelle | Beschreibung |
+|---------|--------------|
+| 📁 `assetCategories` | Kategorien |
+| 💻 `assets` | Assets |
+| 🔑 `assetLicenses` | Lizenzen |
+| 📋 `assetContracts` | Verträge |
+| 🔗 `ticketAssets` | Verknüpfungen |
+| 📜 `assetHistory` | Historie |
+
+### 📋 Projektmanagement
+
+| Tabelle | Beschreibung |
+|---------|--------------|
+| 📁 `projects` | Projekte |
+| 👥 `projectMembers` | Projektmitglieder |
+| 📊 `boardColumns` | Kanban-Spalten |
+| 🔗 `ticketProjects` | Ticket-Projekt-Zuordnungen |
+
+### 🏢 CRM-Modul
+
+| Tabelle | Beschreibung |
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐                │
+│  │ Einstellungen│ │ Zertifikate  │ │  Historie    │                │
+│  └──────────────┘ └──────────────┘ └──────────────┘                │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │  Domain         │ Status    │ Ablauf      │ Aktionen        │   │
+│  ├─────────────────┼───────────┼─────────────┼─────────────────┤   │
+│  │  example.com    │ ✅ Aktiv  │ 2025-03-30  │ [🔄] [❌]       │   │
+│  │  api.example.de │ ⏳ Pending│ -           │ [🔄]            │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│                    [➕ Neues Zertifikat anfordern]                   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### 🎨 Design & UX
+
+- ✅ Dark/Light Mode
+- ✅ Responsive Design
+- ✅ Shadcn UI Sidebar
+- ✅ Inter Font
+- ✅ Linear-inspiriertes Design
+- ✅ Skeleton-Loader
+- ✅ Toast-Benachrichtigungen
+- ✅ Einheitliches MainLayout für alle Seiten
+- ✅ Lizenz-Footer mit Links zu `/api/license` und `/api/source`
+
+---
+
+### 🚀 Roadmap
+
+| Feature | Status | Beschreibung |
+|---------|--------|--------------|
+| 📋 Projektmanagement | ✅ Fertig | Kanban-Board, Projekt-Tracking |
+| 🏢 CRM-Modul | ✅ Fertig | Organisationen, Kunden, Kontakte, Standorte |
+| 📊 System-Logging | ✅ Fertig | Umfassendes Logging mit Admin-UI |
+| 🎨 Mandanten-Branding | ✅ Fertig | Logos, Farben, Schriftarten, E-Mail-Templates, Custom CSS |
+| 🔐 TLS-Zertifikatsverwaltung | ✅ Fertig | Let's Encrypt Integration, ACME-Protokoll, Auto-Erneuerung |
+| 📧 Exchange Online Integration | ✅ Fertig | Microsoft Graph API, E-Mail-Import, Zuweisungsregeln |
+| 📈 Erweiterte Berichte | 🔜 Geplant | Report Builder, CSV/PDF Export |
+| ✅ Genehmigungsworkflows | 🔜 Geplant | Multi-Step-Approval |
+| 🔗 Microsoft-Integration | 🔄 Teilweise | Exchange Online fertig, Azure AD/Teams geplant |
 | 🤖 AI-Funktionen | 📅 Später | Auto-Kategorisierung, Vorschläge |
 
 ---
@@ -595,6 +920,16 @@ Das **German Ticket System** ist eine moderne Helpdesk-Lösung, die speziell fü
 | 🔗 `ticketContacts` | Ticket-Kontakt-Verknüpfungen |
 | 📊 `customerActivities` | Kundenaktivitäten |
 
+### 📧 Exchange Online
+
+| Tabelle | Beschreibung |
+|---------|--------------|
+| ⚙️ `exchangeConfigurations` | Azure AD/Graph API Konfigurationen |
+| 📬 `exchangeMailboxes` | Verknüpfte Exchange-Postfächer |
+| 📋 `exchangeAssignmentRules` | Automatische Zuweisungsregeln |
+| 📧 `exchangeEmails` | Importierte E-Mails |
+| 📊 `exchangeSyncLogs` | Synchronisationsprotokolle |
+
 ---
 
 ## 🔌 API-Design
@@ -624,6 +959,7 @@ DELETE /api/[resource]/:id      # 🗑️ Löschen
 | `/api/kb` | 📚 Wissensdatenbank |
 | `/api/surveys` | 📊 Umfragen |
 | `/api/logs` | 📊 System-Logs (Admin) |
+| `/api/exchange` | 📧 Exchange Online Integration (Admin) |
 
 ### 🔐 Authentifizierung
 
@@ -804,6 +1140,6 @@ Die Anleitung enthält:
 
 **Entwickelt mit ❤️ für professionelles Helpdesk-Management**
 
-📦 Version: 0.1.0 | 📅 Stand: Dezember 2024 | 📜 AGPL-3.0
+📦 Version: 0.2.0 | 📅 Stand: Januar 2026 | 📜 AGPL-3.0
 
 </div>
