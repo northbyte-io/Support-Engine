@@ -3396,30 +3396,95 @@ export async function registerRoutes(
               
               logger.info("exchange", "Ticket erstellt", `Ticket ${ticket.ticketNumber} aus E-Mail von ${graphEmail.from?.emailAddress?.address} erstellt`);
               
-              // Post-Import-Aktionen ausführen
-              const postActions = mailbox.postImportActions || [];
+              // Post-Import-Aktionen aus Verarbeitungsregeln ausführen
+              const processingRules = await storage.getEmailProcessingRules(tenantId, mailbox.id);
+              const activeRules = processingRules.filter(r => r.isActive);
               
-              for (const action of postActions) {
-                try {
-                  if (action === "mark_as_read") {
-                    await ExchangeService.markAsRead(config, mailbox.emailAddress, graphEmail.id);
-                    logger.debug("exchange", "Als gelesen markiert", `E-Mail ${graphEmail.id} als gelesen markiert`);
-                  } else if (action === "move_to_folder" && mailbox.targetFolderId) {
-                    await ExchangeService.moveEmail(config, mailbox.emailAddress, graphEmail.id, mailbox.targetFolderId);
-                    logger.debug("exchange", "E-Mail verschoben", `E-Mail ${graphEmail.id} nach ${mailbox.targetFolderName} verschoben`);
-                  } else if (action === "archive") {
-                    // Archivieren: E-Mail in den Archiv-Ordner verschieben
-                    await ExchangeService.moveEmail(config, mailbox.emailAddress, graphEmail.id, "archive");
-                    logger.debug("exchange", "E-Mail archiviert", `E-Mail ${graphEmail.id} wurde archiviert`);
-                  } else if (action === "delete") {
-                    await ExchangeService.deleteEmail(config, mailbox.emailAddress, graphEmail.id);
-                    logger.debug("exchange", "E-Mail gelöscht", `E-Mail ${graphEmail.id} gelöscht`);
-                  } else if (action === "keep_unchanged") {
-                    // Keine Aktion - E-Mail bleibt unverändert
-                    logger.debug("exchange", "Keine Aktion", `E-Mail ${graphEmail.id} bleibt unverändert`);
+              // Helper: Prüft ob eine Regel auf die E-Mail passt
+              const ruleMatchesEmail = (rule: typeof activeRules[0]): boolean => {
+                // Parse conditions JSON
+                let conditions: Array<{type: string, value: string, operator?: string}> = [];
+                if (rule.conditions) {
+                  try {
+                    conditions = JSON.parse(rule.conditions);
+                  } catch { conditions = []; }
+                }
+                
+                // Wenn keine Conditions, prüfe Legacy conditionType
+                if (conditions.length === 0 && rule.conditionType) {
+                  conditions = [{ type: rule.conditionType, value: rule.conditionValue || "" }];
+                }
+                
+                // Wenn immer noch keine Conditions -> immer matchen
+                if (conditions.length === 0) return true;
+                
+                const senderEmail = graphEmail.from?.emailAddress?.address?.toLowerCase() || "";
+                const senderName = graphEmail.from?.emailAddress?.name?.toLowerCase() || "";
+                const subject = graphEmail.subject?.toLowerCase() || "";
+                const body = graphEmail.bodyPreview?.toLowerCase() || "";
+                
+                for (const cond of conditions) {
+                  const val = (cond.value || "").toLowerCase();
+                  switch (cond.type) {
+                    case "imported_emails":
+                      return true; // Alle importierten E-Mails
+                    case "sender_contains":
+                      if (!senderEmail.includes(val) && !senderName.includes(val)) return false;
+                      break;
+                    case "subject_contains":
+                      if (!subject.includes(val)) return false;
+                      break;
+                    case "body_contains":
+                      if (!body.includes(val)) return false;
+                      break;
+                    case "has_attachment":
+                      if (!graphEmail.hasAttachments) return false;
+                      break;
+                    case "sender_domain":
+                      if (!senderEmail.endsWith(val)) return false;
+                      break;
+                    default:
+                      return true; // Unbekannte Typen matchen
                   }
-                } catch (actionError) {
-                  logger.warn("exchange", "Post-Import-Aktion fehlgeschlagen", `Aktion ${action} für E-Mail ${graphEmail.id} fehlgeschlagen: ${actionError}`);
+                }
+                return true;
+              };
+              
+              for (const rule of activeRules) {
+                // Prüfe ob die Regel auf die E-Mail passt
+                if (!ruleMatchesEmail(rule)) {
+                  logger.debug("exchange", "Regel übersprungen", `Regel "${rule.name}" passt nicht auf E-Mail ${graphEmail.id}`);
+                  continue;
+                }
+                
+                // Aktionen aus rule.actions oder Legacy actionType
+                let ruleActions: string[] = rule.actions || [];
+                if (ruleActions.length === 0 && rule.actionType) {
+                  ruleActions = [rule.actionType];
+                }
+                
+                logger.debug("exchange", "Regel angewendet", `Regel "${rule.name}" mit Aktionen: ${ruleActions.join(", ")} auf E-Mail ${graphEmail.id}`);
+                
+                for (const action of ruleActions) {
+                  try {
+                    if (action === "mark_as_read") {
+                      await ExchangeService.markAsRead(config, mailbox.emailAddress, graphEmail.id);
+                      logger.debug("exchange", "Als gelesen markiert", `E-Mail ${graphEmail.id} als gelesen markiert (Regel: ${rule.name})`);
+                    } else if (action === "move_to_folder" && rule.actionFolderId) {
+                      await ExchangeService.moveEmail(config, mailbox.emailAddress, graphEmail.id, rule.actionFolderId);
+                      logger.debug("exchange", "E-Mail verschoben", `E-Mail ${graphEmail.id} nach ${rule.actionFolderName || rule.actionFolderId} verschoben (Regel: ${rule.name})`);
+                    } else if (action === "archive") {
+                      await ExchangeService.moveEmail(config, mailbox.emailAddress, graphEmail.id, "archive");
+                      logger.debug("exchange", "E-Mail archiviert", `E-Mail ${graphEmail.id} wurde archiviert (Regel: ${rule.name})`);
+                    } else if (action === "delete") {
+                      await ExchangeService.deleteEmail(config, mailbox.emailAddress, graphEmail.id);
+                      logger.debug("exchange", "E-Mail gelöscht", `E-Mail ${graphEmail.id} gelöscht (Regel: ${rule.name})`);
+                    } else if (action === "keep_unchanged") {
+                      logger.debug("exchange", "Keine Aktion", `E-Mail ${graphEmail.id} bleibt unverändert (Regel: ${rule.name})`);
+                    }
+                  } catch (actionError) {
+                    logger.warn("exchange", "Post-Import-Aktion fehlgeschlagen", `Aktion ${action} für E-Mail ${graphEmail.id} fehlgeschlagen (Regel: ${rule.name}): ${actionError}`);
+                  }
                 }
               }
               

@@ -674,6 +674,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(timeEntries).where(eq(timeEntries.ticketId, id));
     await db.delete(attachments).where(eq(attachments.ticketId, id));
     await db.delete(comments).where(eq(comments.ticketId, id));
+    await db.delete(exchangeEmails).where(eq(exchangeEmails.ticketId, id));
     
     // Now delete the ticket itself
     await db.delete(tickets).where(whereClause);
