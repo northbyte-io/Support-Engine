@@ -2,6 +2,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
+import { TimerDisplay } from "@/components/TimerDisplay";
 import { Scale } from "lucide-react";
 
 interface MainLayoutProps {
@@ -32,6 +33,7 @@ export function MainLayout({ children, title, actions }: MainLayoutProps) {
             </div>
             <div className="flex items-center gap-2">
               {actions}
+              <TimerDisplay />
               <NotificationDropdown />
               <ThemeToggle />
             </div>

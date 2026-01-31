@@ -22,6 +22,7 @@ import {
   Building2,
   Mail,
   Phone,
+  Timer,
 } from "lucide-react";
 import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,8 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { format, formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
 import type { TicketWithRelations, Comment, User as UserType, Project, CustomerWithRelations } from "@shared/schema";
+import { TicketTimerControl } from "@/components/TicketTimerControl";
+import { WorkEntriesList } from "@/components/WorkEntriesList";
 
 export default function TicketDetailPage() {
   const params = useParams<{ id: string }>();
@@ -259,6 +262,11 @@ export default function TicketDetailPage() {
       title=""
       actions={
         <div className="flex items-center gap-2">
+          <TicketTimerControl
+            ticketId={params.id || ""}
+            ticketNumber={ticket.ticketNumber}
+            ticketTitle={ticket.title}
+          />
           <Button
             variant="outline"
             onClick={() => setLocation(`/tickets/${params.id}/edit`)}
@@ -357,6 +365,10 @@ export default function TicketDetailPage() {
                 <TabsTrigger value="comments" data-testid="tab-comments">
                   <MessageSquare className="w-4 h-4 mr-2" />
                   Kommentare ({ticket.comments?.length || 0})
+                </TabsTrigger>
+                <TabsTrigger value="work-entries" data-testid="tab-work-entries">
+                  <Timer className="w-4 h-4 mr-2" />
+                  Arbeitseinträge
                 </TabsTrigger>
                 <TabsTrigger value="attachments" data-testid="tab-attachments">
                   <Paperclip className="w-4 h-4 mr-2" />
@@ -464,6 +476,10 @@ export default function TicketDetailPage() {
                     )}
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              <TabsContent value="work-entries" className="mt-4">
+                <WorkEntriesList ticketId={params.id || ""} />
               </TabsContent>
 
               <TabsContent value="attachments" className="mt-4">
