@@ -3394,8 +3394,17 @@ export async function registerRoutes(
                   const fileName = `email_${ticket.ticketNumber}_${Date.now()}.eml`;
                   const storagePath = `.private/emails/${tenantId}/${fileName}`;
                   
+                  console.log("Upload debug:", {
+                    path: storagePath,
+                    contentLength: rawEmailContent.length,
+                    contentType: rawEmailContent.constructor.name,
+                    isBuffer: Buffer.isBuffer(rawEmailContent),
+                    first50Bytes: rawEmailContent.slice(0, 50).toString("utf8")
+                  });
+                  
                   // In Object Storage speichern (Buffer direkt übergeben)
-                  await objectStorage.uploadFromBytes(storagePath, rawEmailContent);
+                  const uploadResult = await objectStorage.uploadFromBytes(storagePath, rawEmailContent);
+                  console.log("Upload result:", uploadResult);
                   
                   // Attachment-Record erstellen
                   await storage.createAttachment({
