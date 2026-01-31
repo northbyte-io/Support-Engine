@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
+import DOMPurify from "dompurify";
 import {
   ArrowLeft,
   Edit,
@@ -322,9 +323,29 @@ export default function TicketDetailPage() {
               </CardHeader>
               <CardContent>
                 {ticket.description ? (
-                  <p className="whitespace-pre-wrap" data-testid="text-description">
-                    {ticket.description}
-                  </p>
+                  ticket.description.includes('<') && ticket.description.includes('>') ? (
+                    <div 
+                      className="prose prose-sm max-w-none dark:prose-invert overflow-auto"
+                      data-testid="text-description"
+                      dangerouslySetInnerHTML={{ 
+                        __html: DOMPurify.sanitize(ticket.description, {
+                          ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'strong', 'em', 'a', 'ul', 'ol', 'li', 
+                            'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code', 
+                            'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img', 'div', 'span', 
+                            'hr', 'font', 'center', 'sup', 'sub'],
+                          ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'style', 'class', 'width', 'height', 
+                            'border', 'cellpadding', 'cellspacing', 'align', 'valign', 'bgcolor', 
+                            'color', 'size', 'face', 'target'],
+                          ALLOW_DATA_ATTR: false,
+                          ADD_ATTR: ['target'],
+                        })
+                      }}
+                    />
+                  ) : (
+                    <p className="whitespace-pre-wrap" data-testid="text-description">
+                      {ticket.description}
+                    </p>
+                  )
                 ) : (
                   <p className="text-muted-foreground italic">Keine Beschreibung vorhanden</p>
                 )}

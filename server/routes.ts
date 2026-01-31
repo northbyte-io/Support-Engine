@@ -3342,9 +3342,9 @@ export async function registerRoutes(
               const savedEmail = await storage.createExchangeEmail(emailData);
               mailboxImported++;
               
-              // Ticket erstellen
+              // Ticket erstellen - HTML-Inhalt für volle Formatierung verwenden
               const ticketTitle = graphEmail.subject || "E-Mail ohne Betreff";
-              const ticketDescription = graphEmail.bodyPreview || graphEmail.body?.content || "";
+              const ticketDescription = graphEmail.body?.content || graphEmail.bodyPreview || "";
               
               const ticket = await storage.createTicket({
                 tenantId,
