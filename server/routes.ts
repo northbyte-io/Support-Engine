@@ -491,10 +491,13 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Datei nicht gefunden" });
       }
       
+      // Konvertiere Uint8Array zu Buffer für korrekte Binary-Übertragung
+      const buffer = Buffer.from(fileContent.value);
+      
       res.setHeader("Content-Type", attachment.mimeType);
       res.setHeader("Content-Disposition", `attachment; filename="${attachment.fileName}"`);
-      res.setHeader("Content-Length", attachment.fileSize);
-      res.send(fileContent.value);
+      res.setHeader("Content-Length", buffer.length);
+      res.send(buffer);
     } catch (error) {
       console.error("Download attachment error:", error);
       res.status(500).json({ message: "Interner Serverfehler" });
