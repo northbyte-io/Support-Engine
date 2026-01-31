@@ -530,11 +530,8 @@ export async function registerRoutes(
         firstBytes: buffer.slice(0, 50).toString("utf8")
       });
       
-      // Korrekten Dateinamen ohne .b64 Endung zurückgeben
-      const downloadFileName = attachment.fileName.replace(/\.b64$/, "");
-      
       res.setHeader("Content-Type", attachment.mimeType);
-      res.setHeader("Content-Disposition", `attachment; filename="${downloadFileName}"`);
+      res.setHeader("Content-Disposition", `attachment; filename="${attachment.fileName}"`);
       res.setHeader("Content-Length", buffer.length);
       res.send(buffer);
     } catch (error) {
@@ -3416,8 +3413,8 @@ export async function registerRoutes(
                 
                 if (rawEmailContent && rawEmailContent.length > 0) {
                   const objectStorage = new ObjectStorageClient();
-                  const fileName = `email_${ticket.ticketNumber}_${Date.now()}.eml.b64`;
-                  const storagePath = `.private/emails/${tenantId}/${fileName}`;
+                  const displayFileName = `email_${ticket.ticketNumber}_${Date.now()}.eml`;
+                  const storagePath = `.private/emails/${tenantId}/${displayFileName}.b64`;
                   
                   // Base64-Kodierung für zuverlässige Speicherung
                   const base64Content = rawEmailContent.toString("base64");
@@ -3433,17 +3430,17 @@ export async function registerRoutes(
                   const uploadResult = await objectStorage.uploadFromText(storagePath, base64Content);
                   console.log("Upload result:", uploadResult);
                   
-                  // Attachment-Record erstellen
+                  // Attachment-Record erstellen (displayFileName ohne .b64)
                   await storage.createAttachment({
                     ticketId: ticket.id,
-                    fileName: fileName,
+                    fileName: displayFileName,
                     fileSize: rawEmailContent.length,
                     mimeType: "message/rfc822",
                     storagePath: storagePath,
                     uploadedById: null, // System-generiert
                   });
                   
-                  logger.info("exchange", ".eml gespeichert", `E-Mail als ${fileName} (${rawEmailContent.length} Bytes) an Ticket ${ticket.ticketNumber} angehängt`);
+                  logger.info("exchange", ".eml gespeichert", `E-Mail als ${displayFileName} (${rawEmailContent.length} Bytes) an Ticket ${ticket.ticketNumber} angehängt`);
                 } else {
                   logger.warn("exchange", ".eml leer", `Rohe E-Mail-Daten waren leer für Ticket ${ticket.ticketNumber}`);
                 }
