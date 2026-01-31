@@ -3394,9 +3394,8 @@ export async function registerRoutes(
                   const fileName = `email_${ticket.ticketNumber}_${Date.now()}.eml`;
                   const storagePath = `.private/emails/${tenantId}/${fileName}`;
                   
-                  // In Object Storage speichern (als Uint8Array für binäre Daten)
-                  const uint8Array = new Uint8Array(rawEmailContent);
-                  await objectStorage.uploadFromBytes(storagePath, uint8Array);
+                  // In Object Storage speichern (Buffer direkt übergeben)
+                  await objectStorage.uploadFromBytes(storagePath, rawEmailContent);
                   
                   // Attachment-Record erstellen
                   await storage.createAttachment({
