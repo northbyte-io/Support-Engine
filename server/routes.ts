@@ -3373,13 +3373,16 @@ export async function registerRoutes(
               // .eml Datei als Anhang speichern
               try {
                 const rawEmailContent = await ExchangeService.getRawEmailContent(config, mailbox.emailAddress, graphEmail.id);
-                if (rawEmailContent) {
+                logger.debug("exchange", ".eml Inhalt abgerufen", `Größe: ${rawEmailContent?.length || 0} Bytes`);
+                
+                if (rawEmailContent && rawEmailContent.length > 0) {
                   const objectStorage = new ObjectStorageClient();
                   const fileName = `email_${ticket.ticketNumber}_${Date.now()}.eml`;
                   const storagePath = `.private/emails/${tenantId}/${fileName}`;
                   
-                  // In Object Storage speichern (als Buffer für binäre Daten)
-                  await objectStorage.uploadFromBytes(storagePath, rawEmailContent);
+                  // In Object Storage speichern (als Uint8Array für binäre Daten)
+                  const uint8Array = new Uint8Array(rawEmailContent);
+                  await objectStorage.uploadFromBytes(storagePath, uint8Array);
                   
                   // Attachment-Record erstellen
                   await storage.createAttachment({
@@ -3391,7 +3394,9 @@ export async function registerRoutes(
                     uploadedById: null, // System-generiert
                   });
                   
-                  logger.debug("exchange", ".eml gespeichert", `E-Mail als ${fileName} an Ticket ${ticket.ticketNumber} angehängt`);
+                  logger.info("exchange", ".eml gespeichert", `E-Mail als ${fileName} (${rawEmailContent.length} Bytes) an Ticket ${ticket.ticketNumber} angehängt`);
+                } else {
+                  logger.warn("exchange", ".eml leer", `Rohe E-Mail-Daten waren leer für Ticket ${ticket.ticketNumber}`);
                 }
               } catch (emlError) {
                 logger.warn("exchange", ".eml Speicherung fehlgeschlagen", `Konnte .eml nicht speichern: ${emlError}`);
