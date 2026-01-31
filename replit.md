@@ -24,6 +24,7 @@ Preferred communication style: Simple, everyday language (German).
 - **January 2026**: Enhanced Exchange integration: editable mailbox settings, fetchUnreadOnly toggle, .eml attachments on imported tickets
 - **January 2026**: Added customer/contact/asset assignment to ticket form (required customer selection, optional contact and asset assignment)
 - **January 2026**: Added TipTap rich text editor for ticket descriptions and knowledge base articles with full formatting toolbar
+- **January 2026**: Added comprehensive time tracking system with multiple simultaneous timers, work entry logging, and billable time tracking
 
 ## System Architecture
 

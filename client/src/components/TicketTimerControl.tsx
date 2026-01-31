@@ -44,6 +44,7 @@ export function TicketTimerControl({ ticketId, ticketNumber, ticketTitle }: Tick
   const [stoppedTimerData, setStoppedTimerData] = useState<{
     timer: ActiveTimerWithTicket;
     durationMs: number;
+    stoppedAt: string;
   } | null>(null);
 
   const { data: timer } = useQuery<ActiveTimer | null>({
@@ -101,92 +102,106 @@ export function TicketTimerControl({ ticketId, ticketNumber, ticketTitle }: Tick
     },
   });
 
+  const [pendingStopTimer, setPendingStopTimer] = useState<ActiveTimer | null>(null);
+
   const stopMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/tickets/${ticketId}/timer/stop`),
-    onSuccess: (data) => {
-      if (timer) {
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/tickets/${ticketId}/timer/stop`);
+      return await response.json();
+    },
+    onSuccess: (data: { durationMs: number; stoppedAt: string }) => {
+      const timerToUse = pendingStopTimer || timer;
+      if (timerToUse) {
         setStoppedTimerData({
           timer: {
-            ...timer,
+            ...timerToUse,
             ticket: {
               id: ticketId,
               ticketNumber: ticketNumber || "",
               title: ticketTitle || "",
             },
           },
-          durationMs: (data as any).durationMs,
+          durationMs: data.durationMs,
+          stoppedAt: data.stoppedAt,
         });
       }
+      setPendingStopTimer(null);
       queryClient.invalidateQueries({ queryKey: [`/api/tickets/${ticketId}/timer`] });
       queryClient.invalidateQueries({ queryKey: ["/api/timers"] });
     },
+    onError: () => {
+      setPendingStopTimer(null);
+    },
   });
+
+  const handleStop = () => {
+    if (timer) {
+      setPendingStopTimer(timer);
+      stopMutation.mutate();
+    }
+  };
 
   const handleWorkEntryClose = () => {
     setStoppedTimerData(null);
     queryClient.invalidateQueries({ queryKey: [`/api/tickets/${ticketId}/work-entries`] });
   };
 
-  if (!timer) {
-    return (
-      <Button
-        variant="outline"
-        onClick={() => startMutation.mutate()}
-        disabled={startMutation.isPending}
-        data-testid="button-start-timer"
-      >
-        <Play className="w-4 h-4 mr-2" />
-        Timer starten
-      </Button>
-    );
-  }
-
   return (
     <>
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted border">
-        <Clock className={`w-4 h-4 ${isRunning ? "text-primary animate-pulse" : "text-muted-foreground"}`} />
-        <span className={`font-mono text-sm font-medium ${isPaused ? "text-muted-foreground" : ""}`}>
-          {formatDuration(Math.max(0, elapsed))}
-        </span>
-        {isPaused && (
-          <span className="text-xs text-muted-foreground">(Pausiert)</span>
-        )}
-        <div className="flex items-center gap-1 ml-2">
-          {isPaused ? (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7"
-              onClick={() => resumeMutation.mutate()}
-              disabled={resumeMutation.isPending}
-              data-testid="button-resume-timer"
-            >
-              <Play className="h-3.5 w-3.5" />
-            </Button>
-          ) : (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7"
-              onClick={() => pauseMutation.mutate()}
-              disabled={pauseMutation.isPending}
-              data-testid="button-pause-timer"
-            >
-              <Pause className="h-3.5 w-3.5" />
-            </Button>
+      {!timer ? (
+        <Button
+          variant="outline"
+          onClick={() => startMutation.mutate()}
+          disabled={startMutation.isPending}
+          data-testid="button-start-timer"
+        >
+          <Play className="w-4 h-4 mr-2" />
+          Timer starten
+        </Button>
+      ) : (
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted border">
+          <Clock className={`w-4 h-4 ${isRunning ? "text-primary animate-pulse" : "text-muted-foreground"}`} />
+          <span className={`font-mono text-sm font-medium ${isPaused ? "text-muted-foreground" : ""}`}>
+            {formatDuration(Math.max(0, elapsed))}
+          </span>
+          {isPaused && (
+            <span className="text-xs text-muted-foreground">(Pausiert)</span>
           )}
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7 text-destructive hover:text-destructive"
-            onClick={() => stopMutation.mutate()}
-            disabled={stopMutation.isPending}
-            data-testid="button-stop-timer"
-          >
-            <Square className="h-3.5 w-3.5" />
-          </Button>
+          <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+            {isPaused ? (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => resumeMutation.mutate()}
+                disabled={resumeMutation.isPending}
+                data-testid="button-resume-timer"
+              >
+                <Play className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => pauseMutation.mutate()}
+                disabled={pauseMutation.isPending}
+                data-testid="button-pause-timer"
+              >
+                <Pause className="w-4 h-4" />
+              </Button>
+            )}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="text-destructive"
+              onClick={handleStop}
+              disabled={stopMutation.isPending}
+              data-testid="button-stop-timer"
+            >
+              <Square className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {stoppedTimerData && (
         <WorkEntryModal
@@ -194,6 +209,7 @@ export function TicketTimerControl({ ticketId, ticketNumber, ticketTitle }: Tick
           onClose={handleWorkEntryClose}
           timer={stoppedTimerData.timer}
           durationMs={stoppedTimerData.durationMs}
+          stoppedAt={stoppedTimerData.stoppedAt}
         />
       )}
     </>

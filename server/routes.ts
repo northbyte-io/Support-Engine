@@ -806,10 +806,12 @@ export async function registerRoutes(
         userId: req.user!.id,
         durationMs: result.durationMs,
       });
+      const stoppedAt = new Date();
       res.json({
         timer: result.timer,
         durationMs: result.durationMs,
         durationMinutes: Math.round(result.durationMs / 60000),
+        stoppedAt: stoppedAt.toISOString(),
       });
     } catch (error) {
       console.error("Stop timer error:", error);

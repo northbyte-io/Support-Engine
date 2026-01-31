@@ -90,47 +90,44 @@ function TimerItem({ timer, onOpenTicket, onStop }: TimerItemProps) {
           {timer.ticket?.ticketNumber} - {timer.ticket?.title}
         </div>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 flex-shrink-0">
         {isPaused ? (
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7"
             onClick={() => resumeMutation.mutate()}
             disabled={resumeMutation.isPending}
             data-testid={`button-resume-timer-${timer.ticketId}`}
           >
-            <Play className="h-3.5 w-3.5" />
+            <Play className="w-4 h-4" />
           </Button>
         ) : (
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7"
             onClick={() => pauseMutation.mutate()}
             disabled={pauseMutation.isPending}
             data-testid={`button-pause-timer-${timer.ticketId}`}
           >
-            <Pause className="h-3.5 w-3.5" />
+            <Pause className="w-4 h-4" />
           </Button>
         )}
         <Button
           size="icon"
           variant="ghost"
-          className="h-7 w-7 text-destructive hover:text-destructive"
+          className="text-destructive"
           onClick={() => onStop(timer)}
           data-testid={`button-stop-timer-${timer.ticketId}`}
         >
-          <Square className="h-3.5 w-3.5" />
+          <Square className="w-4 h-4" />
         </Button>
         <Button
           size="icon"
           variant="ghost"
-          className="h-7 w-7"
           onClick={() => onOpenTicket(timer.ticketId)}
           data-testid={`button-open-ticket-${timer.ticketId}`}
         >
-          <ExternalLink className="h-3.5 w-3.5" />
+          <ExternalLink className="w-4 h-4" />
         </Button>
       </div>
     </div>
@@ -144,6 +141,7 @@ export function TimerDisplay() {
   const [stoppedTimerData, setStoppedTimerData] = useState<{
     timer: ActiveTimerWithTicket;
     durationMs: number;
+    stoppedAt: string;
   } | null>(null);
 
   const { data: timers = [] } = useQuery<ActiveTimerWithTicket[]>({
@@ -152,17 +150,22 @@ export function TimerDisplay() {
   });
 
   const stopMutation = useMutation({
-    mutationFn: (ticketId: string) => 
-      apiRequest("POST", `/api/tickets/${ticketId}/timer/stop`),
-    onSuccess: (data, ticketId) => {
-      const timer = timers.find(t => t.ticketId === ticketId);
-      if (timer) {
-        setStoppedTimerData({
-          timer,
-          durationMs: (data as any).durationMs,
-        });
-      }
+    mutationFn: async (timer: ActiveTimerWithTicket) => {
+      const response = await apiRequest("POST", `/api/tickets/${timer.ticketId}/timer/stop`);
+      const data = await response.json();
+      return { timer, data };
+    },
+    onSuccess: ({ timer: timerParam, data }: { timer: ActiveTimerWithTicket; data: { durationMs: number; stoppedAt: string } }) => {
+      setStoppedTimerData({
+        timer: timerParam,
+        durationMs: data.durationMs,
+        stoppedAt: data.stoppedAt,
+      });
+      setStoppingTimer(null);
       queryClient.invalidateQueries({ queryKey: ["/api/timers"] });
+    },
+    onError: () => {
+      setStoppingTimer(null);
     },
   });
 
@@ -173,7 +176,7 @@ export function TimerDisplay() {
 
   const handleStopTimer = (timer: ActiveTimerWithTicket) => {
     setStoppingTimer(timer);
-    stopMutation.mutate(timer.ticketId);
+    stopMutation.mutate(timer);
   };
 
   const handleWorkEntryClose = () => {
@@ -228,6 +231,7 @@ export function TimerDisplay() {
           onClose={handleWorkEntryClose}
           timer={stoppedTimerData.timer}
           durationMs={stoppedTimerData.durationMs}
+          stoppedAt={stoppedTimerData.stoppedAt}
         />
       )}
     </>

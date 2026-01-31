@@ -24,6 +24,7 @@ interface WorkEntryModalProps {
   onClose: () => void;
   timer: ActiveTimerWithTicket;
   durationMs: number;
+  stoppedAt?: string;
 }
 
 function formatDuration(ms: number): string {
@@ -45,14 +46,14 @@ function formatDate(date: Date): string {
   return format(date, "dd.MM.yyyy", { locale: de });
 }
 
-export function WorkEntryModal({ open, onClose, timer, durationMs }: WorkEntryModalProps) {
+export function WorkEntryModal({ open, onClose, timer, durationMs, stoppedAt }: WorkEntryModalProps) {
   const [, setLocation] = useLocation();
   const [description, setDescription] = useState("");
   const [isBillable, setIsBillable] = useState(true);
   const [redirectToTicket, setRedirectToTicket] = useState(true);
 
   const startTime = new Date(timer.startedAt);
-  const endTime = new Date();
+  const endTime = stoppedAt ? new Date(stoppedAt) : new Date();
   const durationMinutes = Math.round(durationMs / 60000);
   const pausedMinutes = Math.round((timer.totalPausedMs || 0) / 60000);
 
