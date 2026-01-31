@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { TipTapEditor } from "@/components/TipTapEditor";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -460,9 +460,10 @@ export default function KnowledgeBase() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap">
-                    {viewingArticle.content}
-                  </div>
+                  <div 
+                    className="prose dark:prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: viewingArticle.content }}
+                  />
                   {isAgent && (
                     <div className="flex items-center gap-2 mt-6 pt-6 border-t">
                       <Button
@@ -749,11 +750,11 @@ export default function KnowledgeBase() {
                   <FormItem>
                     <FormLabel>Inhalt</FormLabel>
                     <FormControl>
-                      <Textarea
-                        {...field}
+                      <TipTapEditor
+                        content={field.value || ""}
+                        onChange={field.onChange}
                         placeholder="Artikel-Inhalt..."
-                        className="min-h-[200px]"
-                        data-testid="input-article-content"
+                        minHeight="250px"
                       />
                     </FormControl>
                     <FormMessage />

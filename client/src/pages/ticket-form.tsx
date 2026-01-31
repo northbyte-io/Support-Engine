@@ -8,7 +8,7 @@ import { z } from "zod";
 import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { TipTapEditor } from "@/components/TipTapEditor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { LoadingPage } from "@/components/LoadingState";
@@ -216,11 +216,12 @@ export default function TicketFormPage() {
                     <FormItem>
                       <FormLabel>Beschreibung</FormLabel>
                       <FormControl>
-                        <Textarea
+                        <TipTapEditor
+                          content={field.value || ""}
+                          onChange={field.onChange}
                           placeholder="Detaillierte Beschreibung des Problems oder der Anfrage..."
-                          className="min-h-[150px]"
+                          minHeight="200px"
                           data-testid="input-description"
-                          {...field}
                         />
                       </FormControl>
                       <FormMessage />
