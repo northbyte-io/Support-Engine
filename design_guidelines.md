@@ -1,4 +1,4 @@
-# Design Guidelines: German Ticket System
+# Design Guidelines: Support-Engine
 
 ## Design Approach
 

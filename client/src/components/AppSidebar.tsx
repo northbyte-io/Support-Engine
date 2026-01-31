@@ -142,7 +142,7 @@ export function AppSidebar() {
   };
 
   const logo = getLogo();
-  const tenantName = branding?.name || "Ticket-System";
+  const tenantName = branding?.name || "Support-Engine";
 
   return (
     <Sidebar>

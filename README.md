@@ -1,6 +1,6 @@
 <div align="center">
 
-# German Ticket System
+# Support-Engine
 
 **Enterprise-grade Helpdesk & Ticket Management Platform**
 
@@ -23,7 +23,7 @@ Multi-Tenant | REST API | SLA Management | CRM | Knowledge Base | Asset Manageme
 
 ---
 
-# 🎫 German Ticket System – Helpdesk Management
+# 🎫 Support-Engine – Helpdesk Management
 
 Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und Helpdesk-Management mit Multi-Tenant-Architektur, REST-API für Web und iOS, sowie umfangreichen Enterprise-Features.
 
@@ -49,7 +49,7 @@ Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und H
 
 ## 🎯 Über das Projekt
 
-Das **German Ticket System** ist eine moderne Helpdesk-Lösung, die speziell für deutschsprachige Unternehmen entwickelt wurde.
+**Support-Engine** ist eine moderne Helpdesk-Lösung, die speziell für deutschsprachige Unternehmen entwickelt wurde.
 
 ### Kernfunktionen auf einen Blick:
 

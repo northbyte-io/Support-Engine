@@ -1,6 +1,6 @@
-# 📘 German Ticket System - Betriebs- und Administrationsanleitung
+# 📘 Support-Engine - Betriebs- und Administrationsanleitung
 
-Diese Anleitung ergänzt die [README.md](./README.md) und richtet sich an Administratoren, Betreiber und technische Ansprechpartner des German Ticket Systems.
+Diese Anleitung ergänzt die [README.md](./README.md) und richtet sich an Administratoren, Betreiber und technische Ansprechpartner von Support-Engine.
 
 ---
 
@@ -22,7 +22,7 @@ Diese Anleitung ergänzt die [README.md](./README.md) und richtet sich an Admini
 
 ## 🏗️ Systemüberblick
 
-Das German Ticket System ist eine mandantenfähige Helpdesk-Webanwendung mit REST-API. Der Aufbau ist ticketzentriert: Alle Funktionen wie CRM, SLA, Zeiterfassung und Wissensmanagement sind auf die Ticketbearbeitung ausgerichtet.
+Support-Engine ist eine mandantenfähige Helpdesk-Webanwendung mit REST-API. Der Aufbau ist ticketzentriert: Alle Funktionen wie CRM, SLA, Zeiterfassung und Wissensmanagement sind auf die Ticketbearbeitung ausgerichtet.
 
 ### 🔧 Kernarchitektur
 
@@ -384,7 +384,7 @@ npx drizzle-kit push
 
 ## 📜 AGPL-3.0 Lizenzhinweise
 
-Das German Ticket System steht unter der GNU Affero General Public License v3.0.
+Support-Engine steht unter der GNU Affero General Public License v3.0.
 
 ### ⚖️ Pflichten bei Betrieb als Webdienst
 

@@ -1,6 +1,6 @@
-# Beitragen zum German Ticket System
+# Beitragen zu Support-Engine
 
-Vielen Dank für dein Interesse, zum German Ticket System beizutragen!
+Vielen Dank für dein Interesse, zu Support-Engine beizutragen!
 
 ## Lizenz
 
@@ -19,8 +19,8 @@ Dieses Projekt steht unter der **GNU Affero General Public License v3.0 (AGPL-3.
 
 ```typescript
 /**
- * German Ticket System - Helpdesk Management
- * Copyright (C) 2024 German Ticket System Contributors
+ * Support-Engine - Helpdesk Management
+ * Copyright (C) 2024 Support-Engine Contributors
  *
  * Dieses Programm ist freie Software.
  * Du kannst es unter den Bedingungen der GNU Affero General Public License

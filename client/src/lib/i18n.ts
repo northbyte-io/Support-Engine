@@ -1,4 +1,4 @@
-// German translations for the ticket system
+// German translations for Support-Engine
 export const de = {
   // Common
   common: {

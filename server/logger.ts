@@ -211,7 +211,7 @@ const fileFormat = winston.format.printf(({ message }) => String(message));
 // Daily rotate file transport - 2GB max, 7 days retention
 const fileTransport = new DailyRotateFile({
   dirname: logsDir,
-  filename: "ticketsystem-%DATE%.log",
+  filename: "support-engine-%DATE%.log",
   datePattern: "YYYY-MM-DD",
   maxSize: "2g", // 2GB max per file
   maxFiles: "7d", // Keep logs for 7 days

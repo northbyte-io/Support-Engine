@@ -1,12 +1,12 @@
 # 🚀 v0.1.0 - Erste öffentliche Version
 
-Dies ist die erste offizielle öffentliche Version des German Ticket Systems, einer professionellen Helpdesk- und Ticketverwaltungsplattform für deutschsprachige Organisationen.
+Dies ist die erste offizielle öffentliche Version von Support-Engine, einer professionellen Helpdesk- und Ticketverwaltungsplattform für deutschsprachige Organisationen.
 
 ---
 
 ## 📋 Übersicht
 
-Das German Ticket System ist eine mandantenfähige SaaS-Webanwendung mit modernem Tech-Stack. Es bietet eine umfassende REST-API, die sowohl für Webanwendungen als auch für zukünftige iOS-Mobile-Clients konzipiert ist.
+Support-Engine ist eine mandantenfähige SaaS-Webanwendung mit modernem Tech-Stack. Es bietet eine umfassende REST-API, die sowohl für Webanwendungen als auch für zukünftige iOS-Mobile-Clients konzipiert ist.
 
 ---
 

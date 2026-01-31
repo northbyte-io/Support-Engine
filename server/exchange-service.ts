@@ -581,12 +581,12 @@ export class ExchangeService {
 
     const emailMessage = {
       message: {
-        subject: "Ticket-System Test-E-Mail",
+        subject: "Support-Engine Test-E-Mail",
         body: {
           contentType: "HTML",
           content: `<html><body>
             <h2>Exchange Online Integration - Testmail</h2>
-            <p>Diese E-Mail wurde automatisch vom Ticket-System gesendet, um die Exchange-Integration zu testen.</p>
+            <p>Diese E-Mail wurde automatisch von Support-Engine gesendet, um die Exchange-Integration zu testen.</p>
             <p><strong>Zeitpunkt:</strong> ${new Date().toLocaleString("de-DE")}</p>
             <p><strong>Von Postfach:</strong> ${mailboxEmail}</p>
             <p><strong>An:</strong> ${targetRecipient}</p>

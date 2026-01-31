@@ -311,7 +311,7 @@ export async function registerRoutes(
   app.get("/api/source", (_req, res) => {
     res.json({
       license: "AGPL-3.0",
-      repository: "https://github.com/german-ticket-system/helpdesk",
+      repository: "https://github.com/northbyte-io/Support-Engine",
       notice: "Dieses Programm ist freie Software unter der GNU Affero General Public License v3.0. Der Quellcode ist verfügbar unter der oben genannten URL.",
       endpoints: {
         license: "/api/license",
