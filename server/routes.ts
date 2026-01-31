@@ -494,14 +494,7 @@ export async function registerRoutes(
         // Base64-kodierte Datei als Text laden und dekodieren
         const fileContent = await objectStorage.downloadAsText(attachment.storagePath);
         
-        console.log("Download debug (base64):", {
-          path: attachment.storagePath,
-          ok: fileContent.ok,
-          textLength: fileContent.ok ? fileContent.value?.length : 0
-        });
-        
         if (!fileContent.ok) {
-          console.log("Download error:", fileContent.error);
           return res.status(404).json({ message: "Datei nicht gefunden" });
         }
         
@@ -511,24 +504,12 @@ export async function registerRoutes(
         // Normale Binärdatei laden
         const fileContent = await objectStorage.downloadAsBytes(attachment.storagePath);
         
-        console.log("Download debug (binary):", {
-          path: attachment.storagePath,
-          ok: fileContent.ok,
-          valueLength: fileContent.ok ? fileContent.value?.length : 0
-        });
-        
         if (!fileContent.ok) {
-          console.log("Download error:", fileContent.error);
           return res.status(404).json({ message: "Datei nicht gefunden" });
         }
         
         buffer = Buffer.from(fileContent.value);
       }
-      
-      console.log("Buffer debug:", {
-        bufferLength: buffer.length,
-        firstBytes: buffer.slice(0, 50).toString("utf8")
-      });
       
       res.setHeader("Content-Type", attachment.mimeType);
       res.setHeader("Content-Disposition", `attachment; filename="${attachment.fileName}"`);
@@ -3416,19 +3397,11 @@ export async function registerRoutes(
                   const displayFileName = `email_${ticket.ticketNumber}_${Date.now()}.eml`;
                   const storagePath = `.private/emails/${tenantId}/${displayFileName}.b64`;
                   
-                  // Base64-Kodierung für zuverlässige Speicherung
+                  // Base64-Kodierung für zuverlässige Speicherung im Object Storage
                   const base64Content = rawEmailContent.toString("base64");
                   
-                  console.log("Upload debug:", {
-                    path: storagePath,
-                    originalLength: rawEmailContent.length,
-                    base64Length: base64Content.length,
-                    first50Bytes: rawEmailContent.slice(0, 50).toString("utf8")
-                  });
-                  
                   // In Object Storage als Text speichern (base64-kodiert)
-                  const uploadResult = await objectStorage.uploadFromText(storagePath, base64Content);
-                  console.log("Upload result:", uploadResult);
+                  await objectStorage.uploadFromText(storagePath, base64Content);
                   
                   // Attachment-Record erstellen (displayFileName ohne .b64)
                   await storage.createAttachment({
