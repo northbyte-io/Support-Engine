@@ -191,7 +191,10 @@ export default function KnowledgeBase() {
 
   const createArticleMutation = useMutation({
     mutationFn: async (data: ArticleFormData) => {
-      return apiRequest("POST", "/api/kb/articles", data);
+      return apiRequest("POST", "/api/kb/articles", {
+        ...data,
+        categoryId: data.categoryId && data.categoryId !== "__none__" ? data.categoryId : null,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/kb/articles"] });
@@ -207,7 +210,10 @@ export default function KnowledgeBase() {
 
   const updateArticleMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<ArticleFormData> }) => {
-      return apiRequest("PATCH", `/api/kb/articles/${id}`, data);
+      return apiRequest("PATCH", `/api/kb/articles/${id}`, {
+        ...data,
+        categoryId: data.categoryId && data.categoryId !== "__none__" ? data.categoryId : null,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/kb/articles"] });
@@ -724,7 +730,7 @@ export default function KnowledgeBase() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Keine Kategorie</SelectItem>
+                        <SelectItem value="__none__">Keine Kategorie</SelectItem>
                         {categories.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.name}
