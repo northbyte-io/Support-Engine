@@ -487,12 +487,26 @@ export async function registerRoutes(
       const objectStorage = new ObjectStorageClient();
       const fileContent = await objectStorage.downloadAsBytes(attachment.storagePath);
       
+      console.log("Download debug:", {
+        path: attachment.storagePath,
+        ok: fileContent.ok,
+        valueType: fileContent.ok ? typeof fileContent.value : "n/a",
+        valueLength: fileContent.ok ? fileContent.value?.length : 0,
+        valueConstructor: fileContent.ok ? fileContent.value?.constructor?.name : "n/a"
+      });
+      
       if (!fileContent.ok) {
+        console.log("Download error:", fileContent.error);
         return res.status(404).json({ message: "Datei nicht gefunden" });
       }
       
       // Konvertiere Uint8Array zu Buffer für korrekte Binary-Übertragung
       const buffer = Buffer.from(fileContent.value);
+      
+      console.log("Buffer debug:", {
+        bufferLength: buffer.length,
+        firstBytes: buffer.slice(0, 50).toString("utf8")
+      });
       
       res.setHeader("Content-Type", attachment.mimeType);
       res.setHeader("Content-Disposition", `attachment; filename="${attachment.fileName}"`);
