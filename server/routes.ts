@@ -1850,12 +1850,13 @@ export async function registerRoutes(
   // Assets
   app.get("/api/assets", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const { assetType, status, categoryId, assignedToId, search } = req.query;
+      const { assetType, status, categoryId, assignedToId, customerId, search } = req.query;
       const assets = await storage.getAssets(req.user!.tenantId!, {
         assetType: assetType as string | undefined,
         status: status as string | undefined,
         categoryId: categoryId as string | undefined,
         assignedToId: assignedToId as string | undefined,
+        customerId: customerId as string | undefined,
         search: search as string | undefined,
       });
       res.json(assets);

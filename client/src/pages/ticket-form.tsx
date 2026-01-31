@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Loader2, Paperclip, X } from "lucide-react";
+import { ArrowLeft, Loader2, Paperclip, Building2, Users, Package } from "lucide-react";
 import { z } from "zod";
 import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import type { TicketType, TicketWithRelations, User, Area } from "@shared/schema";
+import type { TicketType, TicketWithRelations, User, Area, Customer, Contact, Asset } from "@shared/schema";
 
 const ticketFormSchema = z.object({
   title: z.string().min(1, "Titel ist erforderlich").max(200, "Titel darf maximal 200 Zeichen lang sein"),
@@ -49,6 +49,9 @@ const ticketFormSchema = z.object({
   dueDate: z.date().optional().nullable(),
   assigneeIds: z.array(z.string()).optional(),
   areaIds: z.array(z.string()).optional(),
+  customerId: z.string().min(1, "Kunde ist erforderlich"),
+  contactId: z.string().optional(),
+  assetIds: z.array(z.string()).optional(),
 });
 
 type TicketFormData = z.infer<typeof ticketFormSchema>;
@@ -76,6 +79,10 @@ export default function TicketFormPage() {
     queryKey: ["/api/areas"],
   });
 
+  const { data: customers } = useQuery<Customer[]>({
+    queryKey: ["/api/customers"],
+  });
+
   const form = useForm<TicketFormData>({
     resolver: zodResolver(ticketFormSchema),
     defaultValues: {
@@ -87,7 +94,42 @@ export default function TicketFormPage() {
       dueDate: null,
       assigneeIds: [],
       areaIds: [],
+      customerId: "",
+      contactId: "",
+      assetIds: [],
     },
+  });
+
+  const selectedCustomerId = form.watch("customerId");
+
+  const { data: contacts } = useQuery<Contact[]>({
+    queryKey: ["/api/contacts", { customerId: selectedCustomerId }],
+    queryFn: async () => {
+      if (!selectedCustomerId) return [];
+      const response = await fetch(`/api/contacts?customerId=${selectedCustomerId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      if (!response.ok) throw new Error("Fehler beim Laden der Kontakte");
+      return response.json();
+    },
+    enabled: !!selectedCustomerId,
+  });
+
+  const { data: assets } = useQuery<Asset[]>({
+    queryKey: ["/api/assets", { customerId: selectedCustomerId }],
+    queryFn: async () => {
+      if (!selectedCustomerId) return [];
+      const response = await fetch(`/api/assets?customerId=${selectedCustomerId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      if (!response.ok) throw new Error("Fehler beim Laden der Assets");
+      return response.json();
+    },
+    enabled: !!selectedCustomerId,
   });
 
   useEffect(() => {
@@ -101,13 +143,26 @@ export default function TicketFormPage() {
         dueDate: existingTicket.dueDate ? new Date(existingTicket.dueDate) : null,
         assigneeIds: existingTicket.assignees?.map((a) => a.userId || "") || [],
         areaIds: existingTicket.areas?.map((a) => a.areaId || "") || [],
+        customerId: existingTicket.customerId || "",
+        contactId: "",
+        assetIds: [],
       });
     }
   }, [existingTicket, form]);
 
+  useEffect(() => {
+    if (selectedCustomerId) {
+      form.setValue("contactId", "");
+      form.setValue("assetIds", []);
+    }
+  }, [selectedCustomerId, form]);
+
   const createMutation = useMutation({
     mutationFn: async (data: TicketFormData) => {
-      return apiRequest("POST", "/api/tickets", data);
+      return apiRequest("POST", "/api/tickets", {
+        ...data,
+        contactId: data.contactId && data.contactId !== "__none__" ? data.contactId : null,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
@@ -121,7 +176,10 @@ export default function TicketFormPage() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: TicketFormData) => {
-      return apiRequest("PATCH", `/api/tickets/${params.id}`, data);
+      return apiRequest("PATCH", `/api/tickets/${params.id}`, {
+        ...data,
+        contactId: data.contactId && data.contactId !== "__none__" ? data.contactId : null,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tickets", params.id] });
@@ -186,6 +244,115 @@ export default function TicketFormPage() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Building2 className="w-5 h-5" />
+                  Kundenzuordnung
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="customerId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Kunde *</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-customer">
+                            <SelectValue placeholder="Kunde auswählen" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {customers?.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.customerNumber} - {customer.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {selectedCustomerId && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="contactId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Ansprechpartner</FormLabel>
+                          <Select
+                            value={field.value || "__none__"}
+                            onValueChange={field.onChange}
+                          >
+                            <FormControl>
+                              <SelectTrigger data-testid="select-contact">
+                                <SelectValue placeholder="Ansprechpartner auswählen (optional)" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="__none__">Kein Ansprechpartner</SelectItem>
+                              {contacts?.map((contact) => (
+                                <SelectItem key={contact.id} value={contact.id}>
+                                  {contact.firstName} {contact.lastName}
+                                  {contact.position && ` - ${contact.position}`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div>
+                      <Label className="text-sm flex items-center gap-2">
+                        <Package className="w-4 h-4" />
+                        Assets des Kunden
+                      </Label>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {assets && assets.length > 0 ? (
+                          assets.map((asset) => {
+                            const isSelected = form.watch("assetIds")?.includes(asset.id);
+                            return (
+                              <Button
+                                key={asset.id}
+                                type="button"
+                                variant={isSelected ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => {
+                                  const current = form.getValues("assetIds") || [];
+                                  if (isSelected) {
+                                    form.setValue("assetIds", current.filter((id) => id !== asset.id));
+                                  } else {
+                                    form.setValue("assetIds", [...current, asset.id]);
+                                  }
+                                }}
+                                data-testid={`button-asset-${asset.id}`}
+                              >
+                                {asset.assetNumber} - {asset.name}
+                              </Button>
+                            );
+                          })
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            Keine Assets für diesen Kunden verfügbar
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Grunddaten</CardTitle>
@@ -361,7 +528,10 @@ export default function TicketFormPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Zuweisung</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Zuweisung
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>

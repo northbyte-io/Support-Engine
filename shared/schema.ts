@@ -813,6 +813,7 @@ export const assets = pgTable("assets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tenantId: varchar("tenant_id").references(() => tenants.id),
   categoryId: varchar("category_id").references(() => assetCategories.id),
+  customerId: varchar("customer_id"), // Customer assignment for filtering
   assetNumber: text("asset_number").notNull(),
   name: text("name").notNull(),
   description: text("description"),

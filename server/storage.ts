@@ -335,7 +335,7 @@ export interface IStorage {
   deleteAssetCategory(id: string, tenantId: string): Promise<void>;
 
   // Assets
-  getAssets(tenantId: string, params?: { assetType?: string; status?: string; categoryId?: string; assignedToId?: string; search?: string }): Promise<AssetWithRelations[]>;
+  getAssets(tenantId: string, params?: { assetType?: string; status?: string; categoryId?: string; assignedToId?: string; customerId?: string; search?: string }): Promise<AssetWithRelations[]>;
   getAsset(id: string, tenantId: string): Promise<AssetWithRelations | undefined>;
   createAsset(asset: InsertAsset, tenantId: string): Promise<Asset>;
   updateAsset(id: string, updates: Partial<InsertAsset>, tenantId: string): Promise<Asset | undefined>;
@@ -1654,7 +1654,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Assets
-  async getAssets(tenantId: string, params?: { assetType?: string; status?: string; categoryId?: string; assignedToId?: string; search?: string }): Promise<AssetWithRelations[]> {
+  async getAssets(tenantId: string, params?: { assetType?: string; status?: string; categoryId?: string; assignedToId?: string; customerId?: string; search?: string }): Promise<AssetWithRelations[]> {
     let baseQuery = db.select().from(assets).where(eq(assets.tenantId, tenantId));
 
     const conditions: any[] = [eq(assets.tenantId, tenantId)];
@@ -1670,6 +1670,9 @@ export class DatabaseStorage implements IStorage {
     }
     if (params?.assignedToId) {
       conditions.push(eq(assets.assignedToId, params.assignedToId));
+    }
+    if (params?.customerId) {
+      conditions.push(eq(assets.customerId, params.customerId));
     }
     if (params?.search) {
       conditions.push(
