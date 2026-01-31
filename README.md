@@ -1140,6 +1140,6 @@ Die Anleitung enthält:
 
 **Entwickelt mit ❤️ für professionelles Helpdesk-Management**
 
-📦 Version: 0.2.0 | 📅 Stand: Januar 2026 | 📜 AGPL-3.0
+📦 Version: 0.1.1 | 📅 Stand: Januar 2026 | 📜 AGPL-3.0
 
 </div>
