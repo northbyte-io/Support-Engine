@@ -723,6 +723,189 @@ export async function registerRoutes(
     }
   });
 
+  // Time Tracking - Active Timers
+  app.get("/api/timers", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const timers = await storage.getActiveTimers(req.user!.id, req.tenantId!);
+      res.json(timers);
+    } catch (error) {
+      console.error("Get timers error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.get("/api/tickets/:id/timer", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const timer = await storage.getActiveTimer(req.params.id, req.user!.id, req.tenantId!);
+      res.json(timer || null);
+    } catch (error) {
+      console.error("Get timer error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/tickets/:id/timer/start", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const ticket = await storage.getTicket(req.params.id);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket nicht gefunden" });
+      }
+      if (ticket.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      const timer = await storage.startTimer(req.params.id, req.user!.id, req.tenantId!);
+      logger.info("ticket", "Timer gestartet", `Timer für Ticket ${ticket.ticketNumber} gestartet`, {
+        ticketId: req.params.id,
+        userId: req.user!.id,
+      });
+      res.status(201).json(timer);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("läuft bereits")) {
+        return res.status(400).json({ message: error.message });
+      }
+      console.error("Start timer error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/tickets/:id/timer/pause", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const timer = await storage.pauseTimer(req.params.id, req.user!.id, req.tenantId!);
+      if (!timer) {
+        return res.status(404).json({ message: "Timer nicht gefunden" });
+      }
+      res.json(timer);
+    } catch (error) {
+      console.error("Pause timer error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/tickets/:id/timer/resume", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const timer = await storage.resumeTimer(req.params.id, req.user!.id, req.tenantId!);
+      if (!timer) {
+        return res.status(404).json({ message: "Timer nicht gefunden" });
+      }
+      res.json(timer);
+    } catch (error) {
+      console.error("Resume timer error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/tickets/:id/timer/stop", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const result = await storage.stopTimer(req.params.id, req.user!.id, req.tenantId!);
+      if (!result) {
+        return res.status(404).json({ message: "Timer nicht gefunden" });
+      }
+      const ticket = await storage.getTicket(req.params.id);
+      logger.info("ticket", "Timer gestoppt", `Timer für Ticket ${ticket?.ticketNumber || req.params.id} gestoppt`, {
+        ticketId: req.params.id,
+        userId: req.user!.id,
+        durationMs: result.durationMs,
+      });
+      res.json({
+        timer: result.timer,
+        durationMs: result.durationMs,
+        durationMinutes: Math.round(result.durationMs / 60000),
+      });
+    } catch (error) {
+      console.error("Stop timer error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/tickets/:id/timer", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.deleteTimer(req.params.id, req.user!.id, req.tenantId!);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete timer error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Time Tracking - Work Entries
+  app.get("/api/tickets/:id/work-entries", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const ticket = await storage.getTicket(req.params.id);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket nicht gefunden" });
+      }
+      if (ticket.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      const entries = await storage.getWorkEntries(req.params.id, req.tenantId!);
+      res.json(entries);
+    } catch (error) {
+      console.error("Get work entries error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.post("/api/tickets/:id/work-entries", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const ticket = await storage.getTicket(req.params.id);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket nicht gefunden" });
+      }
+      if (ticket.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      
+      const { description, startTime, endTime, durationMinutes, pausedMinutes, isBillable } = req.body;
+      
+      const entry = await storage.createWorkEntry({
+        ticketId: req.params.id,
+        userId: req.user!.id,
+        tenantId: req.tenantId!,
+        description,
+        startTime: new Date(startTime),
+        endTime: new Date(endTime),
+        durationMinutes,
+        pausedMinutes: pausedMinutes || 0,
+        isBillable: isBillable !== false,
+      });
+      
+      logger.info("ticket", "Arbeitseintrag erstellt", `Arbeitseintrag für Ticket ${ticket.ticketNumber} erstellt (${durationMinutes} min)`, {
+        ticketId: req.params.id,
+        userId: req.user!.id,
+        durationMinutes,
+      });
+      
+      res.status(201).json(entry);
+    } catch (error) {
+      console.error("Create work entry error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.patch("/api/work-entries/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { description, isBillable } = req.body;
+      const entry = await storage.updateWorkEntry(req.params.id, { description, isBillable }, req.tenantId!);
+      if (!entry) {
+        return res.status(404).json({ message: "Arbeitseintrag nicht gefunden" });
+      }
+      res.json(entry);
+    } catch (error) {
+      console.error("Update work entry error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  app.delete("/api/work-entries/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.deleteWorkEntry(req.params.id, req.tenantId!);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete work entry error:", error);
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
   // Ticket Types
   app.get("/api/ticket-types", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {

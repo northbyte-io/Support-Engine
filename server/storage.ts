@@ -165,6 +165,13 @@ import {
   type EmailProcessingRule,
   type InsertEmailProcessingRule,
   type UpdateEmailProcessingRule,
+  activeTimers,
+  workEntries,
+  type ActiveTimer,
+  type InsertActiveTimer,
+  type WorkEntry,
+  type InsertWorkEntry,
+  type ActiveTimerWithTicket,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, ilike, or, count, gt, lt } from "drizzle-orm";
@@ -477,6 +484,22 @@ export interface IStorage {
   createEmailProcessingRule(rule: InsertEmailProcessingRule): Promise<EmailProcessingRule>;
   updateEmailProcessingRule(id: string, updates: UpdateEmailProcessingRule, tenantId: string): Promise<EmailProcessingRule | undefined>;
   deleteEmailProcessingRule(id: string, tenantId: string): Promise<void>;
+
+  // Time Tracking - Active Timers
+  getActiveTimers(userId: string, tenantId: string): Promise<ActiveTimerWithTicket[]>;
+  getActiveTimer(ticketId: string, userId: string, tenantId: string): Promise<ActiveTimer | undefined>;
+  startTimer(ticketId: string, userId: string, tenantId: string): Promise<ActiveTimer>;
+  pauseTimer(ticketId: string, userId: string, tenantId: string): Promise<ActiveTimer | undefined>;
+  resumeTimer(ticketId: string, userId: string, tenantId: string): Promise<ActiveTimer | undefined>;
+  stopTimer(ticketId: string, userId: string, tenantId: string): Promise<{ timer: ActiveTimer; durationMs: number } | undefined>;
+  deleteTimer(ticketId: string, userId: string, tenantId: string): Promise<void>;
+
+  // Time Tracking - Work Entries
+  getWorkEntries(ticketId: string, tenantId: string): Promise<(WorkEntry & { user?: User })[]>;
+  getWorkEntriesByUser(userId: string, tenantId: string, params?: { startDate?: Date; endDate?: Date }): Promise<(WorkEntry & { ticket?: Ticket })[]>;
+  createWorkEntry(entry: InsertWorkEntry): Promise<WorkEntry>;
+  updateWorkEntry(id: string, updates: Partial<InsertWorkEntry>, tenantId: string): Promise<WorkEntry | undefined>;
+  deleteWorkEntry(id: string, tenantId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2892,6 +2915,161 @@ export class DatabaseStorage implements IStorage {
   async deleteEmailProcessingRule(id: string, tenantId: string): Promise<void> {
     await db.delete(emailProcessingRules)
       .where(and(eq(emailProcessingRules.id, id), eq(emailProcessingRules.tenantId, tenantId)));
+  }
+
+  // Time Tracking - Active Timers
+  async getActiveTimers(userId: string, tenantId: string): Promise<ActiveTimerWithTicket[]> {
+    const timers = await db.select().from(activeTimers)
+      .where(and(eq(activeTimers.userId, userId), eq(activeTimers.tenantId, tenantId)))
+      .orderBy(desc(activeTimers.startedAt));
+    
+    const timersWithTickets: ActiveTimerWithTicket[] = [];
+    for (const timer of timers) {
+      const [ticket] = await db.select({
+        id: tickets.id,
+        ticketNumber: tickets.ticketNumber,
+        title: tickets.title,
+      }).from(tickets).where(eq(tickets.id, timer.ticketId));
+      timersWithTickets.push({ ...timer, ticket: ticket || undefined });
+    }
+    return timersWithTickets;
+  }
+
+  async getActiveTimer(ticketId: string, userId: string, tenantId: string): Promise<ActiveTimer | undefined> {
+    const [timer] = await db.select().from(activeTimers)
+      .where(and(
+        eq(activeTimers.ticketId, ticketId),
+        eq(activeTimers.userId, userId),
+        eq(activeTimers.tenantId, tenantId)
+      ));
+    return timer || undefined;
+  }
+
+  async startTimer(ticketId: string, userId: string, tenantId: string): Promise<ActiveTimer> {
+    const existingTimer = await this.getActiveTimer(ticketId, userId, tenantId);
+    if (existingTimer) {
+      throw new Error("Timer läuft bereits für dieses Ticket");
+    }
+    const [timer] = await db.insert(activeTimers).values({
+      ticketId,
+      userId,
+      tenantId,
+      startedAt: new Date(),
+      totalPausedMs: 0,
+    }).returning();
+    return timer;
+  }
+
+  async pauseTimer(ticketId: string, userId: string, tenantId: string): Promise<ActiveTimer | undefined> {
+    const timer = await this.getActiveTimer(ticketId, userId, tenantId);
+    if (!timer) return undefined;
+    if (timer.pausedAt) return timer; // Already paused
+    
+    const [updated] = await db.update(activeTimers)
+      .set({ pausedAt: new Date() })
+      .where(and(
+        eq(activeTimers.ticketId, ticketId),
+        eq(activeTimers.userId, userId),
+        eq(activeTimers.tenantId, tenantId)
+      ))
+      .returning();
+    return updated || undefined;
+  }
+
+  async resumeTimer(ticketId: string, userId: string, tenantId: string): Promise<ActiveTimer | undefined> {
+    const timer = await this.getActiveTimer(ticketId, userId, tenantId);
+    if (!timer || !timer.pausedAt) return timer;
+    
+    const pausedDuration = new Date().getTime() - timer.pausedAt.getTime();
+    const newTotalPausedMs = (timer.totalPausedMs || 0) + pausedDuration;
+    
+    const [updated] = await db.update(activeTimers)
+      .set({ pausedAt: null, totalPausedMs: newTotalPausedMs })
+      .where(and(
+        eq(activeTimers.ticketId, ticketId),
+        eq(activeTimers.userId, userId),
+        eq(activeTimers.tenantId, tenantId)
+      ))
+      .returning();
+    return updated || undefined;
+  }
+
+  async stopTimer(ticketId: string, userId: string, tenantId: string): Promise<{ timer: ActiveTimer; durationMs: number } | undefined> {
+    const timer = await this.getActiveTimer(ticketId, userId, tenantId);
+    if (!timer) return undefined;
+    
+    const now = new Date();
+    let totalPausedMs = timer.totalPausedMs || 0;
+    
+    // If currently paused, add remaining pause time
+    if (timer.pausedAt) {
+      totalPausedMs += now.getTime() - timer.pausedAt.getTime();
+    }
+    
+    const totalTimeMs = now.getTime() - timer.startedAt.getTime();
+    const workDurationMs = totalTimeMs - totalPausedMs;
+    
+    // Delete the timer
+    await this.deleteTimer(ticketId, userId, tenantId);
+    
+    return { timer: { ...timer, totalPausedMs }, durationMs: workDurationMs };
+  }
+
+  async deleteTimer(ticketId: string, userId: string, tenantId: string): Promise<void> {
+    await db.delete(activeTimers)
+      .where(and(
+        eq(activeTimers.ticketId, ticketId),
+        eq(activeTimers.userId, userId),
+        eq(activeTimers.tenantId, tenantId)
+      ));
+  }
+
+  // Time Tracking - Work Entries
+  async getWorkEntries(ticketId: string, tenantId: string): Promise<(WorkEntry & { user?: User })[]> {
+    const entries = await db.select().from(workEntries)
+      .where(and(eq(workEntries.ticketId, ticketId), eq(workEntries.tenantId, tenantId)))
+      .orderBy(desc(workEntries.startTime));
+    
+    const entriesWithUsers: (WorkEntry & { user?: User })[] = [];
+    for (const entry of entries) {
+      const [user] = await db.select().from(users).where(eq(users.id, entry.userId));
+      entriesWithUsers.push({ ...entry, user: user || undefined });
+    }
+    return entriesWithUsers;
+  }
+
+  async getWorkEntriesByUser(userId: string, tenantId: string, params?: { startDate?: Date; endDate?: Date }): Promise<(WorkEntry & { ticket?: Ticket })[]> {
+    let query = db.select().from(workEntries)
+      .where(and(eq(workEntries.userId, userId), eq(workEntries.tenantId, tenantId)));
+    
+    const entries = await query.orderBy(desc(workEntries.startTime));
+    
+    const entriesWithTickets: (WorkEntry & { ticket?: Ticket })[] = [];
+    for (const entry of entries) {
+      const [ticket] = await db.select().from(tickets).where(eq(tickets.id, entry.ticketId));
+      if (params?.startDate && entry.startTime < params.startDate) continue;
+      if (params?.endDate && entry.startTime > params.endDate) continue;
+      entriesWithTickets.push({ ...entry, ticket: ticket || undefined });
+    }
+    return entriesWithTickets;
+  }
+
+  async createWorkEntry(entry: InsertWorkEntry): Promise<WorkEntry> {
+    const [result] = await db.insert(workEntries).values(entry).returning();
+    return result;
+  }
+
+  async updateWorkEntry(id: string, updates: Partial<InsertWorkEntry>, tenantId: string): Promise<WorkEntry | undefined> {
+    const [result] = await db.update(workEntries)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(workEntries.id, id), eq(workEntries.tenantId, tenantId)))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteWorkEntry(id: string, tenantId: string): Promise<void> {
+    await db.delete(workEntries)
+      .where(and(eq(workEntries.id, id), eq(workEntries.tenantId, tenantId)));
   }
 }
 

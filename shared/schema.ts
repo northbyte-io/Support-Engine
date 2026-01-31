@@ -1521,6 +1521,55 @@ export type ExchangeMailboxWithRules = ExchangeMailbox & {
   configuration?: ExchangeConfiguration;
 };
 
+// Time Tracking - Active Timers (laufende Timer)
+export const activeTimers = pgTable("active_timers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: varchar("ticket_id").references(() => tickets.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  startedAt: timestamp("started_at").notNull(),
+  pausedAt: timestamp("paused_at"), // Wenn gesetzt, ist der Timer pausiert
+  totalPausedMs: integer("total_paused_ms").default(0), // Akkumulierte Pausenzeit in ms
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Time Tracking - Work Entries (abgeschlossene Arbeitseinträge)
+export const workEntries = pgTable("work_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: varchar("ticket_id").references(() => tickets.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  description: text("description").notNull(),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  durationMinutes: integer("duration_minutes").notNull(), // Effektive Arbeitszeit in Minuten
+  pausedMinutes: integer("paused_minutes").default(0), // Pausenzeit in Minuten
+  isBillable: boolean("is_billable").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Time Tracking Insert Schemas
+export const insertActiveTimerSchema = createInsertSchema(activeTimers).omit({ id: true, createdAt: true });
+export const insertWorkEntrySchema = createInsertSchema(workEntries).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateWorkEntrySchema = insertWorkEntrySchema.partial();
+
+// Time Tracking Types
+export type ActiveTimer = typeof activeTimers.$inferSelect;
+export type InsertActiveTimer = z.infer<typeof insertActiveTimerSchema>;
+export type WorkEntry = typeof workEntries.$inferSelect;
+export type InsertWorkEntry = z.infer<typeof insertWorkEntrySchema>;
+export type UpdateWorkEntry = z.infer<typeof updateWorkEntrySchema>;
+
+// Extended Timer Type with ticket info for UI
+export type ActiveTimerWithTicket = ActiveTimer & {
+  ticket?: {
+    id: string;
+    ticketNumber: string;
+    title: string;
+  };
+};
+
 // Auth schemas
 export const loginSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
