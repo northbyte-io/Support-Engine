@@ -108,8 +108,8 @@ export default function TimeTrackingPage() {
 
   const buildQueryParams = () => {
     const params = new URLSearchParams();
-    if (filterTicketId) params.append("ticketId", filterTicketId);
-    if (filterUserId) params.append("userId", filterUserId);
+    if (filterTicketId && filterTicketId !== "__all__") params.append("ticketId", filterTicketId);
+    if (filterUserId && filterUserId !== "__all__") params.append("userId", filterUserId);
     if (filterStartDate) params.append("startDate", filterStartDate);
     if (filterEndDate) params.append("endDate", filterEndDate);
     return params.toString();
@@ -152,7 +152,7 @@ export default function TimeTrackingPage() {
     mutationFn: async (data: TimeEntryFormData) => {
       return apiRequest("POST", "/api/time-entries", {
         ...data,
-        ticketId: data.ticketId || null,
+        ticketId: data.ticketId && data.ticketId !== "__none__" ? data.ticketId : null,
         hourlyRate: data.hourlyRate ? data.hourlyRate * 100 : null,
       });
     },
@@ -171,7 +171,7 @@ export default function TimeTrackingPage() {
     mutationFn: async ({ id, data }: { id: string; data: TimeEntryFormData }) => {
       return apiRequest("PATCH", `/api/time-entries/${id}`, {
         ...data,
-        ticketId: data.ticketId || null,
+        ticketId: data.ticketId && data.ticketId !== "__none__" ? data.ticketId : null,
         hourlyRate: data.hourlyRate ? data.hourlyRate * 100 : null,
       });
     },
@@ -276,12 +276,12 @@ export default function TimeTrackingPage() {
             </div>
             <div>
               <label className="text-sm text-muted-foreground mb-1 block">Ticket</label>
-              <Select value={filterTicketId} onValueChange={setFilterTicketId}>
+              <Select value={filterTicketId || "__all__"} onValueChange={(v) => setFilterTicketId(v === "__all__" ? "" : v)}>
                 <SelectTrigger data-testid="select-filter-ticket">
                   <SelectValue placeholder="Alle Tickets" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Alle Tickets</SelectItem>
+                  <SelectItem value="__all__">Alle Tickets</SelectItem>
                   {tickets.map((ticket) => (
                     <SelectItem key={ticket.id} value={ticket.id}>
                       {ticket.ticketNumber} - {ticket.title}
@@ -293,12 +293,12 @@ export default function TimeTrackingPage() {
             {isAdmin && (
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Benutzer</label>
-                <Select value={filterUserId} onValueChange={setFilterUserId}>
+                <Select value={filterUserId || "__all__"} onValueChange={(v) => setFilterUserId(v === "__all__" ? "" : v)}>
                   <SelectTrigger data-testid="select-filter-user">
                     <SelectValue placeholder="Alle Benutzer" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Alle Benutzer</SelectItem>
+                    <SelectItem value="__all__">Alle Benutzer</SelectItem>
                     {users.filter(u => u.role !== "customer").map((u) => (
                       <SelectItem key={u.id} value={u.id}>
                         {u.firstName} {u.lastName}
@@ -510,7 +510,7 @@ export default function TimeTrackingPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Kein Ticket</SelectItem>
+                        <SelectItem value="__none__">Kein Ticket</SelectItem>
                         {tickets.map((ticket) => (
                           <SelectItem key={ticket.id} value={ticket.id}>
                             {ticket.ticketNumber} - {ticket.title}
