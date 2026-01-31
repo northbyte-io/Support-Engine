@@ -485,6 +485,32 @@ export default function TicketDetailPage() {
                             key={attachment.id}
                             className="flex items-center gap-3 p-3 rounded-lg border hover-elevate cursor-pointer"
                             data-testid={`attachment-${attachment.id}`}
+                            onClick={async () => {
+                              try {
+                                const response = await fetch(`/api/attachments/${attachment.id}/download`, {
+                                  credentials: 'include'
+                                });
+                                if (!response.ok) {
+                                  throw new Error('Download fehlgeschlagen');
+                                }
+                                const blob = await response.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = attachment.fileName;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                window.URL.revokeObjectURL(url);
+                              } catch (error) {
+                                console.error('Download-Fehler:', error);
+                                toast({
+                                  title: "Download fehlgeschlagen",
+                                  description: "Die Datei konnte nicht heruntergeladen werden.",
+                                  variant: "destructive"
+                                });
+                              }
+                            }}
                           >
                             <FileText className="w-8 h-8 text-muted-foreground" />
                             <div className="min-w-0 flex-1">
