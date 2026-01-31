@@ -103,32 +103,12 @@ export default function TicketFormPage() {
   const selectedCustomerId = form.watch("customerId");
 
   const { data: contacts } = useQuery<Contact[]>({
-    queryKey: ["/api/contacts", { customerId: selectedCustomerId }],
-    queryFn: async () => {
-      if (!selectedCustomerId) return [];
-      const response = await fetch(`/api/contacts?customerId=${selectedCustomerId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      if (!response.ok) throw new Error("Fehler beim Laden der Kontakte");
-      return response.json();
-    },
+    queryKey: [`/api/contacts?customerId=${selectedCustomerId}`],
     enabled: !!selectedCustomerId,
   });
 
   const { data: assets } = useQuery<Asset[]>({
-    queryKey: ["/api/assets", { customerId: selectedCustomerId }],
-    queryFn: async () => {
-      if (!selectedCustomerId) return [];
-      const response = await fetch(`/api/assets?customerId=${selectedCustomerId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      if (!response.ok) throw new Error("Fehler beim Laden der Assets");
-      return response.json();
-    },
+    queryKey: [`/api/assets?customerId=${selectedCustomerId}`],
     enabled: !!selectedCustomerId,
   });
 

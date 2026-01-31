@@ -146,6 +146,141 @@ async function seedDefaultData() {
       }
     }
 
+    // Create sample customers
+    const existingCustomers = await storage.getCustomers(defaultTenant.id);
+    if (existingCustomers.length === 0) {
+      const customerData = [
+        { 
+          customerNumber: "KD-00001", 
+          name: "Mustermann GmbH", 
+          email: "kontakt@mustermann.de",
+          phone: "+49 30 1234567",
+          address: "Musterstraße 123",
+          city: "Berlin",
+          postalCode: "10115",
+          country: "Deutschland",
+          tenantId: defaultTenant.id
+        },
+        { 
+          customerNumber: "KD-00002", 
+          name: "Beispiel AG", 
+          email: "info@beispiel-ag.de",
+          phone: "+49 89 9876543",
+          address: "Beispielweg 45",
+          city: "München",
+          postalCode: "80331",
+          country: "Deutschland",
+          tenantId: defaultTenant.id
+        },
+        { 
+          customerNumber: "KD-00003", 
+          name: "Schmidt & Partner", 
+          email: "kontakt@schmidt-partner.de",
+          phone: "+49 40 5555555",
+          address: "Partnerplatz 7",
+          city: "Hamburg",
+          postalCode: "20095",
+          country: "Deutschland",
+          tenantId: defaultTenant.id
+        }
+      ];
+
+      for (const data of customerData) {
+        await storage.createCustomer(data, defaultTenant.id);
+      }
+    }
+
+    // Create sample contacts for customers
+    const customers = await storage.getCustomers(defaultTenant.id);
+    const existingContacts = await storage.getContacts(defaultTenant.id);
+    if (existingContacts.length === 0 && customers.length > 0) {
+      const contactData = [
+        { 
+          firstName: "Hans", 
+          lastName: "Müller",
+          email: "h.mueller@mustermann.de",
+          phone: "+49 30 1234568",
+          position: "IT-Leiter",
+          department: "IT",
+          customerId: customers[0].id,
+          tenantId: defaultTenant.id
+        },
+        { 
+          firstName: "Petra", 
+          lastName: "Weber",
+          email: "p.weber@mustermann.de",
+          phone: "+49 30 1234569",
+          position: "Assistenz",
+          department: "Verwaltung",
+          customerId: customers[0].id,
+          tenantId: defaultTenant.id
+        },
+        { 
+          firstName: "Thomas", 
+          lastName: "Fischer",
+          email: "t.fischer@beispiel-ag.de",
+          phone: "+49 89 9876544",
+          position: "Geschäftsführer",
+          department: "Geschäftsleitung",
+          customerId: customers[1].id,
+          tenantId: defaultTenant.id
+        }
+      ];
+
+      for (const data of contactData) {
+        await storage.createContact(data, defaultTenant.id);
+      }
+    }
+
+    // Create sample asset categories
+    let assetCategories = await storage.getAssetCategories(defaultTenant.id);
+    if (assetCategories.length === 0) {
+      await storage.createAssetCategory({ name: "Computer", description: "PCs und Laptops", assetType: "hardware", tenantId: defaultTenant.id });
+      await storage.createAssetCategory({ name: "Drucker", description: "Drucker und Scanner", assetType: "hardware", tenantId: defaultTenant.id });
+      await storage.createAssetCategory({ name: "Software", description: "Software-Lizenzen", assetType: "software", tenantId: defaultTenant.id });
+      assetCategories = await storage.getAssetCategories(defaultTenant.id);
+    }
+
+    // Create sample assets for customers
+    const existingAssets = await storage.getAssets(defaultTenant.id);
+    if (existingAssets.length === 0 && customers.length > 0 && assetCategories.length > 0) {
+      const assetData = [
+        {
+          assetNumber: "AST-00001",
+          name: "Dell Latitude 5540",
+          assetType: "hardware" as const,
+          assetStatus: "active" as const,
+          serialNumber: "DELL-1234567890",
+          categoryId: assetCategories[0].id,
+          customerId: customers[0].id,
+          tenantId: defaultTenant.id
+        },
+        {
+          assetNumber: "AST-00002",
+          name: "HP LaserJet Pro",
+          assetType: "hardware" as const,
+          assetStatus: "active" as const,
+          serialNumber: "HP-9876543210",
+          categoryId: assetCategories[1].id,
+          customerId: customers[0].id,
+          tenantId: defaultTenant.id
+        },
+        {
+          assetNumber: "AST-00003",
+          name: "Microsoft Office 365",
+          assetType: "software" as const,
+          assetStatus: "active" as const,
+          categoryId: assetCategories[2].id,
+          customerId: customers[1].id,
+          tenantId: defaultTenant.id
+        }
+      ];
+
+      for (const data of assetData) {
+        await storage.createAsset(data, defaultTenant.id);
+      }
+    }
+
     console.log("Demo-Daten erfolgreich erstellt");
   } catch (error) {
     console.error("Fehler beim Erstellen der Demo-Daten:", error);

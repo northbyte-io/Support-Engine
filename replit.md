@@ -22,6 +22,8 @@ Preferred communication style: Simple, everyday language (German).
 - **December 2024**: Auto-generated customer numbers (KD-XXXXX format)
 - **January 2026**: Added Exchange Online integration with Microsoft Graph API support
 - **January 2026**: Enhanced Exchange integration: editable mailbox settings, fetchUnreadOnly toggle, .eml attachments on imported tickets
+- **January 2026**: Added customer/contact/asset assignment to ticket form (required customer selection, optional contact and asset assignment)
+- **January 2026**: Added TipTap rich text editor for ticket descriptions and knowledge base articles with full formatting toolbar
 
 ## System Architecture
 
