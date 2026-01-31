@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { MainLayout } from "@/components/MainLayout";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -313,13 +314,10 @@ export default function AssetsPage() {
   }
 
   return (
-    <div className="flex h-full">
-      <div className="flex-1 p-6 overflow-auto">
-        <div className="flex items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold">Asset-Management</h1>
-            <p className="text-muted-foreground">Verwalten Sie Hardware, Software, Lizenzen und Verträge</p>
-          </div>
+    <MainLayout title="Asset-Management">
+      <div className="flex h-full">
+        <div className="flex-1 p-6 overflow-auto">
+          <div className="flex items-center justify-end gap-4 mb-6">
           <div className="flex items-center gap-2">
             <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
               <DialogTrigger asChild>
@@ -979,6 +977,7 @@ export default function AssetsPage() {
           </Tabs>
         </div>
       )}
-    </div>
+      </div>
+    </MainLayout>
   );
 }

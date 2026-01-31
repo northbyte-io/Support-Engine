@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { MainLayout } from "@/components/MainLayout";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -234,17 +235,16 @@ export default function TimeTrackingPage() {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between gap-4 p-4 border-b">
-        <div className="flex items-center gap-2">
-          <Timer className="w-5 h-5" />
-          <h1 className="text-xl font-semibold">Zeiterfassung</h1>
-        </div>
+    <MainLayout
+      title="Zeiterfassung"
+      actions={
         <Button onClick={() => openDialog()} data-testid="button-new-time-entry">
           <Plus className="w-4 h-4 mr-2" />
           Zeit erfassen
         </Button>
-      </div>
+      }
+    >
+      <div className="flex flex-col h-full">
 
       <div className="flex flex-1 overflow-hidden">
         <div className="w-64 border-r p-4 space-y-4 overflow-y-auto">
@@ -600,6 +600,7 @@ export default function TimeTrackingPage() {
           </Form>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </MainLayout>
   );
 }

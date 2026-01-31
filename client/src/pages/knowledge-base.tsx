@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { MainLayout } from "@/components/MainLayout";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
@@ -320,15 +321,10 @@ export default function KnowledgeBase() {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between gap-4 p-4 border-b">
-        <div>
-          <h1 className="text-2xl font-bold">Wissensdatenbank</h1>
-          <p className="text-muted-foreground">
-            Artikel und Dokumentation verwalten
-          </p>
-        </div>
-        {isAgent && (
+    <MainLayout
+      title="Wissensdatenbank"
+      actions={
+        isAgent ? (
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -346,9 +342,9 @@ export default function KnowledgeBase() {
               Neuer Artikel
             </Button>
           </div>
-        )}
-      </div>
-
+        ) : undefined
+      }
+    >
       <div className="flex flex-1 overflow-hidden">
         <div className="w-64 border-r p-4 flex flex-col gap-4">
           <div className="relative">
@@ -819,6 +815,6 @@ export default function KnowledgeBase() {
           </Form>
         </DialogContent>
       </Dialog>
-    </div>
+    </MainLayout>
   );
 }
