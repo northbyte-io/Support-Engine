@@ -7,7 +7,7 @@ import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
 import Highlight from "@tiptap/extension-highlight";
 import Typography from "@tiptap/extension-typography";
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Bold,
@@ -42,7 +42,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface TipTapEditorProps {
@@ -51,6 +50,7 @@ interface TipTapEditorProps {
   placeholder?: string;
   className?: string;
   minHeight?: string;
+  "data-testid"?: string;
 }
 
 export function TipTapEditor({
@@ -59,6 +59,7 @@ export function TipTapEditor({
   placeholder = "Schreiben Sie hier...",
   className,
   minHeight = "200px",
+  "data-testid": testId,
 }: TipTapEditorProps) {
   const [linkUrl, setLinkUrl] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -154,7 +155,7 @@ export function TipTapEditor({
     isActive?: boolean;
     disabled?: boolean;
     tooltip: string;
-    children: React.ReactNode;
+    children: ReactNode;
   }) => (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -176,7 +177,7 @@ export function TipTapEditor({
   );
 
   return (
-    <div className={cn("border rounded-md overflow-hidden", className)}>
+    <div className={cn("border rounded-md overflow-hidden", className)} data-testid={testId}>
       <div className="flex flex-wrap items-center gap-0.5 p-1 border-b bg-muted/30">
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}

@@ -5,12 +5,14 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import DOMPurify from "dompurify";
 import { useAuth } from "@/lib/auth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { TipTapEditor } from "@/components/TipTapEditor";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -462,7 +464,7 @@ export default function KnowledgeBase() {
                 <CardContent>
                   <div 
                     className="prose dark:prose-invert max-w-none"
-                    dangerouslySetInnerHTML={{ __html: viewingArticle.content }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(viewingArticle.content) }}
                   />
                   {isAgent && (
                     <div className="flex items-center gap-2 mt-6 pt-6 border-t">
