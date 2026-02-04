@@ -66,7 +66,7 @@ function CustomerRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   return <>{children}</>;
 }
 
-function AgentRoute({ children }: { children: React.ReactNode }) {
+function AgentRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
@@ -84,7 +84,7 @@ function AgentRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function AdminRoute({ children }: { children: React.ReactNode }) {
+function AdminRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
