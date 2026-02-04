@@ -36,7 +36,6 @@ import ExchangeIntegrationPage from "@/pages/exchange-integration";
 
 function ProtectedRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { isAuthenticated, isLoading } = useAuth();
-  const [, setLocation] = useLocation();
 
   if (isLoading) {
     return <LoadingPage message="Wird geladen..." />;
