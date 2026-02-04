@@ -34,7 +34,7 @@ import BrandingPage from "@/pages/branding";
 import TlsCertificatesPage from "@/pages/tls-certificates";
 import ExchangeIntegrationPage from "@/pages/exchange-integration";
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { isAuthenticated, isLoading } = useAuth();
   const [, setLocation] = useLocation();
 
