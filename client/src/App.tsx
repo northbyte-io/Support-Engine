@@ -48,7 +48,7 @@ function ProtectedRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   return <>{children}</>;
 }
 
-function CustomerRoute({ children }: { children: React.ReactNode }) {
+function CustomerRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
