@@ -19,7 +19,7 @@ export function EmptyState({
   description,
   action,
   className,
-}: EmptyStateProps) {
+}: Readonly<EmptyStateProps>) {
   return (
     <div
       className={cn(
@@ -44,7 +44,7 @@ export function EmptyState({
   );
 }
 
-export function NoTicketsEmpty({ onCreateTicket }: { onCreateTicket: () => void }) {
+export function NoTicketsEmpty({ onCreateTicket }: Readonly<{ onCreateTicket: () => void }>) {
   return (
     <EmptyState
       icon={Ticket}
@@ -58,7 +58,7 @@ export function NoTicketsEmpty({ onCreateTicket }: { onCreateTicket: () => void 
   );
 }
 
-export function NoSearchResultsEmpty({ onClear }: { onClear: () => void }) {
+export function NoSearchResultsEmpty({ onClear }: Readonly<{ onClear: () => void }>) {
   return (
     <EmptyState
       icon={Search}
@@ -82,7 +82,7 @@ export function NoCommentsEmpty() {
   );
 }
 
-export function NoUsersEmpty({ onCreateUser }: { onCreateUser: () => void }) {
+export function NoUsersEmpty({ onCreateUser }: Readonly<{ onCreateUser: () => void }>) {
   return (
     <EmptyState
       icon={Users}
