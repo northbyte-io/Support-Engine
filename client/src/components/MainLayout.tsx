@@ -11,7 +11,11 @@ interface MainLayoutProps {
   actions?: React.ReactNode;
 }
 
-export function MainLayout({ children, title, actions }: MainLayoutProps) {
+export function MainLayout({
+  children,
+  title,
+  actions,
+}: Readonly<MainLayoutProps>) {
   const style = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
@@ -26,7 +30,10 @@ export function MainLayout({ children, title, actions }: MainLayoutProps) {
             <div className="flex items-center gap-4">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               {title && (
-                <h1 className="text-lg font-semibold" data-testid="text-page-title">
+                <h1
+                  className="text-lg font-semibold"
+                  data-testid="text-page-title"
+                >
                   {title}
                 </h1>
               )}
@@ -38,16 +45,14 @@ export function MainLayout({ children, title, actions }: MainLayoutProps) {
               <ThemeToggle />
             </div>
           </header>
-          <main className="flex-1 overflow-auto p-6">
-            {children}
-          </main>
+          <main className="flex-1 overflow-auto p-6">{children}</main>
           <footer className="flex items-center justify-center gap-2 px-4 py-2 border-t bg-muted/30 text-xs text-muted-foreground">
             <Scale className="h-3 w-3" />
             <span>AGPL-3.0</span>
             <span>|</span>
-            <a 
-              href="/api/license" 
-              target="_blank" 
+            <a
+              href="/api/license"
+              target="_blank"
               rel="noopener noreferrer"
               className="hover:underline"
               data-testid="link-license"
@@ -55,9 +60,9 @@ export function MainLayout({ children, title, actions }: MainLayoutProps) {
               Lizenz
             </a>
             <span>|</span>
-            <a 
-              href="/api/source" 
-              target="_blank" 
+            <a
+              href="/api/source"
+              target="_blank"
               rel="noopener noreferrer"
               className="hover:underline"
               data-testid="link-source"
