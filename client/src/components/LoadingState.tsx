@@ -7,7 +7,7 @@ interface LoadingSpinnerProps {
   size?: "sm" | "md" | "lg";
 }
 
-export function LoadingSpinner({ className, size = "md" }: LoadingSpinnerProps) {
+export function LoadingSpinner({ className, size = "md" }: Readonly<LoadingSpinnerProps>) {
   const sizeClasses = {
     sm: "h-4 w-4",
     md: "h-6 w-6",
@@ -26,7 +26,7 @@ interface LoadingPageProps {
   message?: string;
 }
 
-export function LoadingPage({ message = "Laden..." }: LoadingPageProps) {
+export function LoadingPage({ message = "Laden..." }: Readonly<LoadingPageProps>) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
       <LoadingSpinner size="lg" />
@@ -57,7 +57,7 @@ export function TicketCardSkeleton() {
   );
 }
 
-export function TicketListSkeleton({ count = 5 }: { count?: number }) {
+export function TicketListSkeleton({ count = 5 }: Readonly<{ count?: number }>) {
   return (
     <div className="space-y-3">
       {Array.from({ length: count }).map((_, i) => (
