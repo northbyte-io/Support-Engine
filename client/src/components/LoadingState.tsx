@@ -1,13 +1,17 @@
 import { Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useMemo } from "react";
 
 interface LoadingSpinnerProps {
   className?: string;
   size?: "sm" | "md" | "lg";
 }
 
-export function LoadingSpinner({ className, size = "md" }: Readonly<LoadingSpinnerProps>) {
+export function LoadingSpinner({
+  className,
+  size = "md",
+}: Readonly<LoadingSpinnerProps>) {
   const sizeClasses = {
     sm: "h-4 w-4",
     md: "h-6 w-6",
@@ -16,7 +20,11 @@ export function LoadingSpinner({ className, size = "md" }: Readonly<LoadingSpinn
 
   return (
     <Loader2
-      className={cn("animate-spin text-muted-foreground", sizeClasses[size], className)}
+      className={cn(
+        "animate-spin text-muted-foreground",
+        sizeClasses[size],
+        className,
+      )}
       data-testid="loading-spinner"
     />
   );
@@ -26,7 +34,9 @@ interface LoadingPageProps {
   message?: string;
 }
 
-export function LoadingPage({ message = "Laden..." }: Readonly<LoadingPageProps>) {
+export function LoadingPage({
+  message = "Laden...",
+}: Readonly<LoadingPageProps>) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
       <LoadingSpinner size="lg" />
@@ -57,11 +67,18 @@ export function TicketCardSkeleton() {
   );
 }
 
-export function TicketListSkeleton({ count = 5 }: Readonly<{ count?: number }>) {
+export function TicketListSkeleton({
+  count = 5,
+}: Readonly<{ count?: number }>) {
+  const keys = useMemo(
+    () => Array.from({ length: count }, () => crypto.randomUUID()),
+    [count],
+  );
+
   return (
     <div className="space-y-3">
-      {Array.from({ length: count }).map((_, i) => (
-        <TicketCardSkeleton key={i} />
+      {keys.map((key) => (
+        <TicketCardSkeleton key={key} />
       ))}
     </div>
   );
@@ -78,22 +95,34 @@ export function DashboardCardSkeleton() {
 }
 
 export function DashboardSkeleton() {
+  const dashboardCardKeys = useMemo(
+    () => Array.from({ length: 4 }, () => crypto.randomUUID()),
+    [],
+  );
+
+  const ticketCardKeys = useMemo(
+    () => Array.from({ length: 5 }, () => crypto.randomUUID()),
+    [],
+  );
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <DashboardCardSkeleton key={i} />
+        {dashboardCardKeys.map((key) => (
+          <DashboardCardSkeleton key={key} />
         ))}
       </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="border rounded-lg p-6 space-y-4">
           <Skeleton className="h-5 w-40" />
           <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <TicketCardSkeleton key={i} />
+            {ticketCardKeys.map((key) => (
+              <TicketCardSkeleton key={key} />
             ))}
           </div>
         </div>
+
         <div className="border rounded-lg p-6 space-y-4">
           <Skeleton className="h-5 w-32" />
           <Skeleton className="h-64 w-full" />
@@ -103,22 +132,50 @@ export function DashboardSkeleton() {
   );
 }
 
-export function TableSkeleton({ rows = 5, cols = 5 }: { rows?: number; cols?: number }) {
+export function TableSkeleton({
+  rows = 5,
+  cols = 5,
+}: Readonly<{
+  rows?: number;
+  cols?: number;
+}>) {
+  const colKeys = useMemo(
+    () => Array.from({ length: cols }, () => crypto.randomUUID()),
+    [cols],
+  );
+
+  const rowKeys = useMemo(
+    () => Array.from({ length: rows }, () => crypto.randomUUID()),
+    [rows],
+  );
+
+  const cellKeys = useMemo(
+    () =>
+      rowKeys.map(() =>
+        Array.from({ length: cols }, () => crypto.randomUUID()),
+      ),
+    [rowKeys, cols],
+  );
+
   return (
     <div className="border rounded-lg overflow-hidden">
-      <div className="grid gap-4 p-4 border-b bg-muted/50" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-        {Array.from({ length: cols }).map((_, i) => (
-          <Skeleton key={i} className="h-4 w-full max-w-[100px]" />
+      <div
+        className="grid gap-4 p-4 border-b bg-muted/50"
+        style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
+      >
+        {colKeys.map((key) => (
+          <Skeleton key={key} className="h-4 w-full max-w-[100px]" />
         ))}
       </div>
-      {Array.from({ length: rows }).map((_, rowIndex) => (
+
+      {rowKeys.map((rowKey, rowIndex) => (
         <div
-          key={rowIndex}
+          key={rowKey}
           className="grid gap-4 p-4 border-b last:border-0"
           style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
         >
-          {Array.from({ length: cols }).map((_, colIndex) => (
-            <Skeleton key={colIndex} className="h-4 w-full" />
+          {cellKeys[rowIndex].map((cellKey) => (
+            <Skeleton key={cellKey} className="h-4 w-full" />
           ))}
         </div>
       ))}
