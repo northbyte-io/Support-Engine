@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, jsonb, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, jsonb, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -56,7 +56,10 @@ export const users = pgTable("users", {
   isActive: boolean("is_active").default(true),
   lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdIdx: index("users_tenant_id_idx").on(table.tenantId),
+  tenantEmailIdx: uniqueIndex("users_tenant_email_idx").on(table.tenantId, table.email),
+}));
 
 // Ticket Types - configurable per tenant
 export const ticketTypes = pgTable("ticket_types", {
@@ -95,8 +98,8 @@ export const tickets = pgTable("tickets", {
   status: ticketStatusEnum("status").default("open"),
   priority: ticketPriorityEnum("priority").default("medium"),
   createdById: varchar("created_by_id").references(() => users.id),
-  // CRM fields - customer reference (FK handled in storage layer)
-  customerId: varchar("customer_id"),
+  // CRM fields - customer reference
+  customerId: varchar("customer_id").references(() => customers.id, { onDelete: "set null" }),
   customFieldValues: jsonb("custom_field_values"),
   dueDate: timestamp("due_date"),
   // SLA tracking fields
@@ -109,7 +112,13 @@ export const tickets = pgTable("tickets", {
   closedAt: timestamp("closed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdIdx: index("tickets_tenant_id_idx").on(table.tenantId),
+  statusIdx: index("tickets_status_idx").on(table.status),
+  priorityIdx: index("tickets_priority_idx").on(table.priority),
+  createdByIdx: index("tickets_created_by_idx").on(table.createdById),
+  customerIdx: index("tickets_customer_id_idx").on(table.customerId),
+}));
 
 // Ticket Assignees (multiple parallel assignees)
 export const ticketAssignees = pgTable("ticket_assignees", {
@@ -118,7 +127,10 @@ export const ticketAssignees = pgTable("ticket_assignees", {
   userId: varchar("user_id").references(() => users.id),
   isPrimary: boolean("is_primary").default(false),
   assignedAt: timestamp("assigned_at").defaultNow(),
-});
+}, (table) => ({
+  ticketIdIdx: index("ticket_assignees_ticket_id_idx").on(table.ticketId),
+  userIdIdx: index("ticket_assignees_user_id_idx").on(table.userId),
+}));
 
 // Ticket Watchers/Supporters
 export const ticketWatchers = pgTable("ticket_watchers", {
@@ -127,7 +139,9 @@ export const ticketWatchers = pgTable("ticket_watchers", {
   userId: varchar("user_id").references(() => users.id),
   watcherType: text("watcher_type").default("watcher"), // watcher, supporter
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  ticketIdIdx: index("ticket_watchers_ticket_id_idx").on(table.ticketId),
+}));
 
 // Comments
 export const comments = pgTable("comments", {
@@ -139,7 +153,9 @@ export const comments = pgTable("comments", {
   isNote: boolean("is_note").default(false), // true = note, false = comment
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  ticketIdIdx: index("comments_ticket_id_idx").on(table.ticketId),
+}));
 
 // Attachments
 export const attachments = pgTable("attachments", {
@@ -217,7 +233,11 @@ export const kbArticles = pgTable("kb_articles", {
   publishedAt: timestamp("published_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdIdx: index("kb_articles_tenant_id_idx").on(table.tenantId),
+  statusIdx: index("kb_articles_status_idx").on(table.status),
+  categoryIdIdx: index("kb_articles_category_id_idx").on(table.categoryId),
+}));
 
 // Knowledge Base Article Versions (for version history)
 export const kbArticleVersions = pgTable("kb_article_versions", {
@@ -253,7 +273,10 @@ export const timeEntries = pgTable("time_entries", {
   hourlyRate: integer("hourly_rate"), // In cents for precision
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  ticketIdIdx: index("time_entries_ticket_id_idx").on(table.ticketId),
+  userIdIdx: index("time_entries_user_id_idx").on(table.userId),
+}));
 
 // Areas/Departments for ticket assignment
 export const areas = pgTable("areas", {
@@ -287,7 +310,10 @@ export const notifications = pgTable("notifications", {
   isRead: boolean("is_read").default(false),
   readAt: timestamp("read_at"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  userIdIdx: index("notifications_user_id_idx").on(table.userId),
+  isReadIdx: index("notifications_is_read_idx").on(table.isRead),
+}));
 
 // Mentions in comments (tracks @mentions)
 export const mentions = pgTable("mentions", {
@@ -1388,7 +1414,10 @@ export const exchangeEmails = pgTable("exchange_emails", {
   // Import-Aktion
   direction: text("direction").default("inbound"), // inbound, outbound
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  mailboxIdIdx: index("exchange_emails_mailbox_id_idx").on(table.mailboxId),
+  messageIdIdx: index("exchange_emails_message_id_idx").on(table.messageId),
+}));
 
 // E-Mail-Verarbeitungsregeln (Filter-Bedingung und Aktion)
 export const emailProcessingRuleConditionTypeEnum = pgEnum("email_rule_condition_type", [
