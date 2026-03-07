@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import rateLimit from "express-rate-limit";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -22,6 +23,25 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+
+// Rate limiting — protect auth and expensive sync endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Zu viele Anfragen, bitte später erneut versuchen." },
+});
+app.use("/api/auth/", authLimiter);
+
+const syncLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Zu viele Sync-Anfragen, bitte später erneut versuchen." },
+});
+app.use("/api/exchange/sync", syncLimiter);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
