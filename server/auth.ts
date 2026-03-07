@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import type { Request, Response, NextFunction } from "express";
 import type { User } from "@shared/schema";
 
-const JWT_SECRET = process.env.SESSION_SECRET;
+const JWT_SECRET = process.env.SESSION_SECRET as string;
 if (!JWT_SECRET) {
   throw new Error("SESSION_SECRET environment variable is required");
 }
@@ -42,7 +42,7 @@ export async function comparePassword(password: string, hash: string): Promise<b
 
 export function verifyToken(token: string): { userId: string; email: string; role: string; tenantId: string | null } | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: string; email: string; role: string; tenantId: string | null };
+    return jwt.verify(token, JWT_SECRET) as unknown as { userId: string; email: string; role: string; tenantId: string | null };
   } catch {
     return null;
   }
