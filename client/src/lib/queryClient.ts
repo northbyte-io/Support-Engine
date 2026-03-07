@@ -95,7 +95,9 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      // 60 seconds default; override per-query for ticket details (30 s) or
+      // slow-changing config data (5 min) as needed.
+      staleTime: 60 * 1000,
       retry: false,
     },
     mutations: {
