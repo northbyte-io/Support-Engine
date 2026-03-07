@@ -131,8 +131,7 @@ async function seedDefaultData() {
           ...data,
           tenantId: defaultTenant.id,
           createdById: customerUser.id,
-          typeId: ticketTypes[0].id,
-          areaId: areasList[0].id,
+          ticketTypeId: ticketTypes[0].id,
         });
 
         // Add a comment to some tickets
@@ -141,7 +140,7 @@ async function seedDefaultData() {
             ticketId: ticket.id,
             authorId: agentUser.id,
             content: "Vielen Dank für Ihre Anfrage. Wir bearbeiten Ihr Ticket schnellstmöglich.",
-            isInternal: false,
+            visibility: "external",
           });
         }
       }
@@ -236,9 +235,9 @@ async function seedDefaultData() {
     // Create sample asset categories
     let assetCategories = await storage.getAssetCategories(defaultTenant.id);
     if (assetCategories.length === 0) {
-      await storage.createAssetCategory({ name: "Computer", description: "PCs und Laptops", assetType: "hardware", tenantId: defaultTenant.id });
-      await storage.createAssetCategory({ name: "Drucker", description: "Drucker und Scanner", assetType: "hardware", tenantId: defaultTenant.id });
-      await storage.createAssetCategory({ name: "Software", description: "Software-Lizenzen", assetType: "software", tenantId: defaultTenant.id });
+      await storage.createAssetCategory({ name: "Computer", description: "PCs und Laptops", assetType: "hardware" }, defaultTenant.id);
+      await storage.createAssetCategory({ name: "Drucker", description: "Drucker und Scanner", assetType: "hardware" }, defaultTenant.id);
+      await storage.createAssetCategory({ name: "Software", description: "Software-Lizenzen", assetType: "software" }, defaultTenant.id);
       assetCategories = await storage.getAssetCategories(defaultTenant.id);
     }
 
@@ -670,7 +669,7 @@ export async function registerRoutes(
           return res.status(404).json({ message: "Datei nicht gefunden" });
         }
         
-        buffer = Buffer.from(fileContent.value);
+        buffer = Buffer.from(fileContent.value as unknown as ArrayBuffer);
       }
       
       const safeName = attachment.fileName.replaceAll(/["\r\n]/g, "_");
@@ -783,7 +782,7 @@ export async function registerRoutes(
       }
       const timer = await storage.startTimer(req.params.id, req.user!.id, req.tenantId);
       logger.info("ticket", "Timer gestartet", `Timer für Ticket ${ticket.ticketNumber} gestartet`, {
-        ticketId: req.params.id,
+        metadata: { ticketId: req.params.id },
         userId: req.user!.id,
       });
       res.status(201).json(timer);
@@ -830,9 +829,8 @@ export async function registerRoutes(
       }
       const ticket = await storage.getTicket(req.params.id);
       logger.info("ticket", "Timer gestoppt", `Timer für Ticket ${ticket?.ticketNumber || req.params.id} gestoppt`, {
-        ticketId: req.params.id,
+        metadata: { ticketId: req.params.id, durationMs: result.durationMs },
         userId: req.user!.id,
-        durationMs: result.durationMs,
       });
       const stoppedAt = new Date();
       res.json({
@@ -900,9 +898,8 @@ export async function registerRoutes(
       });
       
       logger.info("ticket", "Arbeitseintrag erstellt", `Arbeitseintrag für Ticket ${ticket.ticketNumber} erstellt (${durationMinutes} min)`, {
-        ticketId: req.params.id,
+        metadata: { ticketId: req.params.id, durationMinutes },
         userId: req.user!.id,
-        durationMinutes,
       });
       
       res.status(201).json(entry);
@@ -3013,7 +3010,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/logs/files", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+  app.get("/api/logs/files", authMiddleware, adminMiddleware, async (_req: AuthenticatedRequest, res) => {
     try {
       const { logger } = await import("./logger");
       const files = logger.getLogFiles();
@@ -3070,7 +3067,7 @@ export async function registerRoutes(
       });
 
       // Performance log
-      logger.performance("api", "Performance-Test", 2500, {
+      logger.performance("api", "Performance-Test", "2500ms simulierte Verarbeitungszeit", {
         tenantId: req.tenantId || undefined,
         userId: req.user!.id,
         metadata: { testType: "performance", endpoint: "/api/tickets", method: "GET" },
@@ -3142,7 +3139,7 @@ export async function registerRoutes(
   // ============================================
 
   // Get TLS settings
-  app.get("/api/tls/settings", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+  app.get("/api/tls/settings", authMiddleware, adminMiddleware, async (_req: AuthenticatedRequest, res) => {
     try {
       const { tlsService } = await import("./tls-service");
       const settings = await tlsService.getSettings();
@@ -3170,7 +3167,7 @@ export async function registerRoutes(
   });
 
   // Get all certificates
-  app.get("/api/tls/certificates", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+  app.get("/api/tls/certificates", authMiddleware, adminMiddleware, async (_req: AuthenticatedRequest, res) => {
     try {
       const { tlsService } = await import("./tls-service");
       const certificates = await tlsService.getCertificates();
@@ -3328,7 +3325,7 @@ export async function registerRoutes(
   // Delete certificate
   app.delete("/api/tls/certificates/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.deleteTlsCertificate(req.params.id, req.user!.tenantId);
+      await storage.deleteTlsCertificate(req.params.id, req.user!.tenantId!);
       res.status(204).send();
     } catch (error) {
       logger.error("api", "TLS certificate delete error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -3394,7 +3391,7 @@ export async function registerRoutes(
   // Get Exchange configuration
   app.get("/api/exchange/configuration", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const config = await storage.getExchangeConfiguration(req.user!.tenantId);
+      const config = await storage.getExchangeConfiguration(req.user!.tenantId!);
       if (!config) {
         return res.json({ configured: false });
       }
@@ -3416,7 +3413,7 @@ export async function registerRoutes(
   app.post("/api/exchange/configuration", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const { ExchangeService } = await import("./exchange-service");
-      const tenantId = req.user!.tenantId;
+      const tenantId = req.user!.tenantId!;
       const { clientId, tenantAzureId, authType, clientSecret, certificatePem, certificateThumbprint, isEnabled } = req.body;
       
       let existingConfig = await storage.getExchangeConfiguration(tenantId);
@@ -3444,7 +3441,7 @@ export async function registerRoutes(
         result = await storage.updateExchangeConfiguration(tenantId, configData);
         logger.info("exchange", "Konfiguration aktualisiert", "Exchange-Konfiguration wurde aktualisiert", { userId: req.user!.id });
       } else {
-        result = await storage.createExchangeConfiguration(configData);
+        result = await storage.createExchangeConfiguration(configData as InsertExchangeConfiguration);
         logger.info("exchange", "Konfiguration erstellt", "Exchange-Konfiguration wurde erstellt", { userId: req.user!.id });
       }
       
@@ -3459,7 +3456,7 @@ export async function registerRoutes(
   app.post("/api/exchange/test-connection", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const { ExchangeService } = await import("./exchange-service");
-      const tenantId = req.user!.tenantId;
+      const tenantId = req.user!.tenantId!;
       const config = await storage.getExchangeConfiguration(tenantId);
       
       if (!config) {
@@ -3504,7 +3501,7 @@ export async function registerRoutes(
   // Get Exchange mailboxes
   app.get("/api/exchange/mailboxes", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const mailboxes = await storage.getExchangeMailboxes(req.user!.tenantId);
+      const mailboxes = await storage.getExchangeMailboxes(req.user!.tenantId!);
       res.json(mailboxes);
     } catch (error) {
       logger.error("exchange", "Fehler beim Abrufen der Postfächer", { description: String(error), cause: "Datenbankfehler", solution: "Überprüfen Sie die Datenbankverbindung" });
@@ -3515,7 +3512,7 @@ export async function registerRoutes(
   // Create Exchange mailbox
   app.post("/api/exchange/mailboxes", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const tenantId = req.user!.tenantId;
+      const tenantId = req.user!.tenantId!;
       const config = await storage.getExchangeConfiguration(tenantId);
       
       if (!config) {
@@ -3539,7 +3536,7 @@ export async function registerRoutes(
   // Update Exchange mailbox
   app.patch("/api/exchange/mailboxes/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const mailbox = await storage.updateExchangeMailbox(req.params.id, req.body, req.user!.tenantId);
+      const mailbox = await storage.updateExchangeMailbox(req.params.id, req.body, req.user!.tenantId!);
       if (!mailbox) {
         return res.status(404).json({ message: "Postfach nicht gefunden" });
       }
@@ -3553,7 +3550,7 @@ export async function registerRoutes(
   // Delete Exchange mailbox
   app.delete("/api/exchange/mailboxes/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.deleteExchangeMailbox(req.params.id, req.user!.tenantId);
+      await storage.deleteExchangeMailbox(req.params.id, req.user!.tenantId!);
       res.status(204).send();
     } catch (error) {
       logger.error("exchange", "Fehler beim Löschen des Postfachs", { description: String(error), cause: "Löschfehler", solution: "Überprüfen Sie die Postfach-ID" });
@@ -3564,7 +3561,7 @@ export async function registerRoutes(
   // Get assignment rules for a mailbox
   app.get("/api/exchange/mailboxes/:mailboxId/rules", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const rules = await storage.getExchangeAssignmentRules(req.params.mailboxId, req.user!.tenantId);
+      const rules = await storage.getExchangeAssignmentRules(req.params.mailboxId, req.user!.tenantId!);
       res.json(rules);
     } catch (error) {
       logger.error("exchange", "Fehler beim Abrufen der Regeln", { description: String(error), cause: "Datenbankfehler", solution: "Überprüfen Sie die Datenbankverbindung" });
@@ -3578,7 +3575,7 @@ export async function registerRoutes(
       const rule = await storage.createExchangeAssignmentRule({
         ...req.body,
         mailboxId: req.params.mailboxId,
-        tenantId: req.user!.tenantId
+        tenantId: req.user!.tenantId!
       });
       res.status(201).json(rule);
     } catch (error) {
@@ -3590,7 +3587,7 @@ export async function registerRoutes(
   // Update assignment rule
   app.patch("/api/exchange/rules/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const rule = await storage.updateExchangeAssignmentRule(req.params.id, req.body, req.user!.tenantId);
+      const rule = await storage.updateExchangeAssignmentRule(req.params.id, req.body, req.user!.tenantId!);
       if (!rule) {
         return res.status(404).json({ message: "Regel nicht gefunden" });
       }
@@ -3604,7 +3601,7 @@ export async function registerRoutes(
   // Delete assignment rule
   app.delete("/api/exchange/rules/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.deleteExchangeAssignmentRule(req.params.id, req.user!.tenantId);
+      await storage.deleteExchangeAssignmentRule(req.params.id, req.user!.tenantId!);
       res.status(204).send();
     } catch (error) {
       logger.error("exchange", "Fehler beim Löschen der Regel", { description: String(error), cause: "Löschfehler", solution: "Überprüfen Sie die Regel-ID" });
@@ -3616,7 +3613,7 @@ export async function registerRoutes(
   app.get("/api/exchange/folders/:emailAddress", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const { ExchangeService } = await import("./exchange-service");
-      const tenantId = req.user!.tenantId;
+      const tenantId = req.user!.tenantId!;
       const config = await storage.getExchangeConfiguration(tenantId);
       
       if (!config || !ExchangeService.isConfigurationValid(config)) {
@@ -3642,7 +3639,7 @@ export async function registerRoutes(
     try {
       const limit = req.query.limit ? Math.min(Number.parseInt(req.query.limit as string, 10) || 50, 1000) : 50;
       const mailboxId = req.query.mailboxId as string | undefined;
-      const logs = await storage.getExchangeSyncLogs(req.user!.tenantId, { mailboxId, limit });
+      const logs = await storage.getExchangeSyncLogs(req.user!.tenantId!, { mailboxId, limit });
       res.json(logs);
     } catch (error) {
       logger.error("exchange", "Fehler beim Abrufen der Sync-Logs", { description: String(error), cause: "Datenbankfehler", solution: "Überprüfen Sie die Datenbankverbindung" });
@@ -3654,7 +3651,7 @@ export async function registerRoutes(
   app.post("/api/exchange/sync", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const { ExchangeService } = await import("./exchange-service");
-      const tenantId = req.user!.tenantId;
+      const tenantId = req.user!.tenantId!;
       const { mailboxEmail } = req.body;
       const config = await storage.getExchangeConfiguration(tenantId);
       
@@ -3863,9 +3860,10 @@ export async function registerRoutes(
               }
               
             } catch (emailError) {
-              logger.error("exchange", "E-Mail-Verarbeitung fehlgeschlagen", { 
-                description: `Fehler bei E-Mail ${graphEmail.id}`, 
-                cause: String(emailError) 
+              logger.error("exchange", "E-Mail-Verarbeitung fehlgeschlagen", {
+                description: `Fehler bei E-Mail ${graphEmail.id}`,
+                cause: String(emailError),
+                solution: "E-Mail-Daten prüfen und erneut versuchen"
               });
               mailboxErrors.push(`E-Mail ${graphEmail.subject}: ${emailError}`);
             }
@@ -3945,7 +3943,7 @@ export async function registerRoutes(
   app.post("/api/exchange/send-test", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const { ExchangeService } = await import("./exchange-service");
-      const tenantId = req.user!.tenantId;
+      const tenantId = req.user!.tenantId!;
       const { mailboxEmail, recipientEmail } = req.body;
       
       if (!mailboxEmail) {
@@ -3999,12 +3997,12 @@ export async function registerRoutes(
   // Alle Regeln abrufen
   app.get("/api/exchange/processing-rules", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const tenantId = req.user!.tenantId;
+      const tenantId = req.user!.tenantId!;
       const mailboxId = req.query.mailboxId as string | undefined;
       const rules = await storage.getEmailProcessingRules(tenantId, mailboxId);
       res.json(rules);
     } catch (error: any) {
-      logger.error("exchange", "Fehler beim Laden der Verarbeitungsregeln", { description: String(error) });
+      logger.error("exchange", "Fehler beim Laden der Verarbeitungsregeln", { description: String(error), cause: "Datenbankfehler", solution: "Fehlerursache prüfen" });
       res.status(500).json({ message: error.message || "Fehler beim Laden der Regeln" });
     }
   });
@@ -4012,14 +4010,14 @@ export async function registerRoutes(
   // Einzelne Regel abrufen
   app.get("/api/exchange/processing-rules/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const tenantId = req.user!.tenantId;
+      const tenantId = req.user!.tenantId!;
       const rule = await storage.getEmailProcessingRule(req.params.id, tenantId);
       if (!rule) {
         return res.status(404).json({ message: "Regel nicht gefunden" });
       }
       res.json(rule);
     } catch (error: any) {
-      logger.error("exchange", "Fehler beim Laden der Regel", { description: String(error) });
+      logger.error("exchange", "Fehler beim Laden der Regel", { description: String(error), cause: "Datenbankfehler", solution: "Fehlerursache prüfen" });
       res.status(500).json({ message: error.message || "Fehler beim Laden der Regel" });
     }
   });
@@ -4027,7 +4025,7 @@ export async function registerRoutes(
   // Neue Regel erstellen
   app.post("/api/exchange/processing-rules", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const tenantId = req.user!.tenantId;
+      const tenantId = req.user!.tenantId!;
       const rule = await storage.createEmailProcessingRule({
         ...req.body,
         tenantId
@@ -4035,7 +4033,7 @@ export async function registerRoutes(
       logger.info("exchange", "Verarbeitungsregel erstellt", rule.name, { userId: req.user!.id });
       res.status(201).json(rule);
     } catch (error: any) {
-      logger.error("exchange", "Fehler beim Erstellen der Regel", { description: String(error) });
+      logger.error("exchange", "Fehler beim Erstellen der Regel", { description: String(error), cause: "Erstellungsfehler", solution: "Fehlerursache prüfen" });
       res.status(500).json({ message: error.message || "Fehler beim Erstellen der Regel" });
     }
   });
@@ -4043,7 +4041,7 @@ export async function registerRoutes(
   // Regel aktualisieren
   app.patch("/api/exchange/processing-rules/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const tenantId = req.user!.tenantId;
+      const tenantId = req.user!.tenantId!;
       const rule = await storage.updateEmailProcessingRule(req.params.id, req.body, tenantId);
       if (!rule) {
         return res.status(404).json({ message: "Regel nicht gefunden" });
@@ -4051,7 +4049,7 @@ export async function registerRoutes(
       logger.info("exchange", "Verarbeitungsregel aktualisiert", rule.name, { userId: req.user!.id });
       res.json(rule);
     } catch (error: any) {
-      logger.error("exchange", "Fehler beim Aktualisieren der Regel", { description: String(error) });
+      logger.error("exchange", "Fehler beim Aktualisieren der Regel", { description: String(error), cause: "Aktualisierungsfehler", solution: "Fehlerursache prüfen" });
       res.status(500).json({ message: error.message || "Fehler beim Aktualisieren der Regel" });
     }
   });
@@ -4059,12 +4057,12 @@ export async function registerRoutes(
   // Regel löschen
   app.delete("/api/exchange/processing-rules/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const tenantId = req.user!.tenantId;
+      const tenantId = req.user!.tenantId!;
       await storage.deleteEmailProcessingRule(req.params.id, tenantId);
       logger.info("exchange", "Verarbeitungsregel gelöscht", req.params.id, { userId: req.user!.id });
       res.status(204).send();
     } catch (error: any) {
-      logger.error("exchange", "Fehler beim Löschen der Regel", { description: String(error) });
+      logger.error("exchange", "Fehler beim Löschen der Regel", { description: String(error), cause: "Löschfehler", solution: "Fehlerursache prüfen" });
       res.status(500).json({ message: error.message || "Fehler beim Löschen der Regel" });
     }
   });

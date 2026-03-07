@@ -1513,11 +1513,13 @@ export const insertExchangeConfigurationSchema = createInsertSchema(exchangeConf
   id: true, createdAt: true, updatedAt: true, accessToken: true, accessTokenExpiresAt: true, refreshToken: true 
 });
 export const updateExchangeConfigurationSchema = insertExchangeConfigurationSchema.partial();
-export const insertExchangeMailboxSchema = createInsertSchema(exchangeMailboxes).omit({ 
-  id: true, createdAt: true, updatedAt: true, lastFetchAt: true, lastFetchError: true, 
-  lastFetchEmailCount: true, totalImportedEmails: true, totalCreatedTickets: true 
+export const insertExchangeMailboxSchema = createInsertSchema(exchangeMailboxes).omit({
+  id: true, createdAt: true, updatedAt: true, lastFetchAt: true, lastFetchError: true,
+  lastFetchEmailCount: true, totalImportedEmails: true, totalCreatedTickets: true
 });
-export const updateExchangeMailboxSchema = insertExchangeMailboxSchema.partial();
+export const updateExchangeMailboxSchema = createInsertSchema(exchangeMailboxes).omit({
+  id: true, createdAt: true, updatedAt: true
+}).partial();
 export const insertExchangeAssignmentRuleSchema = createInsertSchema(exchangeAssignmentRules).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertExchangeEmailSchema = createInsertSchema(exchangeEmails).omit({ id: true, createdAt: true });
 export const insertExchangeSyncLogSchema = createInsertSchema(exchangeSyncLogs).omit({ id: true, createdAt: true });
