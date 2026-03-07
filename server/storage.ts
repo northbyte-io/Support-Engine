@@ -682,25 +682,26 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTicket(id: string, tenantId?: string): Promise<void> {
     // Include tenantId in the where clause for safety
-    const whereClause = tenantId 
+    const whereClause = tenantId
       ? and(eq(tickets.id, id), eq(tickets.tenantId, tenantId))
       : eq(tickets.id, id);
-    
-    // Delete all related records first (cascade delete)
-    await db.delete(ticketProjects).where(eq(ticketProjects.ticketId, id));
-    await db.delete(ticketAssignees).where(eq(ticketAssignees.ticketId, id));
-    await db.delete(ticketWatchers).where(eq(ticketWatchers.ticketId, id));
-    await db.delete(ticketAreas).where(eq(ticketAreas.ticketId, id));
-    await db.delete(ticketKbLinks).where(eq(ticketKbLinks.ticketId, id));
-    await db.delete(ticketAssets).where(eq(ticketAssets.ticketId, id));
-    await db.delete(ticketContacts).where(eq(ticketContacts.ticketId, id));
-    await db.delete(timeEntries).where(eq(timeEntries.ticketId, id));
-    await db.delete(attachments).where(eq(attachments.ticketId, id));
-    await db.delete(comments).where(eq(comments.ticketId, id));
-    await db.delete(exchangeEmails).where(eq(exchangeEmails.ticketId, id));
-    
-    // Now delete the ticket itself
-    await db.delete(tickets).where(whereClause);
+
+    // Wrap all deletes in a transaction so the database is never left in a
+    // partially-deleted state if one of the intermediate statements fails.
+    await db.transaction(async (tx) => {
+      await tx.delete(ticketProjects).where(eq(ticketProjects.ticketId, id));
+      await tx.delete(ticketAssignees).where(eq(ticketAssignees.ticketId, id));
+      await tx.delete(ticketWatchers).where(eq(ticketWatchers.ticketId, id));
+      await tx.delete(ticketAreas).where(eq(ticketAreas.ticketId, id));
+      await tx.delete(ticketKbLinks).where(eq(ticketKbLinks.ticketId, id));
+      await tx.delete(ticketAssets).where(eq(ticketAssets.ticketId, id));
+      await tx.delete(ticketContacts).where(eq(ticketContacts.ticketId, id));
+      await tx.delete(timeEntries).where(eq(timeEntries.ticketId, id));
+      await tx.delete(attachments).where(eq(attachments.ticketId, id));
+      await tx.delete(comments).where(eq(comments.ticketId, id));
+      await tx.delete(exchangeEmails).where(eq(exchangeEmails.ticketId, id));
+      await tx.delete(tickets).where(whereClause);
+    });
   }
 
   async getNextTicketNumber(tenantId: string): Promise<string> {
