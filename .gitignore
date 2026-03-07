@@ -2,8 +2,13 @@ node_modules
 dist
 .DS_Store
 server/public
+# Vite temp files (e.g. vite.config.ts.timestamp-*) — NOT vite.config.ts itself
 vite.config.ts.*
 *.tar.gz
 attached_assets
 CLAUDE.md
 CODE_REVIEW.md
+sonar-project.properties
+.scannerwork
+.github
+.vscode
