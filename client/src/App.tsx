@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/lib/theme";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { BrandingProvider } from "@/lib/branding";
 import { LoadingPage } from "@/components/LoadingState";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
@@ -265,7 +266,9 @@ function App() {
           <BrandingProvider>
             <TooltipProvider>
               <Toaster />
-              <Router />
+              <ErrorBoundary>
+                <Router />
+              </ErrorBoundary>
             </TooltipProvider>
           </BrandingProvider>
         </AuthProvider>
