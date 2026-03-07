@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { logger } from "./logger";
 
 const app = express();
 const httpServer = createServer(app);
@@ -66,8 +67,13 @@ app.use((req, res, next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
+    logger.error("system", "Unbehandelter Fehler", {
+      description: message,
+      cause: err instanceof Error ? (err.stack ?? err.message) : String(err),
+      solution: "Fehlerursache in den Logs prüfen und beheben",
+    });
+
     res.status(status).json({ message });
-    throw err;
   });
 
   // importantly only setup vite in development and after
