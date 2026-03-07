@@ -1219,6 +1219,7 @@ export const tlsSettings = pgTable("tls_settings", {
 // TLS Certificates
 export const tlsCertificates = pgTable("tls_certificates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
   domain: text("domain").notNull(),
   altNames: text("alt_names").array(),
   status: certificateStatusEnum("status").default("pending"),

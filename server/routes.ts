@@ -3313,7 +3313,7 @@ export async function registerRoutes(
   // Delete certificate
   app.delete("/api/tls/certificates/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.deleteTlsCertificate(req.params.id);
+      await storage.deleteTlsCertificate(req.params.id, req.user!.tenantId);
       res.status(204).send();
     } catch (error) {
       logger.error("api", "TLS certificate delete error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });

@@ -444,7 +444,7 @@ export interface IStorage {
   getActiveTlsCertificate(): Promise<TlsCertificate | undefined>;
   createTlsCertificate(cert: InsertTlsCertificate): Promise<TlsCertificate>;
   updateTlsCertificate(id: string, updates: Partial<InsertTlsCertificate>): Promise<TlsCertificate | undefined>;
-  deleteTlsCertificate(id: string): Promise<void>;
+  deleteTlsCertificate(id: string, tenantId: string): Promise<void>;
   getTlsCertificateActions(certificateId?: string, limit?: number): Promise<(TlsCertificateAction & { performedBy?: User })[]>;
   createTlsCertificateAction(action: InsertTlsCertificateAction): Promise<TlsCertificateAction>;
   
@@ -2690,7 +2690,9 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async deleteTlsCertificate(id: string): Promise<void> {
+  async deleteTlsCertificate(id: string, tenantId: string): Promise<void> {
+    const [cert] = await db.select().from(tlsCertificates).where(eq(tlsCertificates.id, id));
+    if (!cert || cert.tenantId !== tenantId) return;
     await db.delete(tlsCertificateActions).where(eq(tlsCertificateActions.certificateId, id));
     await db.delete(tlsCertificates).where(eq(tlsCertificates.id, id));
   }
