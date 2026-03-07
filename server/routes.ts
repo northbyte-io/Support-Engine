@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
+import type { Server } from "node:http";
 import { Client as ObjectStorageClient } from "@replit/object-storage";
 import { storage } from "./storage";
 import { logger } from "./logger";
@@ -14,8 +14,8 @@ import {
   TOKEN_COOKIE_OPTIONS,
   type AuthenticatedRequest
 } from "./auth";
-import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyInvitationSchema, insertSurveyResponseSchema, insertAssetCategorySchema, insertAssetSchema, insertAssetLicenseSchema, insertAssetContractSchema, insertTicketAssetSchema, insertAssetHistorySchema, insertProjectSchema, insertProjectMemberSchema, insertBoardColumnSchema, insertTicketProjectSchema, insertOrganizationSchema, insertCustomerSchema, insertCustomerLocationSchema, insertContactSchema, insertTicketContactSchema, insertCustomerActivitySchema, updateTenantBrandingSchema, type InsertExchangeConfiguration } from "@shared/schema";
-import crypto from "crypto";
+import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyResponseSchema, insertAssetCategorySchema, insertAssetSchema, insertAssetLicenseSchema, insertAssetContractSchema, insertTicketAssetSchema, insertProjectSchema, insertProjectMemberSchema, insertBoardColumnSchema, insertTicketProjectSchema, insertOrganizationSchema, insertCustomerSchema, insertCustomerLocationSchema, insertContactSchema, insertTicketContactSchema, insertCustomerActivitySchema, updateTenantBrandingSchema, type InsertExchangeConfiguration } from "@shared/schema";
+import crypto from "node:crypto";
 import { z } from "zod";
 
 // Seed default data for demo
@@ -25,20 +25,18 @@ async function seedDefaultData() {
   try {
     // Check if default tenant exists
     let defaultTenant = await storage.getTenantBySlug("default");
-    if (!defaultTenant) {
-      defaultTenant = await storage.createTenant({
-        name: "Demo Unternehmen",
-        slug: "default",
-        primaryColor: "#3B82F6",
-        isActive: true,
-      });
-    }
+    defaultTenant ??= await storage.createTenant({
+      name: "Demo Unternehmen",
+      slug: "default",
+      primaryColor: "#3B82F6",
+      isActive: true,
+    });
 
     // Check if admin user exists
-    let adminUser = await storage.getUserByEmail("admin@demo.de");
+    const adminUser = await storage.getUserByEmail("admin@demo.de");
     if (!adminUser) {
       const hashedPw = await hashPassword("admin123");
-      adminUser = await storage.createUser({
+      await storage.createUser({
         email: "admin@demo.de",
         password: hashedPw,
         firstName: "Admin",
@@ -98,9 +96,9 @@ async function seedDefaultData() {
     }
 
     // Create default SLA definition
-    let defaultSla = await storage.getDefaultSlaDefinition(defaultTenant.id);
+    const defaultSla = await storage.getDefaultSlaDefinition(defaultTenant.id);
     if (!defaultSla) {
-      defaultSla = await storage.createSlaDefinition({
+      await storage.createSlaDefinition({
         tenantId: defaultTenant.id,
         name: "Standard-SLA",
         description: "Standard Service-Level-Vereinbarung",
@@ -132,7 +130,7 @@ async function seedDefaultData() {
         const ticket = await storage.createTicket({
           ...data,
           tenantId: defaultTenant.id,
-          createdById: customerUser!.id,
+          createdById: customerUser.id,
           typeId: ticketTypes[0].id,
           areaId: areasList[0].id,
         });
@@ -141,7 +139,7 @@ async function seedDefaultData() {
         if (data.status !== "open") {
           await storage.createComment({
             ticketId: ticket.id,
-            authorId: agentUser!.id,
+            authorId: agentUser.id,
             content: "Vielen Dank für Ihre Anfrage. Wir bearbeiten Ihr Ticket schnellstmöglich.",
             isInternal: false,
           });
@@ -290,6 +288,18 @@ async function seedDefaultData() {
   }
 }
 
+function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replaceAll(/[äÄ]/g, "ae")
+    .replaceAll(/[öÖ]/g, "oe")
+    .replaceAll(/[üÜ]/g, "ue")
+    .replaceAll("ß", "ss")
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/(^-|-$)/g, "")
+    .slice(0, 100);
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -301,12 +311,12 @@ export async function registerRoutes(
   // AGPL-3.0 License endpoints (required for network use)
   app.get("/api/license", async (_req, res) => {
     try {
-      const fs = await import("fs");
-      const path = await import("path");
+      const fs = await import("node:fs");
+      const path = await import("node:path");
       const licensePath = path.join(process.cwd(), "LICENSE");
       const licenseText = fs.readFileSync(licensePath, "utf-8");
       res.type("text/plain").send(licenseText);
-    } catch (error) {
+    } catch {
       res.status(500).json({ message: "Lizenz konnte nicht geladen werden" });
     }
   });
@@ -463,8 +473,11 @@ export async function registerRoutes(
   // Ticket Routes
   app.get("/api/tickets", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const rawLimit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
-      const limit = rawLimit !== undefined ? (isNaN(rawLimit) ? 50 : Math.min(rawLimit, 1000)) : undefined;
+      const rawLimit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : undefined;
+      let limit: number | undefined;
+      if (rawLimit !== undefined) {
+        limit = Number.isNaN(rawLimit) ? 50 : Math.min(rawLimit, 1000);
+      }
       const tickets = await storage.getTickets({
         tenantId: req.tenantId,
         limit,
@@ -560,12 +573,12 @@ export async function registerRoutes(
       // Check if status changed to "closed" - trigger survey
       if (previousStatus !== "closed" && ticket.status === "closed") {
         try {
-          const activeSurvey = await storage.getActiveSurvey(req.tenantId!);
+          const activeSurvey = await storage.getActiveSurvey(req.tenantId);
           if (activeSurvey && originalTicket.createdById) {
             // Create survey invitation with unique token
             const token = crypto.randomBytes(32).toString("hex");
             await storage.createSurveyInvitation({
-              tenantId: req.tenantId!,
+              tenantId: req.tenantId,
               surveyId: activeSurvey.id,
               ticketId: ticket.id,
               userId: originalTicket.createdById,
@@ -660,7 +673,7 @@ export async function registerRoutes(
         buffer = Buffer.from(fileContent.value);
       }
       
-      const safeName = attachment.fileName.replace(/["\r\n]/g, "_");
+      const safeName = attachment.fileName.replaceAll(/["\r\n]/g, "_");
       res.setHeader("Content-Type", attachment.mimeType);
       res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
       res.setHeader("Content-Length", buffer.length);
@@ -715,7 +728,7 @@ export async function registerRoutes(
           
           // Create notification for mentioned user
           await storage.createNotification({
-            tenantId: req.tenantId!,
+            tenantId: req.tenantId,
             userId: mentionedUser.id,
             type: "mention",
             title: "Sie wurden erwähnt",
@@ -768,7 +781,7 @@ export async function registerRoutes(
       if (ticket.tenantId !== req.tenantId) {
         return res.status(403).json({ message: "Zugriff verweigert" });
       }
-      const timer = await storage.startTimer(req.params.id, req.user!.id, req.tenantId!);
+      const timer = await storage.startTimer(req.params.id, req.user!.id, req.tenantId);
       logger.info("ticket", "Timer gestartet", `Timer für Ticket ${ticket.ticketNumber} gestartet`, {
         ticketId: req.params.id,
         userId: req.user!.id,
@@ -854,7 +867,7 @@ export async function registerRoutes(
       if (ticket.tenantId !== req.tenantId) {
         return res.status(403).json({ message: "Zugriff verweigert" });
       }
-      const entries = await storage.getWorkEntries(req.params.id, req.tenantId!);
+      const entries = await storage.getWorkEntries(req.params.id, req.tenantId);
       res.json(entries);
     } catch (error) {
       logger.error("api", "Get work entries error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -877,7 +890,7 @@ export async function registerRoutes(
       const entry = await storage.createWorkEntry({
         ticketId: req.params.id,
         userId: req.user!.id,
-        tenantId: req.tenantId!,
+        tenantId: req.tenantId,
         description,
         startTime: new Date(startTime),
         endTime: new Date(endTime),
@@ -991,7 +1004,7 @@ export async function registerRoutes(
   app.get("/api/tenant/public/:slug", async (req, res) => {
     try {
       const tenant = await storage.getTenantBySlug(req.params.slug);
-      if (!tenant || !tenant.isActive) {
+      if (!tenant?.isActive) {
         return res.status(404).json({ message: "Mandant nicht gefunden" });
       }
       // Return only public branding info
@@ -1418,19 +1431,6 @@ export async function registerRoutes(
     }
   });
 
-  // Helper function to generate slug
-  function generateSlug(title: string): string {
-    return title
-      .toLowerCase()
-      .replace(/[äÄ]/g, "ae")
-      .replace(/[öÖ]/g, "oe")
-      .replace(/[üÜ]/g, "ue")
-      .replace(/ß/g, "ss")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "")
-      .slice(0, 100);
-  }
-
   app.post("/api/kb/articles", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const slug = req.body.slug || generateSlug(req.body.title);
@@ -1732,7 +1732,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Zugriff verweigert" });
       }
       
-      const entries = await storage.getTimeEntries(req.tenantId!, { ticketId: req.params.ticketId });
+      const entries = await storage.getTimeEntries(req.tenantId, { ticketId: req.params.ticketId });
       res.json(entries);
     } catch (error) {
       logger.error("api", "Get ticket time entries error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -1781,7 +1781,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Zugriff verweigert" });
       }
       
-      const summary = await storage.getTimeEntrySummary(req.tenantId!, { ticketId: req.params.ticketId });
+      const summary = await storage.getTimeEntrySummary(req.tenantId, { ticketId: req.params.ticketId });
       res.json(summary);
     } catch (error) {
       logger.error("api", "Get ticket time summary error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -1795,8 +1795,11 @@ export async function registerRoutes(
   app.get("/api/notifications", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const unreadOnly = req.query.unreadOnly === "true";
-      const rawLimit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
-      const limit = rawLimit !== undefined ? (isNaN(rawLimit) ? 50 : Math.min(rawLimit, 1000)) : undefined;
+      const rawLimit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : undefined;
+      let limit: number | undefined;
+      if (rawLimit !== undefined) {
+        limit = Number.isNaN(rawLimit) ? 50 : Math.min(rawLimit, 1000);
+      }
       
       const notificationsList = await storage.getNotifications(
         req.tenantId!,
@@ -2032,7 +2035,7 @@ export async function registerRoutes(
       if (survey.tenantId !== req.tenantId) {
         return res.status(403).json({ message: "Zugriff verweigert" });
       }
-      const invitations = await storage.getSurveyInvitations(req.tenantId!, req.params.surveyId);
+      const invitations = await storage.getSurveyInvitations(req.tenantId, req.params.surveyId);
       res.json(invitations);
     } catch (error) {
       logger.error("api", "Get survey invitations error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2050,7 +2053,7 @@ export async function registerRoutes(
       if (survey.tenantId !== req.tenantId) {
         return res.status(403).json({ message: "Zugriff verweigert" });
       }
-      const summary = await storage.getSurveyResultSummary(req.tenantId!, req.params.surveyId);
+      const summary = await storage.getSurveyResultSummary(req.tenantId, req.params.surveyId);
       res.json(summary);
     } catch (error) {
       logger.error("api", "Get survey results error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2952,8 +2955,11 @@ export async function registerRoutes(
       const customerId = req.query.customerId as string | undefined;
       const contactId = req.query.contactId as string | undefined;
       const ticketId = req.query.ticketId as string | undefined;
-      const rawLimit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
-      const limit = rawLimit !== undefined ? (isNaN(rawLimit) ? 50 : Math.min(rawLimit, 1000)) : undefined;
+      const rawLimit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : undefined;
+      let limit: number | undefined;
+      if (rawLimit !== undefined) {
+        limit = Number.isNaN(rawLimit) ? 50 : Math.min(rawLimit, 1000);
+      }
       const activities = await storage.getCustomerActivities(req.user!.tenantId!, { customerId, contactId, ticketId, limit });
       res.json(activities);
     } catch (error) {
@@ -2996,8 +3002,8 @@ export async function registerRoutes(
         search: req.query.search as string | undefined,
         startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
         endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
-        limit: req.query.limit ? Math.min(parseInt(req.query.limit as string, 10) || 100, 1000) : 100,
-        offset: req.query.offset ? Math.max(parseInt(req.query.offset as string, 10) || 0, 0) : 0,
+        limit: req.query.limit ? Math.min(Number.parseInt(req.query.limit as string, 10) || 100, 1000) : 100,
+        offset: req.query.offset ? Math.max(Number.parseInt(req.query.offset as string, 10) || 0, 0) : 0,
       };
       const result = logger.getLogs(filters as any);
       res.json(result);
@@ -3100,8 +3106,8 @@ export async function registerRoutes(
           log.level,
           log.source,
           log.entityType,
-          `"${(log.title || "").replace(/"/g, '""')}"`,
-          `"${(log.description || "").replace(/"/g, '""')}"`,
+          `"${(log.title || "").replaceAll('"', '""')}"`,
+          `"${(log.description || "").replaceAll('"', '""')}"`,
           log.tenantId || "",
           log.userId || "",
         ].join(";"));
@@ -3335,7 +3341,7 @@ export async function registerRoutes(
     try {
       const { tlsService } = await import("./tls-service");
       const certificateId = req.query.certificateId as string | undefined;
-      const limit = req.query.limit ? Math.min(parseInt(req.query.limit as string, 10) || 100, 1000) : 100;
+      const limit = req.query.limit ? Math.min(Number.parseInt(req.query.limit as string, 10) || 100, 1000) : 100;
       const actions = await tlsService.getActions(certificateId, limit);
       res.json(actions);
     } catch (error) {
@@ -3452,7 +3458,7 @@ export async function registerRoutes(
   // Test Exchange connection
   app.post("/api/exchange/test-connection", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const { ExchangeService, ExchangeError } = await import("./exchange-service");
+      const { ExchangeService } = await import("./exchange-service");
       const tenantId = req.user!.tenantId;
       const config = await storage.getExchangeConfiguration(tenantId);
       
@@ -3634,7 +3640,7 @@ export async function registerRoutes(
   // Get sync logs
   app.get("/api/exchange/sync-logs", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const limit = req.query.limit ? Math.min(parseInt(req.query.limit as string, 10) || 50, 1000) : 50;
+      const limit = req.query.limit ? Math.min(Number.parseInt(req.query.limit as string, 10) || 50, 1000) : 50;
       const mailboxId = req.query.mailboxId as string | undefined;
       const logs = await storage.getExchangeSyncLogs(req.user!.tenantId, { mailboxId, limit });
       res.json(logs);
