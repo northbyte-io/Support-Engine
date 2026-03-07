@@ -8,7 +8,9 @@ vite.config.ts.*
 attached_assets
 CLAUDE.md
 CODE_REVIEW.md
+CODE_REVIEW_RESOLUTION.md
 sonar-project.properties
 .scannerwork
-.github
 .vscode
+AGENTS.md
+.github/instructions
