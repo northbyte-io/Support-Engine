@@ -9,7 +9,7 @@
  */
 
 import { logger, type LogSource } from "./logger";
-import crypto from "crypto";
+import { encryptSecretToJson, decryptSecretFromJson } from "./keyVault";
 import type {
   ExchangeConfiguration,
   ExchangeMailbox,
@@ -167,38 +167,19 @@ export class ExchangeService {
   }
 
   /**
-   * Verschlüsselt ein Client-Secret für die Speicherung
-   * HINWEIS: In Produktion sollte ein sichererer Algorithmus verwendet werden
+   * Verschlüsselt ein Client-Secret für die Speicherung.
+   * Delegiert an keyVault.ts um eine einheitliche, sichere Verschlüsselung sicherzustellen.
    */
   static encryptSecret(secret: string): string {
-    const algorithm = "aes-256-gcm";
-    const key = crypto.scryptSync(process.env.SESSION_SECRET || "default-key", "salt", 32);
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv(algorithm, key, iv, { authTagLength: 16 });
-    let encrypted = cipher.update(secret, "utf8", "hex");
-    encrypted += cipher.final("hex");
-    const authTag = cipher.getAuthTag().toString("hex");
-    return `${iv.toString("hex")}:${authTag}:${encrypted}`;
+    return encryptSecretToJson(secret);
   }
 
   /**
-   * Entschlüsselt ein gespeichertes Client-Secret
+   * Entschlüsselt ein gespeichertes Client-Secret.
+   * Delegiert an keyVault.ts.
    */
   static decryptSecret(encryptedSecret: string): string {
-    const algorithm = "aes-256-gcm";
-    const key = crypto.scryptSync(process.env.SESSION_SECRET || "default-key", "salt", 32);
-    const parts = encryptedSecret.split(":");
-    if (parts.length !== 3) {
-      throw new ExchangeError("AUTH_FAILED", "Ungültiges verschlüsseltes Secret");
-    }
-    const iv = Buffer.from(parts[0], "hex");
-    const authTag = Buffer.from(parts[1], "hex");
-    const encrypted = parts[2];
-    const decipher = crypto.createDecipheriv(algorithm, key, iv, { authTagLength: 16 });
-    decipher.setAuthTag(authTag);
-    let decrypted = decipher.update(encrypted, "hex", "utf8");
-    decrypted += decipher.final("utf8");
-    return decrypted;
+    return decryptSecretFromJson(encryptedSecret);
   }
 
   /**
