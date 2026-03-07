@@ -1652,13 +1652,13 @@ export class DatabaseStorage implements IStorage {
   async createAssetCategory(category: InsertAssetCategory, tenantId: string): Promise<AssetCategory> {
     const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
     if (!tenant) throw new Error("Ungültiger Mandant");
-    const { tenantId: _, ...rest } = category as any;
+    const { tenantId: _, ...rest } = category as typeof category & { tenantId?: string | null };
     const [result] = await db.insert(assetCategories).values({ ...rest, tenantId }).returning();
     return result;
   }
 
   async updateAssetCategory(id: string, updates: Partial<InsertAssetCategory>, tenantId: string): Promise<AssetCategory | undefined> {
-    const { tenantId: _, id: __, ...safeUpdates } = updates as any;
+    const { tenantId: _, id: __, ...safeUpdates } = updates as Partial<InsertAssetCategory> & { id?: string; tenantId?: string | null };
     const [result] = await db.update(assetCategories).set(safeUpdates).where(
       and(eq(assetCategories.id, id), eq(assetCategories.tenantId, tenantId))
     ).returning();
@@ -1734,13 +1734,13 @@ export class DatabaseStorage implements IStorage {
   async createAsset(asset: InsertAsset, tenantId: string): Promise<Asset> {
     const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
     if (!tenant) throw new Error("Ungültiger Mandant");
-    const { tenantId: _, ...rest } = asset as any;
+    const { tenantId: _, ...rest } = asset as typeof asset & { tenantId?: string | null };
     const [result] = await db.insert(assets).values({ ...rest, tenantId }).returning();
     return result;
   }
 
   async updateAsset(id: string, updates: Partial<InsertAsset>, tenantId: string): Promise<Asset | undefined> {
-    const { tenantId: _, id: __, ...safeUpdates } = updates as any;
+    const { tenantId: _, id: __, ...safeUpdates } = updates as Partial<InsertAsset> & { id?: string; tenantId?: string | null };
     const [result] = await db.update(assets).set({ ...safeUpdates, updatedAt: new Date() }).where(
       and(eq(assets.id, id), eq(assets.tenantId, tenantId))
     ).returning();
@@ -1795,7 +1795,7 @@ export class DatabaseStorage implements IStorage {
       and(eq(assets.id, existingLicense.assetId!), eq(assets.tenantId, tenantId))
     );
     if (!asset) return undefined;
-    const { assetId: _, id: __, ...safeUpdates } = updates as any;
+    const { assetId: _, id: __, ...safeUpdates } = updates as Partial<InsertAssetLicense> & { id?: string; assetId?: string | null };
     const [result] = await db.update(assetLicenses).set(safeUpdates).where(eq(assetLicenses.id, id)).returning();
     return result || undefined;
   }
@@ -1838,7 +1838,7 @@ export class DatabaseStorage implements IStorage {
       and(eq(assets.id, existingContract.assetId!), eq(assets.tenantId, tenantId))
     );
     if (!asset) return undefined;
-    const { assetId: _, id: __, ...safeUpdates } = updates as any;
+    const { assetId: _, id: __, ...safeUpdates } = updates as Partial<InsertAssetContract> & { id?: string; assetId?: string | null };
     const [result] = await db.update(assetContracts).set(safeUpdates).where(eq(assetContracts.id, id)).returning();
     return result || undefined;
   }
