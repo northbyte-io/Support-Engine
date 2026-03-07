@@ -272,14 +272,15 @@ class Logger {
   private maskSensitiveData(text: string): string {
     // Handle undefined/null gracefully
     if (!text) return text ?? '';
-    // Mask passwords
-    let masked = text.replace(/password['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'password: [MASKIERT]');
+    // Mask passwords (including common aliases)
+    let masked = text.replace(/(?:password|passwd|pwd|pass)['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'password: [MASKIERT]');
     // Mask API keys
     masked = masked.replace(/api[_-]?key['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'api_key: [MASKIERT]');
-    // Mask tokens
+    // Mask tokens and Bearer values
     masked = masked.replace(/token['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'token: [MASKIERT]');
-    // Mask secrets
-    masked = masked.replace(/secret['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'secret: [MASKIERT]');
+    masked = masked.replace(/Bearer\s+[A-Za-z0-9\-._~+/]+=*/g, 'Bearer [MASKIERT]');
+    // Mask secrets and credentials
+    masked = masked.replace(/(?:secret|credential|private[_-]?key|privateKey)['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'secret: [MASKIERT]');
     // Mask email addresses partially
     masked = masked.replace(/([a-zA-Z0-9._-]+)@([a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi, (match, local, domain) => {
       if (local.length > 2) {
