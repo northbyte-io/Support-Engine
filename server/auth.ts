@@ -3,7 +3,10 @@ import bcrypt from "bcryptjs";
 import type { Request, Response, NextFunction } from "express";
 import type { User } from "@shared/schema";
 
-const JWT_SECRET = process.env.SESSION_SECRET || "your-secret-key-change-in-production";
+const JWT_SECRET = process.env.SESSION_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("SESSION_SECRET environment variable is required");
+}
 const JWT_EXPIRES_IN = "7d";
 
 export interface AuthenticatedRequest extends Request {
