@@ -118,8 +118,8 @@ export function AppSidebar() {
   const { branding } = useBranding();
   const { theme } = useTheme();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     setLocation("/login");
   };
 

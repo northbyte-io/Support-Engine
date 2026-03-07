@@ -12,12 +12,8 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const token = localStorage.getItem("token");
   const headers: HeadersInit = {};
-  
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
+
   if (data) {
     headers["Content-Type"] = "application/json";
   }
@@ -34,14 +30,6 @@ export async function apiRequest(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-
-function getAuthHeaders(): HeadersInit {
-  const token = localStorage.getItem("token");
-  if (token) {
-    return { Authorization: `Bearer ${token}` };
-  }
-  return {};
-}
 
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
@@ -75,10 +63,9 @@ export const getQueryFn: <T>(options: {
         url = `${url}?${paramString}`;
       }
     }
-    
+
     const res = await fetch(url, {
       credentials: "include",
-      headers: getAuthHeaders(),
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

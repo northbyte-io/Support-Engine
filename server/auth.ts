@@ -9,6 +9,16 @@ if (!JWT_SECRET) {
 }
 const JWT_EXPIRES_IN = "7d";
 
+export const TOKEN_COOKIE_NAME = "token";
+
+export const TOKEN_COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: "strict" as const,
+  secure: process.env.NODE_ENV === "production",
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
+  path: "/",
+};
+
 export interface AuthenticatedRequest extends Request {
   user?: User;
   tenantId?: string;
@@ -38,16 +48,25 @@ export function verifyToken(token: string): { userId: string; email: string; rol
   }
 }
 
+function getTokenFromCookie(req: Request): string | undefined {
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return undefined;
+  for (const part of cookieHeader.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === TOKEN_COOKIE_NAME) return decodeURIComponent(rest.join("="));
+  }
+  return undefined;
+}
+
 export function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  const token = getTokenFromCookie(req);
+
+  if (!token) {
     return res.status(401).json({ message: "Nicht authentifiziert" });
   }
 
-  const token = authHeader.substring(7);
   const decoded = verifyToken(token);
-  
+
   if (!decoded) {
     return res.status(401).json({ message: "Ungültiger Token" });
   }
@@ -58,9 +77,9 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
     role: decoded.role,
     tenantId: decoded.tenantId,
   } as User;
-  
+
   req.tenantId = decoded.tenantId || undefined;
-  
+
   next();
 }
 

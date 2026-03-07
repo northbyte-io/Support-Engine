@@ -3,14 +3,16 @@ import { createServer, type Server } from "http";
 import { Client as ObjectStorageClient } from "@replit/object-storage";
 import { storage } from "./storage";
 import { logger } from "./logger";
-import { 
-  generateToken, 
-  hashPassword, 
-  comparePassword, 
-  authMiddleware, 
-  adminMiddleware, 
+import {
+  generateToken,
+  hashPassword,
+  comparePassword,
+  authMiddleware,
+  adminMiddleware,
   agentMiddleware,
-  type AuthenticatedRequest 
+  TOKEN_COOKIE_NAME,
+  TOKEN_COOKIE_OPTIONS,
+  type AuthenticatedRequest
 } from "./auth";
 import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertTicketTypeSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyInvitationSchema, insertSurveyResponseSchema, insertAssetCategorySchema, insertAssetSchema, insertAssetLicenseSchema, insertAssetContractSchema, insertTicketAssetSchema, insertAssetHistorySchema, insertProjectSchema, insertProjectMemberSchema, insertBoardColumnSchema, insertTicketProjectSchema, insertOrganizationSchema, insertCustomerSchema, insertCustomerLocationSchema, insertContactSchema, insertTicketContactSchema, insertCustomerActivitySchema, updateTenantBrandingSchema, type InsertExchangeConfiguration } from "@shared/schema";
 import crypto from "crypto";
@@ -350,7 +352,8 @@ export async function registerRoutes(
       });
 
       const token = generateToken(user);
-      res.json({ user: { ...user, password: undefined }, token });
+      res.cookie(TOKEN_COOKIE_NAME, token, TOKEN_COOKIE_OPTIONS);
+      res.status(201).json({ user: { ...user, password: undefined } });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
@@ -403,7 +406,8 @@ export async function registerRoutes(
       });
 
       const token = generateToken(user);
-      res.json({ user: { ...user, password: undefined }, token });
+      res.cookie(TOKEN_COOKIE_NAME, token, TOKEN_COOKIE_OPTIONS);
+      res.json({ user: { ...user, password: undefined } });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
@@ -428,6 +432,11 @@ export async function registerRoutes(
       logger.error("api", "Get me error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
       res.status(500).json({ message: "Interner Serverfehler" });
     }
+  });
+
+  app.post("/api/auth/logout", (_req, res) => {
+    res.clearCookie(TOKEN_COOKIE_NAME, { path: TOKEN_COOKIE_OPTIONS.path });
+    res.status(204).send();
   });
 
   // Dashboard Routes
