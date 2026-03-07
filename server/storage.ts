@@ -213,6 +213,7 @@ export interface IStorage {
 
   // Ticket Assignees
   addTicketAssignee(assignee: InsertTicketAssignee): Promise<TicketAssignee>;
+  addTicketAssignees(assignees: InsertTicketAssignee[]): Promise<TicketAssignee[]>;
   removeTicketAssignee(ticketId: string, userId: string): Promise<void>;
   getTicketAssignees(ticketId: string): Promise<(TicketAssignee & { user?: User })[]>;
 
@@ -753,6 +754,11 @@ export class DatabaseStorage implements IStorage {
   async addTicketAssignee(assignee: InsertTicketAssignee): Promise<TicketAssignee> {
     const [result] = await db.insert(ticketAssignees).values(assignee).returning();
     return result;
+  }
+
+  async addTicketAssignees(assignees: InsertTicketAssignee[]): Promise<TicketAssignee[]> {
+    if (assignees.length === 0) return [];
+    return db.insert(ticketAssignees).values(assignees).returning();
   }
 
   async removeTicketAssignee(ticketId: string, userId: string): Promise<void> {

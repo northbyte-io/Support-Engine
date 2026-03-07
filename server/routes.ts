@@ -494,11 +494,14 @@ export async function registerRoutes(
 
       const ticket = await storage.createTicket(data);
 
-      // Handle assignees
+      // Handle assignees — single batch insert instead of one per assignee
       if (req.body.assigneeIds && Array.isArray(req.body.assigneeIds)) {
-        for (const userId of req.body.assigneeIds) {
-          await storage.addTicketAssignee({ ticketId: ticket.id, userId, isPrimary: false });
-        }
+        const assigneeRows = (req.body.assigneeIds as string[]).map((userId) => ({
+          ticketId: ticket.id,
+          userId,
+          isPrimary: false,
+        }));
+        await storage.addTicketAssignees(assigneeRows);
       }
 
       logger.success("ticket", "Ticket erstellt", `Neues Ticket "${data.title}" wurde erfolgreich erstellt`, {
