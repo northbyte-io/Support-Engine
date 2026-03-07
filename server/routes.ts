@@ -1637,11 +1637,12 @@ export async function registerRoutes(
 
   app.post("/api/time-entries", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
+      const parsedDate = z.coerce.date().parse(req.body.date);
       const data = insertTimeEntrySchema.parse({
         ...req.body,
         tenantId: req.tenantId,
         userId: req.user!.id,
-        date: new Date(req.body.date),
+        date: parsedDate,
       });
       const entry = await storage.createTimeEntry(data);
       res.status(201).json(entry);
@@ -1667,7 +1668,7 @@ export async function registerRoutes(
       
       const updates: Record<string, unknown> = { ...req.body };
       if (req.body.date) {
-        updates.date = new Date(req.body.date);
+        updates.date = z.coerce.date().parse(req.body.date);
       }
       delete updates.tenantId;
       delete updates.userId;
@@ -1737,12 +1738,13 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Zugriff verweigert" });
       }
       
+      const parsedDate = z.coerce.date().parse(req.body.date);
       const data = insertTimeEntrySchema.parse({
         ...req.body,
         tenantId: req.tenantId,
         ticketId: req.params.ticketId,
         userId: req.user!.id,
-        date: new Date(req.body.date),
+        date: parsedDate,
       });
       const entry = await storage.createTimeEntry(data);
       res.status(201).json(entry);
