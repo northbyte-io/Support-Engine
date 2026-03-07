@@ -647,8 +647,9 @@ export async function registerRoutes(
         buffer = Buffer.from(fileContent.value);
       }
       
+      const safeName = attachment.fileName.replace(/["\r\n]/g, "_");
       res.setHeader("Content-Type", attachment.mimeType);
-      res.setHeader("Content-Disposition", `attachment; filename="${attachment.fileName}"`);
+      res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
       res.setHeader("Content-Length", buffer.length);
       res.send(buffer);
     } catch (error) {
