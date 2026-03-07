@@ -35,11 +35,11 @@ export const de = {
     logout: "Abmelden",
     register: "Registrieren",
     email: "E-Mail-Adresse",
-    password: "Passwort",
-    confirmPassword: "Passwort bestätigen",
+    password: "Passwort", // NOSONAR — translation key, not a credential
+    confirmPassword: "Passwort bestätigen", // NOSONAR — translation key, not a credential
     firstName: "Vorname",
     lastName: "Nachname",
-    forgotPassword: "Passwort vergessen?",
+    forgotPassword: "Passwort vergessen?", // NOSONAR — translation key, not a credential
     rememberMe: "Angemeldet bleiben",
     noAccount: "Noch kein Konto?",
     hasAccount: "Bereits ein Konto?",
@@ -189,7 +189,7 @@ export const de = {
     email: "Ungültige E-Mail-Adresse",
     minLength: "Mindestens {min} Zeichen erforderlich",
     maxLength: "Maximal {max} Zeichen erlaubt",
-    passwordMatch: "Passwörter stimmen nicht überein",
+    passwordMatch: "Passwörter stimmen nicht überein", // NOSONAR — translation key, not a credential
   },
 
   // Time

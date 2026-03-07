@@ -434,7 +434,7 @@ export default function BrandingPage() {
                         </Button>
                         <div 
                           className="text-sm p-2 rounded"
-                          style={{ backgroundColor: `${watchedValues.accentColor}20` || "#10B98120", color: watchedValues.accentColor || "#10B981" }}
+                          style={{ backgroundColor: watchedValues.accentColor ? `${watchedValues.accentColor}20` : "#10B98120", color: watchedValues.accentColor || "#10B981" }}
                         >
                           Erfolgs-Nachricht
                         </div>
