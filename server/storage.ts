@@ -174,7 +174,7 @@ import {
   type ActiveTimerWithTicket,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, sql, ilike, or, count, gt, lt } from "drizzle-orm";
+import { eq, and, desc, asc, sql, ilike, or, count, gt, lt, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -1561,17 +1561,11 @@ export class DatabaseStorage implements IStorage {
     const completedCount = completedInvitations.length;
     const responseRate = totalInvitations > 0 ? (completedCount / totalInvitations) * 100 : 0;
 
-    // Get all responses for completed invitations
+    // Get all responses for completed invitations in a single batch query
     const completedInvitationIds = completedInvitations.map(i => i.id);
-    let allResponses: SurveyResponse[] = [];
-    if (completedInvitationIds.length > 0) {
-      for (const invId of completedInvitationIds) {
-        const responses = await db.select()
-          .from(surveyResponses)
-          .where(eq(surveyResponses.invitationId, invId));
-        allResponses = [...allResponses, ...responses];
-      }
-    }
+    const allResponses: SurveyResponse[] = completedInvitationIds.length > 0
+      ? await db.select().from(surveyResponses).where(inArray(surveyResponses.invitationId, completedInvitationIds))
+      : [];
 
     // Calculate question stats
     const questions = survey.questions || [];
