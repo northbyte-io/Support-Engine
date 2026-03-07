@@ -337,13 +337,17 @@ export default function TicketDetailPage() {
                       data-testid="text-description"
                       dangerouslySetInnerHTML={{ 
                         __html: DOMPurify.sanitize(ticket.description, {
-                          ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'strong', 'em', 'a', 'ul', 'ol', 'li', 
-                            'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code', 
-                            'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img', 'div', 'span', 
-                            'hr', 'font', 'center', 'sup', 'sub'],
-                          ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'style', 'class', 'width', 'height', 
-                            'border', 'cellpadding', 'cellspacing', 'align', 'valign', 'bgcolor', 
-                            'color', 'size', 'face', 'target'],
+                          ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'strong', 'em', 'a', 'ul', 'ol', 'li',
+                            'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code',
+                            'table', 'thead', 'tbody', 'tr', 'th', 'td', 'span',
+                            'hr', 'sup', 'sub'],
+                          // 'style' and 'class' are intentionally excluded:
+                          //   - style enables CSS-based data exfiltration (background-image requests)
+                          //   - class can interact with Tailwind/app CSS in unintended ways
+                          // 'img' is excluded to prevent pixel-tracking via arbitrary src URLs.
+                          ALLOWED_ATTR: ['href', 'alt', 'title', 'width', 'height',
+                            'border', 'cellpadding', 'cellspacing', 'align', 'valign',
+                            'target'],
                           ALLOW_DATA_ATTR: false,
                           ADD_ATTR: ['target'],
                         })
