@@ -3514,7 +3514,7 @@ export async function registerRoutes(
       });
       
       logger.info("exchange", "Postfach hinzugefügt", `Postfach ${mailbox.emailAddress} wurde hinzugefügt`, { userId: req.user!.id });
-      res.json(mailbox);
+      res.status(201).json(mailbox);
     } catch (error) {
       logger.error("exchange", "Fehler beim Erstellen des Postfachs", { description: String(error), cause: "Erstellungsfehler", solution: "Überprüfen Sie die Postfach-Daten" });
       res.status(500).json({ message: "Interner Serverfehler" });
@@ -3565,7 +3565,7 @@ export async function registerRoutes(
         mailboxId: req.params.mailboxId,
         tenantId: req.user!.tenantId
       });
-      res.json(rule);
+      res.status(201).json(rule);
     } catch (error) {
       logger.error("exchange", "Fehler beim Erstellen der Regel", { description: String(error), cause: "Erstellungsfehler", solution: "Überprüfen Sie die Regel-Daten" });
       res.status(500).json({ message: "Interner Serverfehler" });
