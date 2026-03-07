@@ -580,7 +580,9 @@ export class DatabaseStorage implements IStorage {
       this.getComments(id),
       this.getAttachments(id),
       db.select().from(ticketAreas).leftJoin(areas, eq(ticketAreas.areaId, areas.id)).where(eq(ticketAreas.ticketId, id)),
-    ]);
+    ]).catch((err: unknown) => {
+      throw new Error(`Fehler beim Laden der Ticket-Relationen für ${id}: ${err instanceof Error ? err.message : String(err)}`);
+    });
 
     // Remove password from user object
     const createdBy = createdByUser ? { ...createdByUser, password: undefined } : null;
