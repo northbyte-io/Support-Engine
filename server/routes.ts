@@ -454,8 +454,9 @@ export async function registerRoutes(
   // Ticket Routes
   app.get("/api/tickets", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
-      const tickets = await storage.getTickets({ 
+      const rawLimit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+      const limit = rawLimit !== undefined ? (isNaN(rawLimit) ? 50 : Math.min(rawLimit, 1000)) : undefined;
+      const tickets = await storage.getTickets({
         tenantId: req.tenantId,
         limit,
       });
@@ -1779,7 +1780,8 @@ export async function registerRoutes(
   app.get("/api/notifications", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const unreadOnly = req.query.unreadOnly === "true";
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const rawLimit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+      const limit = rawLimit !== undefined ? (isNaN(rawLimit) ? 50 : Math.min(rawLimit, 1000)) : undefined;
       
       const notificationsList = await storage.getNotifications(
         req.tenantId!,
@@ -2935,7 +2937,8 @@ export async function registerRoutes(
       const customerId = req.query.customerId as string | undefined;
       const contactId = req.query.contactId as string | undefined;
       const ticketId = req.query.ticketId as string | undefined;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const rawLimit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+      const limit = rawLimit !== undefined ? (isNaN(rawLimit) ? 50 : Math.min(rawLimit, 1000)) : undefined;
       const activities = await storage.getCustomerActivities(req.user!.tenantId!, { customerId, contactId, ticketId, limit });
       res.json(activities);
     } catch (error) {
@@ -2978,8 +2981,8 @@ export async function registerRoutes(
         search: req.query.search as string | undefined,
         startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
         endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : 100,
-        offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
+        limit: req.query.limit ? Math.min(parseInt(req.query.limit as string, 10) || 100, 1000) : 100,
+        offset: req.query.offset ? Math.max(parseInt(req.query.offset as string, 10) || 0, 0) : 0,
       };
       const result = logger.getLogs(filters as any);
       res.json(result);
@@ -3317,7 +3320,7 @@ export async function registerRoutes(
     try {
       const { tlsService } = await import("./tls-service");
       const certificateId = req.query.certificateId as string | undefined;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      const limit = req.query.limit ? Math.min(parseInt(req.query.limit as string, 10) || 100, 1000) : 100;
       const actions = await tlsService.getActions(certificateId, limit);
       res.json(actions);
     } catch (error) {
@@ -3616,7 +3619,7 @@ export async function registerRoutes(
   // Get sync logs
   app.get("/api/exchange/sync-logs", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      const limit = req.query.limit ? Math.min(parseInt(req.query.limit as string, 10) || 50, 1000) : 50;
       const mailboxId = req.query.mailboxId as string | undefined;
       const logs = await storage.getExchangeSyncLogs(req.user!.tenantId, { mailboxId, limit });
       res.json(logs);
