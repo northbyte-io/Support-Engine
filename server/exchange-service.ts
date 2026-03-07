@@ -769,9 +769,10 @@ export class ExchangeService {
       const arrayBuffer = await response.arrayBuffer();
       return Buffer.from(arrayBuffer);
     } catch (error) {
-      logger.error(this.logSource, "MIME-Abruf fehlgeschlagen", { 
+      logger.error(this.logSource, "MIME-Abruf fehlgeschlagen", {
         description: String(error),
-        cause: "Graph API Fehler"
+        cause: "Graph API Fehler",
+        solution: "Überprüfen Sie die Verbindung zur Microsoft Graph API"
       });
       return null;
     }
