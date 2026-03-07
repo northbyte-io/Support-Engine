@@ -79,6 +79,7 @@ export default function TicketDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<string | null>(null);
 
   const { data: ticket, isLoading } = useQuery<TicketWithRelations>({
     queryKey: ["/api/tickets", params.id],
@@ -200,6 +201,31 @@ export default function TicketDetailPage() {
   const handleDeleteTicket = () => {
     setIsDeleteDialogOpen(true);
   };
+
+  const handleDownloadAttachment = useCallback(async (attachmentId: string, fileName: string) => {
+    if (downloadingAttachmentId) return;
+    setDownloadingAttachmentId(attachmentId);
+    try {
+      const response = await apiRequest("GET", `/api/attachments/${attachmentId}/download`);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast({
+        title: "Download fehlgeschlagen",
+        description: "Die Datei konnte nicht heruntergeladen werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingAttachmentId(null);
+    }
+  }, [downloadingAttachmentId, toast]);
 
   const handleSubmitComment = async () => {
     if (!newComment.trim()) return;
@@ -509,42 +535,32 @@ export default function TicketDetailPage() {
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {ticket.attachments.map((attachment) => (
-                          <div
-                            key={attachment.id}
-                            className="flex items-center gap-3 p-3 rounded-lg border hover-elevate cursor-pointer"
-                            data-testid={`attachment-${attachment.id}`}
-                            onClick={async () => {
-                              try {
-                                const response = await apiRequest("GET", `/api/attachments/${attachment.id}/download`);
-                                const blob = await response.blob();
-                                const url = window.URL.createObjectURL(blob);
-                                const link = document.createElement('a');
-                                link.href = url;
-                                link.download = attachment.fileName;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                                window.URL.revokeObjectURL(url);
-                              } catch (error) {
-                                console.error('Download-Fehler:', error);
-                                toast({
-                                  title: "Download fehlgeschlagen",
-                                  description: "Die Datei konnte nicht heruntergeladen werden.",
-                                  variant: "destructive"
-                                });
-                              }
-                            }}
-                          >
-                            <FileText className="w-8 h-8 text-muted-foreground" />
-                            <div className="min-w-0 flex-1">
-                              <p className="font-medium text-sm truncate">{attachment.fileName}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {(attachment.fileSize / 1024).toFixed(1)} KB
-                              </p>
+                        {ticket.attachments.map((attachment) => {
+                          const isDownloading = downloadingAttachmentId === attachment.id;
+                          return (
+                            <div
+                              key={attachment.id}
+                              className={`flex items-center gap-3 p-3 rounded-lg border hover-elevate cursor-pointer ${isDownloading ? "opacity-60 pointer-events-none" : ""}`}
+                              data-testid={`attachment-${attachment.id}`}
+                              onClick={() => handleDownloadAttachment(attachment.id, attachment.fileName)}
+                              role="button"
+                              aria-label={`${attachment.fileName} herunterladen`}
+                              aria-busy={isDownloading}
+                            >
+                              {isDownloading ? (
+                                <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+                              ) : (
+                                <FileText className="w-8 h-8 text-muted-foreground" />
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-sm truncate">{attachment.fileName}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {(attachment.fileSize / 1024).toFixed(1)} KB
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </CardContent>
