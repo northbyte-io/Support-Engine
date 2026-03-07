@@ -18,6 +18,7 @@ import { z } from "zod";
 
 // Seed default data for demo
 async function seedDefaultData() {
+  if (process.env.NODE_ENV !== "development") return;
   logger.info("system", "System wird gestartet", "Der Server wird initialisiert und Standarddaten werden geladen");
   try {
     // Check if default tenant exists
