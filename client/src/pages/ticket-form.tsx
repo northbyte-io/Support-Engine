@@ -101,6 +101,11 @@ export default function TicketFormPage() {
   });
 
   const selectedCustomerId = form.watch("customerId");
+  // Lifted out of .map() loops to avoid creating a new subscription on every
+  // render iteration (issue 6.6 from CODE_REVIEW.md).
+  const selectedAssetIds = form.watch("assetIds");
+  const selectedAreaIds = form.watch("areaIds");
+  const selectedAssigneeIds = form.watch("assigneeIds");
 
   const { data: contacts } = useQuery<Contact[]>({
     queryKey: [`/api/contacts?customerId=${selectedCustomerId}`],
@@ -300,7 +305,7 @@ export default function TicketFormPage() {
                       <div className="flex flex-wrap gap-2 mt-2">
                         {assets && assets.length > 0 ? (
                           assets.map((asset) => {
-                            const isSelected = form.watch("assetIds")?.includes(asset.id);
+                            const isSelected = selectedAssetIds?.includes(asset.id);
                             return (
                               <Button
                                 key={asset.id}
@@ -518,7 +523,7 @@ export default function TicketFormPage() {
                   <Label className="text-sm">Bereiche</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {areas?.map((area) => {
-                      const isSelected = form.watch("areaIds")?.includes(area.id);
+                      const isSelected = selectedAreaIds?.includes(area.id);
                       return (
                         <Button
                           key={area.id}
@@ -549,7 +554,7 @@ export default function TicketFormPage() {
                   <Label className="text-sm">Bearbeiter</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {users?.filter((u) => u.role === "agent" || u.role === "admin").map((user) => {
-                      const isSelected = form.watch("assigneeIds")?.includes(user.id);
+                      const isSelected = selectedAssigneeIds?.includes(user.id);
                       return (
                         <Button
                           key={user.id}
