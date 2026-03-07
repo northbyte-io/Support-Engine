@@ -3314,7 +3314,7 @@ export async function registerRoutes(
   app.delete("/api/tls/certificates/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       await storage.deleteTlsCertificate(req.params.id);
-      res.json({ message: "Zertifikat gelöscht" });
+      res.status(204).send();
     } catch (error) {
       logger.error("api", "TLS certificate delete error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
       res.status(500).json({ message: "Interner Serverfehler" });
@@ -3539,7 +3539,7 @@ export async function registerRoutes(
   app.delete("/api/exchange/mailboxes/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       await storage.deleteExchangeMailbox(req.params.id, req.user!.tenantId);
-      res.json({ message: "Postfach gelöscht" });
+      res.status(204).send();
     } catch (error) {
       logger.error("exchange", "Fehler beim Löschen des Postfachs", { description: String(error), cause: "Löschfehler", solution: "Überprüfen Sie die Postfach-ID" });
       res.status(500).json({ message: "Interner Serverfehler" });
@@ -3590,7 +3590,7 @@ export async function registerRoutes(
   app.delete("/api/exchange/rules/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       await storage.deleteExchangeAssignmentRule(req.params.id, req.user!.tenantId);
-      res.json({ message: "Regel gelöscht" });
+      res.status(204).send();
     } catch (error) {
       logger.error("exchange", "Fehler beim Löschen der Regel", { description: String(error), cause: "Löschfehler", solution: "Überprüfen Sie die Regel-ID" });
       res.status(500).json({ message: "Interner Serverfehler" });
@@ -4047,7 +4047,7 @@ export async function registerRoutes(
       const tenantId = req.user!.tenantId;
       await storage.deleteEmailProcessingRule(req.params.id, tenantId);
       logger.info("exchange", "Verarbeitungsregel gelöscht", req.params.id, { userId: req.user!.id });
-      res.json({ message: "Regel gelöscht" });
+      res.status(204).send();
     } catch (error: any) {
       logger.error("exchange", "Fehler beim Löschen der Regel", { description: String(error) });
       res.status(500).json({ message: error.message || "Fehler beim Löschen der Regel" });
