@@ -507,15 +507,7 @@ export default function TicketDetailPage() {
                             data-testid={`attachment-${attachment.id}`}
                             onClick={async () => {
                               try {
-                                const token = localStorage.getItem("token");
-                                const response = await fetch(`/api/attachments/${attachment.id}/download`, {
-                                  headers: {
-                                    Authorization: `Bearer ${token}`
-                                  }
-                                });
-                                if (!response.ok) {
-                                  throw new Error('Download fehlgeschlagen');
-                                }
+                                const response = await apiRequest("GET", `/api/attachments/${attachment.id}/download`);
                                 const blob = await response.blob();
                                 const url = window.URL.createObjectURL(blob);
                                 const link = document.createElement('a');

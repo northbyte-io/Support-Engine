@@ -112,12 +112,7 @@ export default function KnowledgeBase() {
       const params = new URLSearchParams();
       if (selectedCategory) params.append("categoryId", selectedCategory);
       if (searchQuery) params.append("search", searchQuery);
-      const response = await fetch(`/api/kb/articles?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      if (!response.ok) throw new Error("Fehler beim Laden der Artikel");
+      const response = await apiRequest("GET", `/api/kb/articles?${params.toString()}`);
       return response.json();
     },
   });
