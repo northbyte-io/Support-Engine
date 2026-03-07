@@ -1415,7 +1415,8 @@ export async function registerRoutes(
       .replace(/[üÜ]/g, "ue")
       .replace(/ß/g, "ss")
       .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+      .replace(/(^-|-$)/g, "")
+      .slice(0, 100);
   }
 
   app.post("/api/kb/articles", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
