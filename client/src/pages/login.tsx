@@ -135,7 +135,7 @@ export default function LoginPage() {
             <div className="mt-6 text-center text-sm text-muted-foreground">
               Noch kein Konto?{" "}
               <Button
-                variant="link"
+                variant="ghost"
                 className="p-0 h-auto font-medium"
                 onClick={() => setLocation("/register")}
                 data-testid="link-register"
