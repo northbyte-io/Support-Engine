@@ -210,11 +210,9 @@ export default function OrganizationsPage() {
 
         <Card>
           <CardContent className="p-0">
-            {isLoading ? (
-              <TableSkeleton columns={6} rows={5} />
-            ) : !filteredOrganizations?.length ? (
-              <NoOrganizationsEmpty />
-            ) : (
+            {(() => {
+              if (isLoading) return <TableSkeleton cols={6} rows={5} />;
+              if (filteredOrganizations?.length) return (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -321,7 +319,9 @@ export default function OrganizationsPage() {
                   ))}
                 </TableBody>
               </Table>
-            )}
+              );
+              return <NoOrganizationsEmpty />;
+            })()}
           </CardContent>
         </Card>
       </div>
