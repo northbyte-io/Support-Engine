@@ -929,7 +929,7 @@ export async function registerRoutes(
       const comment = await storage.createComment(data);
 
       // Parse @mentions from comment content
-      const mentionPattern = /@([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[a-zA-Z0-9_]+)/g;
+      const mentionPattern = /@([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|\w+)/g;
       const mentionMatches = data.content.match(mentionPattern) || [];
       const tenantUsers = await storage.getUsers(req.tenantId);
       
