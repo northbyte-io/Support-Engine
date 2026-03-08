@@ -49,8 +49,6 @@ import {
   type InsertAttachment,
   type Area,
   type InsertArea,
-  type TicketArea,
-  type InsertTicketArea,
   type TicketWithRelations,
   type SlaDefinition,
   type InsertSlaDefinition,
@@ -168,7 +166,6 @@ import {
   activeTimers,
   workEntries,
   type ActiveTimer,
-  type InsertActiveTimer,
   type WorkEntry,
   type InsertWorkEntry,
   type ActiveTimerWithTicket,
@@ -621,8 +618,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTickets(params: { tenantId?: string; userId?: string; status?: string[]; priority?: string[]; limit?: number }): Promise<TicketWithRelations[]> {
-    let query = db.select().from(tickets).orderBy(desc(tickets.createdAt));
-    
     const conditions = [];
     if (params.tenantId) {
       conditions.push(eq(tickets.tenantId, params.tenantId));
@@ -1681,8 +1676,6 @@ export class DatabaseStorage implements IStorage {
 
   // Assets
   async getAssets(tenantId: string, params?: { assetType?: string; status?: string; categoryId?: string; assignedToId?: string; customerId?: string; search?: string }): Promise<AssetWithRelations[]> {
-    let baseQuery = db.select().from(assets).where(eq(assets.tenantId, tenantId));
-
     const conditions: any[] = [eq(assets.tenantId, tenantId)];
 
     if (params?.assetType) {
@@ -2191,7 +2184,7 @@ export class DatabaseStorage implements IStorage {
       const columnTickets: TicketProject[] = [];
       for (const tp of ticketProjectsList) {
         const [ticket] = await db.select().from(tickets).where(eq(tickets.id, tp.ticketId!));
-        if (ticket && ticket.status === column.status) {
+        if (ticket?.status === column.status) {
           columnTickets.push(tp);
         }
       }
@@ -2692,7 +2685,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTlsCertificate(id: string, tenantId: string): Promise<void> {
     const [cert] = await db.select().from(tlsCertificates).where(eq(tlsCertificates.id, id));
-    if (!cert || cert.tenantId !== tenantId) return;
+    if (cert?.tenantId !== tenantId) return;
     await db.delete(tlsCertificateActions).where(eq(tlsCertificateActions.certificateId, id));
     await db.delete(tlsCertificates).where(eq(tlsCertificates.id, id));
   }
@@ -2832,14 +2825,14 @@ export class DatabaseStorage implements IStorage {
       .$dynamic();
     
     if (params?.mailboxId) {
-      query = query.where(eq(exchangeEmails.mailboxId, params.mailboxId)) as typeof query;
+      query = query.where(eq(exchangeEmails.mailboxId, params.mailboxId));
     }
     if (params?.ticketId) {
-      query = query.where(eq(exchangeEmails.ticketId, params.ticketId)) as typeof query;
+      query = query.where(eq(exchangeEmails.ticketId, params.ticketId));
     }
-    query = query.orderBy(desc(exchangeEmails.receivedAt)) as typeof query;
+    query = query.orderBy(desc(exchangeEmails.receivedAt));
     if (params?.limit) {
-      query = query.limit(params.limit) as typeof query;
+      query = query.limit(params.limit);
     }
     return query;
   }
@@ -2869,11 +2862,11 @@ export class DatabaseStorage implements IStorage {
       .$dynamic();
     
     if (params?.mailboxId) {
-      query = query.where(eq(exchangeSyncLogs.mailboxId, params.mailboxId)) as typeof query;
+      query = query.where(eq(exchangeSyncLogs.mailboxId, params.mailboxId));
     }
-    query = query.orderBy(desc(exchangeSyncLogs.createdAt)) as typeof query;
+    query = query.orderBy(desc(exchangeSyncLogs.createdAt));
     if (params?.limit) {
-      query = query.limit(params.limit) as typeof query;
+      query = query.limit(params.limit);
     }
     return query;
   }
@@ -2983,9 +2976,9 @@ export class DatabaseStorage implements IStorage {
 
   async resumeTimer(ticketId: string, userId: string, tenantId: string): Promise<ActiveTimer | undefined> {
     const timer = await this.getActiveTimer(ticketId, userId, tenantId);
-    if (!timer || !timer.pausedAt) return timer;
+    if (!timer?.pausedAt) return timer;
     
-    const pausedDuration = new Date().getTime() - timer.pausedAt.getTime();
+    const pausedDuration = Date.now() - timer.pausedAt.getTime();
     const newTotalPausedMs = (timer.totalPausedMs || 0) + pausedDuration;
     
     const [updated] = await db.update(activeTimers)
