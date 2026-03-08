@@ -138,7 +138,7 @@ export function AppSidebar() {
     if (theme === "dark" && branding?.logoDark) {
       return branding.logoDark;
     }
-    return branding?.logoLight || branding?.logoUrl;
+    return branding?.logoLight || branding?.logo;
   };
 
   const logo = getLogo();
