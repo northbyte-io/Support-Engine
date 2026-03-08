@@ -266,86 +266,85 @@ export default function TicketsPage() {
           </div>
         )}
 
-        {isLoading ? (
-          <TicketListSkeleton count={8} />
-        ) : !filteredTickets || filteredTickets.length === 0 ? (
-          hasActiveFilters ? (
-            <NoSearchResultsEmpty onClear={clearFilters} />
-          ) : (
-            <NoTicketsEmpty onCreateTicket={() => setLocation("/tickets/new")} />
-          )
-        ) : (
-          <div className="space-y-3">
-            {filteredTickets.map((ticket) => (
-              <Card
-                key={ticket.id}
-                className="hover-elevate cursor-pointer transition-all"
-                onClick={() => setLocation(`/tickets/${ticket.id}`)}
-                data-testid={`ticket-card-${ticket.id}`}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
-                      <PriorityDot priority={ticket.priority || "medium"} />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs text-muted-foreground font-mono">
-                            {ticket.ticketNumber}
-                          </span>
-                          {ticket.ticketType && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-muted">
-                              {ticket.ticketType.name}
+        {(() => {
+          if (isLoading) return <TicketListSkeleton count={8} />;
+          if (!filteredTickets || filteredTickets.length === 0) {
+            if (hasActiveFilters) return <NoSearchResultsEmpty onClear={clearFilters} />;
+            return <NoTicketsEmpty onCreateTicket={() => setLocation("/tickets/new")} />;
+          }
+          return (
+            <div className="space-y-3">
+              {filteredTickets.map((ticket) => (
+                <Card
+                  key={ticket.id}
+                  className="hover-elevate cursor-pointer transition-all"
+                  onClick={() => setLocation(`/tickets/${ticket.id}`)}
+                  data-testid={`ticket-card-${ticket.id}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <PriorityDot priority={ticket.priority || "medium"} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {ticket.ticketNumber}
                             </span>
+                            {ticket.ticketType && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-muted">
+                                {ticket.ticketType.name}
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="font-medium truncate">{ticket.title}</h3>
+                          {ticket.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-1 mt-1">
+                              {ticket.description}
+                            </p>
                           )}
                         </div>
-                        <h3 className="font-medium truncate">{ticket.title}</h3>
-                        {ticket.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-1 mt-1">
-                            {ticket.description}
-                          </p>
-                        )}
+                      </div>
+
+                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                        <StatusBadge status={ticket.status || "open"} />
+                        <PriorityBadge priority={ticket.priority || "medium"} showIcon={false} />
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                      <StatusBadge status={ticket.status || "open"} />
-                      <PriorityBadge priority={ticket.priority || "medium"} showIcon={false} />
-                    </div>
-                  </div>
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span>Erstellt {formatDate(ticket.createdAt)}</span>
+                        {ticket.createdBy && (
+                          <span>von {ticket.createdBy.firstName} {ticket.createdBy.lastName}</span>
+                        )}
+                      </div>
 
-                  <div className="flex items-center justify-between mt-4 pt-3 border-t">
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>Erstellt {formatDate(ticket.createdAt)}</span>
-                      {ticket.createdBy && (
-                        <span>von {ticket.createdBy.firstName} {ticket.createdBy.lastName}</span>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {ticket.assignees?.slice(0, 3).map((assignee, index) => (
+                          <Avatar
+                            key={assignee.id}
+                            className="h-7 w-7 border-2 border-background"
+                            style={{ marginLeft: index > 0 ? "-8px" : 0 }}
+                          >
+                            <AvatarImage src={assignee.user?.avatar || undefined} />
+                            <AvatarFallback className="text-xs">
+                              {getInitials(assignee.user?.firstName, assignee.user?.lastName)}
+                            </AvatarFallback>
+                          </Avatar>
+                        ))}
+                        {ticket.assignees && ticket.assignees.length > 3 && (
+                          <span className="text-xs text-muted-foreground ml-1">
+                            +{ticket.assignees.length - 3}
+                          </span>
+                        )}
+                      </div>
                     </div>
-
-                    <div className="flex items-center gap-1">
-                      {ticket.assignees?.slice(0, 3).map((assignee, index) => (
-                        <Avatar
-                          key={assignee.id}
-                          className="h-7 w-7 border-2 border-background"
-                          style={{ marginLeft: index > 0 ? "-8px" : 0 }}
-                        >
-                          <AvatarImage src={assignee.user?.avatar || undefined} />
-                          <AvatarFallback className="text-xs">
-                            {getInitials(assignee.user?.firstName, assignee.user?.lastName)}
-                          </AvatarFallback>
-                        </Avatar>
-                      ))}
-                      {ticket.assignees && ticket.assignees.length > 3 && (
-                        <span className="text-xs text-muted-foreground ml-1">
-                          +{ticket.assignees.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          );
+        })()}
       </div>
     </MainLayout>
   );
