@@ -54,8 +54,6 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { SurveyWithRelations, SurveyResultSummary, SurveyQuestion } from "@shared/schema";
-import { format } from "date-fns";
-import { de } from "date-fns/locale";
 
 const surveyFormSchema = z.object({
   name: z.string().min(1, "Name ist erforderlich"),
@@ -76,7 +74,7 @@ const questionFormSchema = z.object({
 type SurveyFormValues = z.infer<typeof surveyFormSchema>;
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
 
-function QuestionTypeIcon({ type }: { type: string }) {
+function QuestionTypeIcon({ type }: Readonly<{ type: string }>) {
   switch (type) {
     case "rating":
       return <Star className="h-4 w-4" />;
@@ -91,7 +89,7 @@ function QuestionTypeIcon({ type }: { type: string }) {
   }
 }
 
-function QuestionTypeLabel({ type }: { type: string }) {
+function QuestionTypeLabel({ type }: Readonly<{ type: string }>) {
   switch (type) {
     case "rating":
       return "Bewertung (1-5)";
@@ -106,6 +104,186 @@ function QuestionTypeLabel({ type }: { type: string }) {
   }
 }
 
+interface SurveyResultsTabProps {
+  surveyResults: SurveyResultSummary | undefined;
+}
+
+function SurveyResultsTab({ surveyResults }: Readonly<SurveyResultsTabProps>) {
+  if (!surveyResults) {
+    return (
+      <Card>
+        <CardContent className="py-8">
+          <div className="text-center text-muted-foreground">
+            <BarChart3 className="h-8 w-8 mx-auto mb-2" />
+            <p className="text-sm">Keine Ergebnisse vorhanden</p>
+            <p className="text-xs">Ergebnisse werden angezeigt, sobald Umfragen ausgefüllt wurden</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  return (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Einladungen</CardDescription>
+            <CardTitle className="text-2xl" data-testid="stat-total-invitations">{surveyResults.totalInvitations}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Abgeschlossen</CardDescription>
+            <CardTitle className="text-2xl" data-testid="stat-completed">{surveyResults.completedCount}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Rücklaufquote</CardDescription>
+            <CardTitle className="text-2xl" data-testid="stat-response-rate">{surveyResults.responseRate.toFixed(1)}%</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Durchschn. Bewertung</CardDescription>
+            <CardTitle className="text-2xl" data-testid="stat-avg-rating">
+              {surveyResults.avgRating === null ? "-" : surveyResults.avgRating.toFixed(1)}/5
+            </CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+      {surveyResults.npsScore !== null && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">NPS Score</CardTitle>
+            <CardDescription>Net Promoter Score (-100 bis +100)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold text-center" data-testid="stat-nps-score">
+              {surveyResults.npsScore.toFixed(0)}
+            </div>
+            <Progress value={(surveyResults.npsScore + 100) / 2} className="mt-4" />
+          </CardContent>
+        </Card>
+      )}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Fragen-Statistik</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Frage</TableHead>
+                <TableHead>Typ</TableHead>
+                <TableHead>Antworten</TableHead>
+                <TableHead>Ergebnis</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {surveyResults.questionStats.map((stat) => (
+                <TableRow key={stat.questionId} data-testid={`result-row-${stat.questionId}`}>
+                  <TableCell data-testid={`result-question-${stat.questionId}`}>{stat.questionText}</TableCell>
+                  <TableCell>
+                    <QuestionTypeLabel type={stat.questionType} />
+                  </TableCell>
+                  <TableCell>{stat.responseCount}</TableCell>
+                  <TableCell>
+                    <QuestionStatResult
+                      questionType={stat.questionType}
+                      avgRating={stat.avgRating}
+                      choiceDistribution={stat.choiceDistribution as Record<string, number> | null}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+interface SurveyListItemsProps {
+  isLoading: boolean;
+  surveys: SurveyWithRelations[];
+  selectedSurveyId: string | null;
+  onSelect: (id: string) => void;
+}
+
+function SurveyListItems({ isLoading, surveys, selectedSurveyId, onSelect }: Readonly<SurveyListItemsProps>) {
+  if (isLoading) {
+    return <div className="text-center py-8 text-muted-foreground">Wird geladen...</div>;
+  }
+  if (surveys.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <ClipboardList className="h-8 w-8 mx-auto mb-2" />
+        <p className="text-sm">Keine Umfragen vorhanden</p>
+      </div>
+    );
+  }
+  return (
+    <>
+      {surveys.map((survey) => (
+        <button
+          key={survey.id}
+          type="button"
+          className={`w-full text-left p-3 rounded-md cursor-pointer hover-elevate flex items-center justify-between ${
+            selectedSurveyId === survey.id ? "bg-accent" : ""
+          }`}
+          onClick={() => onSelect(survey.id)}
+          data-testid={`survey-item-${survey.id}`}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <ClipboardList className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="font-medium truncate" data-testid={`survey-name-${survey.id}`}>{survey.name}</p>
+              <p className="text-sm text-muted-foreground">
+                {survey.questions?.length || 0} Fragen
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Badge variant={survey.isActive ? "default" : "secondary"}>
+              {survey.isActive ? "Aktiv" : "Inaktiv"}
+            </Badge>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </div>
+        </button>
+      ))}
+    </>
+  );
+}
+
+interface QuestionStatResultProps {
+  questionType: string;
+  avgRating: number | null | undefined;
+  choiceDistribution?: Record<string, number> | null;
+}
+
+function QuestionStatResult({ questionType, avgRating, choiceDistribution }: Readonly<QuestionStatResultProps>) {
+  if (questionType === "rating" || questionType === "nps") {
+    if (avgRating == null) return <span>-</span>;
+    return (
+      <span className="font-medium">
+        {avgRating.toFixed(1)} {questionType === "rating" ? "/ 5" : "/ 10"}
+      </span>
+    );
+  }
+  if (questionType === "choice" && choiceDistribution) {
+    return (
+      <div className="text-sm">
+        {Object.entries(choiceDistribution).map(([choice, count]) => (
+          <div key={choice}>{choice}: {count}</div>
+        ))}
+      </div>
+    );
+  }
+  return <span className="text-muted-foreground">Textantworten</span>;
+}
+
 export default function SurveysPage() {
   const { toast } = useToast();
   const [selectedSurveyId, setSelectedSurveyId] = useState<string | null>(null);
@@ -118,8 +296,8 @@ export default function SurveysPage() {
     queryKey: ["/api/surveys"],
   });
 
-  const selectedSurvey = selectedSurveyId 
-    ? surveys.find(s => s.id === selectedSurveyId) || null 
+  const selectedSurvey = selectedSurveyId
+    ? surveys.find(s => s.id === selectedSurveyId) ?? null
     : null;
 
   const { data: surveyResults } = useQuery<SurveyResultSummary>({
@@ -265,7 +443,9 @@ export default function SurveysPage() {
   const handleQuestionSubmit = (data: QuestionFormValues) => {
     if (editingQuestion) {
       updateQuestionMutation.mutate({ id: editingQuestion.id, data });
-    } else if (selectedSurvey) {
+      return;
+    }
+    if (selectedSurvey) {
       createQuestionMutation.mutate({ surveyId: selectedSurvey.id, data });
     }
   };
@@ -395,41 +575,12 @@ export default function SurveysPage() {
               <CardDescription>Verwalten Sie Ihre Zufriedenheitsumfragen</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              {isLoading ? (
-                <div className="text-center py-8 text-muted-foreground">Wird geladen...</div>
-              ) : surveys.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <ClipboardList className="h-8 w-8 mx-auto mb-2" />
-                  <p className="text-sm">Keine Umfragen vorhanden</p>
-                </div>
-              ) : (
-                surveys.map((survey) => (
-                  <div
-                    key={survey.id}
-                    className={`p-3 rounded-md cursor-pointer hover-elevate flex items-center justify-between ${
-                      selectedSurvey?.id === survey.id ? "bg-accent" : ""
-                    }`}
-                    onClick={() => setSelectedSurveyId(survey.id)}
-                    data-testid={`survey-item-${survey.id}`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <ClipboardList className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="font-medium truncate" data-testid={`survey-name-${survey.id}`}>{survey.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {survey.questions?.length || 0} Fragen
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <Badge variant={survey.isActive ? "default" : "secondary"}>
-                        {survey.isActive ? "Aktiv" : "Inaktiv"}
-                      </Badge>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                ))
-              )}
+              <SurveyListItems
+                isLoading={isLoading}
+                surveys={surveys}
+                selectedSurveyId={selectedSurveyId}
+                onSelect={setSelectedSurveyId}
+              />
             </CardContent>
           </Card>
         </div>
@@ -643,109 +794,7 @@ export default function SurveysPage() {
               </TabsContent>
 
               <TabsContent value="results" className="space-y-4">
-                {surveyResults ? (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardDescription>Einladungen</CardDescription>
-                          <CardTitle className="text-2xl" data-testid="stat-total-invitations">{surveyResults.totalInvitations}</CardTitle>
-                        </CardHeader>
-                      </Card>
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardDescription>Abgeschlossen</CardDescription>
-                          <CardTitle className="text-2xl" data-testid="stat-completed">{surveyResults.completedCount}</CardTitle>
-                        </CardHeader>
-                      </Card>
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardDescription>Rücklaufquote</CardDescription>
-                          <CardTitle className="text-2xl" data-testid="stat-response-rate">{surveyResults.responseRate.toFixed(1)}%</CardTitle>
-                        </CardHeader>
-                      </Card>
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardDescription>Durchschn. Bewertung</CardDescription>
-                          <CardTitle className="text-2xl" data-testid="stat-avg-rating">
-                            {surveyResults.avgRating !== null ? surveyResults.avgRating.toFixed(1) : "-"}/5
-                          </CardTitle>
-                        </CardHeader>
-                      </Card>
-                    </div>
-
-                    {surveyResults.npsScore !== null && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-lg">NPS Score</CardTitle>
-                          <CardDescription>Net Promoter Score (-100 bis +100)</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-4xl font-bold text-center" data-testid="stat-nps-score">
-                            {surveyResults.npsScore.toFixed(0)}
-                          </div>
-                          <Progress value={(surveyResults.npsScore + 100) / 2} className="mt-4" />
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg">Fragen-Statistik</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Frage</TableHead>
-                              <TableHead>Typ</TableHead>
-                              <TableHead>Antworten</TableHead>
-                              <TableHead>Ergebnis</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {surveyResults.questionStats.map((stat) => (
-                              <TableRow key={stat.questionId} data-testid={`result-row-${stat.questionId}`}>
-                                <TableCell data-testid={`result-question-${stat.questionId}`}>{stat.questionText}</TableCell>
-                                <TableCell>
-                                  <QuestionTypeLabel type={stat.questionType} />
-                                </TableCell>
-                                <TableCell>{stat.responseCount}</TableCell>
-                                <TableCell>
-                                  {stat.questionType === "rating" || stat.questionType === "nps" ? (
-                                    stat.avgRating !== null ? (
-                                      <span className="font-medium">
-                                        {stat.avgRating.toFixed(1)} {stat.questionType === "rating" ? "/ 5" : "/ 10"}
-                                      </span>
-                                    ) : "-"
-                                  ) : stat.questionType === "choice" && stat.choiceDistribution ? (
-                                    <div className="text-sm">
-                                      {Object.entries(stat.choiceDistribution).map(([choice, count]) => (
-                                        <div key={choice}>{choice}: {count}</div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <span className="text-muted-foreground">Textantworten</span>
-                                  )}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </CardContent>
-                    </Card>
-                  </>
-                ) : (
-                  <Card>
-                    <CardContent className="py-8">
-                      <div className="text-center text-muted-foreground">
-                        <BarChart3 className="h-8 w-8 mx-auto mb-2" />
-                        <p className="text-sm">Keine Ergebnisse vorhanden</p>
-                        <p className="text-xs">Ergebnisse werden angezeigt, sobald Umfragen ausgefüllt wurden</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                <SurveyResultsTab surveyResults={surveyResults} />
               </TabsContent>
             </Tabs>
           ) : (
