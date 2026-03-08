@@ -21,14 +21,13 @@ import {
   History,
   Link2,
   User as UserIcon,
-  Calendar,
   Tag,
-  Package,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -102,7 +101,7 @@ const categoryFormSchema = z.object({
 type AssetFormValues = z.infer<typeof assetFormSchema>;
 type CategoryFormValues = z.infer<typeof categoryFormSchema>;
 
-function AssetTypeIcon({ type }: { type: string }) {
+function AssetTypeIcon({ type }: Readonly<{ type: string }>) {
   switch (type) {
     case "hardware":
       return <Monitor className="h-4 w-4" />;
@@ -132,7 +131,7 @@ function AssetTypeLabel({ type }: { type: string }) {
   }
 }
 
-function AssetStatusBadge({ status }: { status: string | null }) {
+function AssetStatusBadge({ status }: Readonly<{ status: string | null }>) {
   const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
     active: { label: "Aktiv", variant: "default" },
     inactive: { label: "Inaktiv", variant: "secondary" },
@@ -167,7 +166,7 @@ export default function AssetsPage() {
   });
 
   const selectedAsset = selectedAssetId
-    ? assets.find((a) => a.id === selectedAssetId) || null
+    ? assets.find((a) => a.id === selectedAssetId) ?? null
     : null;
 
   const { data: assetHistory = [] } = useQuery<(AssetHistory & { user?: User })[]>({
@@ -814,8 +813,8 @@ export default function AssetsPage() {
               <p className="text-sm text-muted-foreground font-mono">{selectedAsset.assetNumber}</p>
             </div>
             <Button size="icon" variant="ghost" onClick={() => setSelectedAssetId(null)}>
+              <X className="h-4 w-4" aria-hidden="true" />
               <span className="sr-only">Schließen</span>
-              &times;
             </Button>
           </div>
 
@@ -960,8 +959,8 @@ export default function AssetsPage() {
                 <p className="text-muted-foreground text-center py-8">Keine verknüpften Tickets</p>
               ) : (
                 <div className="space-y-3">
-                  {assetTickets.map((link, index) => (
-                    <div key={index} className="flex items-start gap-3 p-3 rounded-md bg-muted/50">
+                  {assetTickets.map((link) => (
+                    <div key={link.ticket?.id} className="flex items-start gap-3 p-3 rounded-md bg-muted/50">
                       <Link2 className="h-4 w-4 text-muted-foreground mt-0.5" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{link.ticket?.title || "Unbekanntes Ticket"}</p>
