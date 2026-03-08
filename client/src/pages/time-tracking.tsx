@@ -4,14 +4,13 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { de } from "date-fns/locale";
 import { 
-  Timer, 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
+  Timer,
+  Plus,
+  Edit,
+  Trash2,
   Clock,
   Filter,
   Calendar,
@@ -21,7 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -257,8 +256,9 @@ export default function TimeTrackingPage() {
 
           <div className="space-y-3">
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Von</label>
+              <label htmlFor="filter-start-date" className="text-sm text-muted-foreground mb-1 block">Von</label>
               <Input
+                id="filter-start-date"
                 type="date"
                 value={filterStartDate}
                 onChange={(e) => setFilterStartDate(e.target.value)}
@@ -266,8 +266,9 @@ export default function TimeTrackingPage() {
               />
             </div>
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Bis</label>
+              <label htmlFor="filter-end-date" className="text-sm text-muted-foreground mb-1 block">Bis</label>
               <Input
+                id="filter-end-date"
                 type="date"
                 value={filterEndDate}
                 onChange={(e) => setFilterEndDate(e.target.value)}
@@ -275,9 +276,9 @@ export default function TimeTrackingPage() {
               />
             </div>
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">Ticket</label>
+              <label htmlFor="filter-ticket" className="text-sm text-muted-foreground mb-1 block">Ticket</label>
               <Select value={filterTicketId || "__all__"} onValueChange={(v) => setFilterTicketId(v === "__all__" ? "" : v)}>
-                <SelectTrigger data-testid="select-filter-ticket">
+                <SelectTrigger id="filter-ticket" data-testid="select-filter-ticket">
                   <SelectValue placeholder="Alle Tickets" />
                 </SelectTrigger>
                 <SelectContent>
@@ -292,9 +293,9 @@ export default function TimeTrackingPage() {
             </div>
             {isAdmin && (
               <div>
-                <label className="text-sm text-muted-foreground mb-1 block">Benutzer</label>
+                <label htmlFor="filter-user" className="text-sm text-muted-foreground mb-1 block">Benutzer</label>
                 <Select value={filterUserId || "__all__"} onValueChange={(v) => setFilterUserId(v === "__all__" ? "" : v)}>
-                  <SelectTrigger data-testid="select-filter-user">
+                  <SelectTrigger id="filter-user" data-testid="select-filter-user">
                     <SelectValue placeholder="Alle Benutzer" />
                   </SelectTrigger>
                   <SelectContent>
@@ -346,24 +347,27 @@ export default function TimeTrackingPage() {
         </div>
 
         <div className="flex-1 overflow-auto p-4">
-          {entriesLoading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Zeiteinträge werden geladen...
-            </div>
-          ) : timeEntries.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Timer className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Keine Zeiteinträge gefunden</p>
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={() => openDialog()}
-                data-testid="button-create-first-entry"
-              >
-                Ersten Zeiteintrag erstellen
-              </Button>
-            </div>
-          ) : (
+          {(() => {
+            if (entriesLoading) return (
+              <div className="text-center py-8 text-muted-foreground">
+                Zeiteinträge werden geladen...
+              </div>
+            );
+            if (timeEntries.length === 0) return (
+              <div className="text-center py-8 text-muted-foreground">
+                <Timer className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Keine Zeiteinträge gefunden</p>
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => openDialog()}
+                  data-testid="button-create-first-entry"
+                >
+                  Ersten Zeiteintrag erstellen
+                </Button>
+              </div>
+            );
+            return (
             <div className="space-y-2">
               {timeEntries.map((entry) => (
                 <Card
@@ -440,7 +444,8 @@ export default function TimeTrackingPage() {
                 </Card>
               ))}
             </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 
@@ -469,7 +474,7 @@ export default function TimeTrackingPage() {
                         <Input
                           type="number"
                           {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          onChange={(e) => field.onChange(Number.parseInt(e.target.value) || 0)}
                           placeholder="30"
                           data-testid="input-time-minutes"
                         />
@@ -568,7 +573,7 @@ export default function TimeTrackingPage() {
                         <Input
                           type="number"
                           {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || undefined)}
+                          onChange={(e) => field.onChange(Number.parseFloat(e.target.value) || undefined)}
                           placeholder="0.00"
                           data-testid="input-time-hourly-rate"
                         />
