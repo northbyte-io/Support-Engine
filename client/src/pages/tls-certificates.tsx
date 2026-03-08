@@ -73,7 +73,25 @@ const settingsSchema = z.object({
 
 type SettingsForm = z.infer<typeof settingsSchema>;
 
-function StatusBadge({ status }: { status: string | null }) {
+function getActionStatusClass(status: string): string {
+  if (status === "success") return "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300";
+  if (status === "failed") return "bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300";
+  return "bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-300";
+}
+
+function getActionStatusVariant(status: string): "default" | "destructive" | "secondary" {
+  if (status === "success") return "default";
+  if (status === "failed") return "destructive";
+  return "secondary";
+}
+
+function ActionStatusIcon({ status }: Readonly<{ status: string }>) {
+  if (status === "success") return <Check className="w-4 h-4" />;
+  if (status === "failed") return <X className="w-4 h-4" />;
+  return <Clock className="w-4 h-4" />;
+}
+
+function StatusBadge({ status }: Readonly<{ status: string | null }>) {
   const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
     active: { label: "Aktiv", variant: "default" },
     pending: { label: "Ausstehend", variant: "secondary" },
@@ -85,7 +103,7 @@ function StatusBadge({ status }: { status: string | null }) {
   return <Badge variant={config.variant}>{config.label}</Badge>;
 }
 
-function CaTypeBadge({ caType }: { caType: string }) {
+function CaTypeBadge({ caType }: Readonly<{ caType: string }>) {
   if (caType === "production") {
     return <Badge variant="default">Produktion</Badge>;
   }
@@ -96,7 +114,7 @@ export default function TlsCertificatesPage() {
   const { toast } = useToast();
   const [showNewCertDialog, setShowNewCertDialog] = useState(false);
 
-  const { data: settings, isLoading: settingsLoading } = useQuery<TlsSettings>({
+  const { data: settings } = useQuery<TlsSettings>({
     queryKey: ["/api/tls/settings"],
   });
 
@@ -357,23 +375,26 @@ export default function TlsCertificatesPage() {
             </div>
           </div>
 
-          {certsLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Laden...</div>
-          ) : certificates.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Keine Zertifikate vorhanden</h3>
-                <p className="text-muted-foreground mb-4">
-                  Fordern Sie Ihr erstes SSL-Zertifikat von Let's Encrypt an
-                </p>
-                <Button onClick={() => setShowNewCertDialog(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Neues Zertifikat
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
+          {(() => {
+            if (certsLoading) return (
+              <div className="text-center py-8 text-muted-foreground">Laden...</div>
+            );
+            if (certificates.length === 0) return (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Keine Zertifikate vorhanden</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Fordern Sie Ihr erstes SSL-Zertifikat von Let's Encrypt an
+                  </p>
+                  <Button onClick={() => setShowNewCertDialog(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Neues Zertifikat
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+            return (
             <div className="space-y-4">
               {certificates.map((cert) => (
                 <Card key={cert.id} data-testid={`card-certificate-${cert.id}`}>
@@ -511,7 +532,8 @@ export default function TlsCertificatesPage() {
                 </Card>
               ))}
             </div>
-          )}
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="settings">
@@ -584,7 +606,7 @@ export default function TlsCertificatesPage() {
                             min={7} 
                             max={60}
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
+                            onChange={(e) => field.onChange(Number.parseInt(e.target.value))}
                             data-testid="input-renew-days"
                           />
                         </FormControl>
@@ -691,24 +713,18 @@ export default function TlsCertificatesPage() {
               ) : (
                 <div className="space-y-4">
                   {actions.map((action) => (
-                    <div 
-                      key={action.id} 
+                    <div
+                      key={action.id}
                       className="flex items-start gap-4 p-3 rounded-lg border"
                       data-testid={`action-${action.id}`}
                     >
-                      <div className={`p-2 rounded-full ${
-                        action.status === "success" ? "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300" :
-                        action.status === "failed" ? "bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300" :
-                        "bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-300"
-                      }`}>
-                        {action.status === "success" ? <Check className="w-4 h-4" /> :
-                         action.status === "failed" ? <X className="w-4 h-4" /> :
-                         <Clock className="w-4 h-4" />}
+                      <div className={`p-2 rounded-full ${getActionStatusClass(action.status)}`}>
+                        <ActionStatusIcon status={action.status} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium capitalize">{action.action}</span>
-                          <Badge variant={action.status === "success" ? "default" : action.status === "failed" ? "destructive" : "secondary"}>
+                          <Badge variant={getActionStatusVariant(action.status)}>
                             {action.status}
                           </Badge>
                         </div>
