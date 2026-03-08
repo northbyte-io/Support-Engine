@@ -212,15 +212,15 @@ export interface IStorage {
   addTicketAssignee(assignee: InsertTicketAssignee): Promise<TicketAssignee>;
   addTicketAssignees(assignees: InsertTicketAssignee[]): Promise<TicketAssignee[]>;
   removeTicketAssignee(ticketId: string, userId: string): Promise<void>;
-  getTicketAssignees(ticketId: string): Promise<(TicketAssignee & { user?: User })[]>;
+  getTicketAssignees(ticketId: string): Promise<(TicketAssignee & { user?: Omit<User, 'password'> })[]>;
 
   // Ticket Watchers
   addTicketWatcher(watcher: InsertTicketWatcher): Promise<TicketWatcher>;
   removeTicketWatcher(ticketId: string, userId: string): Promise<void>;
-  getTicketWatchers(ticketId: string): Promise<(TicketWatcher & { user?: User })[]>;
+  getTicketWatchers(ticketId: string): Promise<(TicketWatcher & { user?: Omit<User, 'password'> })[]>;
 
   // Comments
-  getComments(ticketId: string): Promise<(Comment & { author?: User; attachments?: Attachment[] })[]>;
+  getComments(ticketId: string): Promise<(Comment & { author?: Omit<User, 'password'>; attachments?: Attachment[] })[]>;
   createComment(comment: InsertComment): Promise<Comment>;
   updateComment(id: string, updates: Partial<InsertComment>): Promise<Comment | undefined>;
   deleteComment(id: string): Promise<void>;
@@ -962,7 +962,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getAgentWorkload(tenantId?: string): Promise<{ user: User; ticketCount: number }[]> {
+  async getAgentWorkload(_tenantId?: string): Promise<{ user: User; ticketCount: number }[]> {
     const agents = await db.select().from(users)
       .where(or(eq(users.role, "agent"), eq(users.role, "admin")));
     

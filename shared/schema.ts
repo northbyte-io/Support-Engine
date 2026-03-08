@@ -748,11 +748,11 @@ export type InsertSurveyResponse = z.infer<typeof insertSurveyResponseSchema>;
 // Extended types for API responses
 export type TicketWithRelations = Ticket & {
   ticketType?: TicketType | null;
-  createdBy?: User | null;
+  createdBy?: Omit<User, 'password'> | null;
   slaDefinition?: SlaDefinition | null;
-  assignees?: (TicketAssignee & { user?: User })[];
-  watchers?: (TicketWatcher & { user?: User })[];
-  comments?: (Comment & { author?: User; attachments?: Attachment[] })[];
+  assignees?: (TicketAssignee & { user?: Omit<User, 'password'> })[];
+  watchers?: (TicketWatcher & { user?: Omit<User, 'password'> })[];
+  comments?: (Comment & { author?: Omit<User, 'password'>; attachments?: Attachment[] })[];
   attachments?: Attachment[];
   areas?: (TicketArea & { area?: Area })[];
   customer?: (Customer & { contacts?: Contact[]; organization?: Organization | null }) | null;
@@ -768,12 +768,12 @@ export type KbCategoryWithArticles = KbCategory & {
 
 export type KbArticleWithRelations = KbArticle & {
   category?: KbCategory | null;
-  author?: User | null;
+  author?: Omit<User, 'password'> | null;
   versions?: KbArticleVersion[];
 };
 
 export type TimeEntryWithRelations = TimeEntry & {
-  user?: User | null;
+  user?: Omit<User, 'password'> | null;
   ticket?: Ticket | null;
 };
 
