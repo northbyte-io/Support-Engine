@@ -3584,9 +3584,10 @@ export async function registerRoutes(
       const { tlsService } = await import("./tls-service");
       const daysBeforeExpiry = settings?.renewDaysBeforeExpiry || 30;
       const result = await tlsService.checkAndRenewExpiring(
-        daysBeforeExpiry,
         email,
-        req.user!.id
+        req.user!.id,
+        undefined,
+        daysBeforeExpiry
       );
       
       res.json({

@@ -1,8 +1,8 @@
 import acme from "acme-client";
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { storage } from "./storage";
 import { logger } from "./logger";
-import { encryptSecretToJson, decryptSecretFromJson, isEncryptedJson, getOrDecrypt } from "./keyVault";
+import { encryptSecretToJson, getOrDecrypt } from "./keyVault";
 
 const LETS_ENCRYPT_STAGING = "https://acme-staging-v02.api.letsencrypt.org/directory";
 const LETS_ENCRYPT_PRODUCTION = "https://acme-v02.api.letsencrypt.org/directory";
@@ -34,7 +34,7 @@ export class TlsService {
         publicKeyEncoding: { type: "spki", format: "pem" },
         privateKeyEncoding: { type: "pkcs8", format: "pem" }
       });
-      const rawKey = keyPair.privateKey as string;
+      const rawKey = keyPair.privateKey;
       const encryptedKey = encryptSecretToJson(rawKey);
       accountKeyPem = rawKey;
       
@@ -101,7 +101,7 @@ export class TlsService {
         privateKeyEncoding: { type: "pkcs8", format: "pem" }
       });
 
-      const rawPrivateKey = keyPair.privateKey as string;
+      const rawPrivateKey = keyPair.privateKey;
       const encryptedPrivateKey = encryptSecretToJson(rawPrivateKey);
 
       const [, csr] = await acme.crypto.createCsr({
@@ -223,10 +223,10 @@ export class TlsService {
       const privateKeyPem = getOrDecrypt(cert.privateKeyPem || "") || cert.privateKeyPem || "";
 
       const [, csr] = await acme.crypto.createCsr({
-        commonName: cert.domain!
+        commonName: cert.domain
       }, privateKeyPem);
 
-      await storage.updateTlsCertificate(cert.id, { 
+      await storage.updateTlsCertificate(cert.id, {
         status: "pending",
         renewalAttempts: (cert.renewalAttempts || 0) + 1
       });
@@ -240,7 +240,7 @@ export class TlsService {
       });
 
       const order = await this.client!.createOrder({
-        identifiers: [{ type: "dns", value: cert.domain! }]
+        identifiers: [{ type: "dns", value: cert.domain }]
       });
 
       const authorizations = await this.client!.getAuthorizations(order);
@@ -252,12 +252,12 @@ export class TlsService {
         }
 
         const keyAuthorization = await this.client!.getChallengeKeyAuthorization(httpChallenge);
-        
+
         await storage.createTlsChallenge({
           tenantId: tenantId || null,
           token: httpChallenge.token,
           keyAuthorization,
-          domain: cert.domain!,
+          domain: cert.domain,
           expiresAt: new Date(Date.now() + 10 * 60 * 1000)
         });
 
@@ -320,7 +320,7 @@ export class TlsService {
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const cert = await storage.getTlsCertificate(certificateId);
-      if (!cert || !cert.certificatePem) {
+      if (!cert?.certificatePem) {
         throw new Error("Zertifikat nicht gefunden oder keine Zertifikatsdaten vorhanden");
       }
 
@@ -371,10 +371,10 @@ export class TlsService {
   }
 
   async checkAndRenewExpiring(
-    daysBeforeExpiry: number = 30,
     email: string,
     userId: string,
-    tenantId?: string | null
+    tenantId?: string | null,
+    daysBeforeExpiry: number = 30
   ): Promise<{ renewed: number; errors: string[] }> {
     const certificates = await storage.getTlsCertificates();
     const now = new Date();
