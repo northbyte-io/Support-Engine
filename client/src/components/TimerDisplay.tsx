@@ -24,7 +24,7 @@ function formatDuration(ms: number): string {
 }
 
 function calculateElapsedTime(timer: ActiveTimerWithTicket): number {
-  const now = new Date().getTime();
+  const now = Date.now();
   const startTime = new Date(timer.startedAt).getTime();
   const totalPausedMs = timer.totalPausedMs || 0;
   
@@ -38,9 +38,9 @@ function calculateElapsedTime(timer: ActiveTimerWithTicket): number {
 }
 
 interface TimerItemProps {
-  timer: ActiveTimerWithTicket;
-  onOpenTicket: (ticketId: string) => void;
-  onStop: (timer: ActiveTimerWithTicket) => void;
+  readonly timer: ActiveTimerWithTicket;
+  readonly onOpenTicket: (ticketId: string) => void;
+  readonly onStop: (timer: ActiveTimerWithTicket) => void;
 }
 
 function TimerItem({ timer, onOpenTicket, onStop }: TimerItemProps) {
@@ -82,13 +82,14 @@ function TimerItem({ timer, onOpenTicket, onStop }: TimerItemProps) {
             <span className="text-xs text-muted-foreground">(Pausiert)</span>
           )}
         </div>
-        <div 
-          className="text-xs text-muted-foreground truncate cursor-pointer hover:text-foreground"
+        <button
+          type="button"
+          className="text-xs text-muted-foreground truncate cursor-pointer hover:text-foreground text-left w-full"
           onClick={() => onOpenTicket(timer.ticketId)}
           data-testid={`timer-ticket-${timer.ticketId}`}
         >
           {timer.ticket?.ticketNumber} - {timer.ticket?.title}
-        </div>
+        </button>
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
         {isPaused ? (
@@ -137,7 +138,6 @@ function TimerItem({ timer, onOpenTicket, onStop }: TimerItemProps) {
 export function TimerDisplay() {
   const [, setLocation] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const [stoppingTimer, setStoppingTimer] = useState<ActiveTimerWithTicket | null>(null);
   const [stoppedTimerData, setStoppedTimerData] = useState<{
     timer: ActiveTimerWithTicket;
     durationMs: number;
@@ -161,11 +161,7 @@ export function TimerDisplay() {
         durationMs: data.durationMs,
         stoppedAt: data.stoppedAt,
       });
-      setStoppingTimer(null);
       queryClient.invalidateQueries({ queryKey: ["/api/timers"] });
-    },
-    onError: () => {
-      setStoppingTimer(null);
     },
   });
 
@@ -175,13 +171,11 @@ export function TimerDisplay() {
   };
 
   const handleStopTimer = (timer: ActiveTimerWithTicket) => {
-    setStoppingTimer(timer);
     stopMutation.mutate(timer);
   };
 
   const handleWorkEntryClose = () => {
     setStoppedTimerData(null);
-    setStoppingTimer(null);
   };
 
   const totalActiveTimers = timers.length;
