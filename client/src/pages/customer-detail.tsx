@@ -13,7 +13,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { format, formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
-import type { CustomerWithRelations, Ticket as TicketType } from "@shared/schema";
+import type { CustomerWithRelations } from "@shared/schema";
 
 function getInitials(firstName?: string | null, lastName?: string | null): string {
   const first = firstName?.charAt(0).toUpperCase() || "";
@@ -65,6 +65,16 @@ export default function CustomerDetailPage() {
     );
   }
 
+  const priorityColorMap: Record<string, string> = {
+    high: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+    low: "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300",
+    normal: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+  };
+  const priorityColor = priorityColorMap[customer.priority ?? ""] ?? priorityColorMap.normal;
+
+  const priorityLabelMap: Record<string, string> = { high: "Hoch", low: "Niedrig", normal: "Normal" };
+  const priorityLabel = priorityLabelMap[customer.priority ?? ""] ?? "Normal";
+
   return (
     <MainLayout title={customer.name}>
       <div className="space-y-6">
@@ -77,12 +87,8 @@ export default function CustomerDetailPage() {
               <h1 className="text-2xl font-semibold">{customer.name}</h1>
               <Badge variant="outline">{customer.customerNumber}</Badge>
               {customer.priority && (
-                <Badge className={
-                  customer.priority === "high" ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" :
-                  customer.priority === "low" ? "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300" :
-                  "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-                }>
-                  {customer.priority === "high" ? "Hoch" : customer.priority === "low" ? "Niedrig" : "Normal"}
+                <Badge className={priorityColor}>
+                  {priorityLabel}
                 </Badge>
               )}
               {!customer.isActive && (
@@ -129,9 +135,10 @@ export default function CustomerDetailPage() {
                     ) : (
                       <div className="space-y-3">
                         {customer.tickets.map((ticket) => (
-                          <div
+                          <button
                             key={ticket.id}
-                            className="p-4 rounded-lg border hover-elevate cursor-pointer"
+                            type="button"
+                            className="w-full text-left p-4 rounded-lg border hover-elevate cursor-pointer"
                             onClick={() => setLocation(`/tickets/${ticket.id}`)}
                             data-testid={`ticket-row-${ticket.id}`}
                           >
@@ -151,7 +158,7 @@ export default function CustomerDetailPage() {
                               </div>
                               <ExternalLink className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                             </div>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     )}
