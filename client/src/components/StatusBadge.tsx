@@ -27,8 +27,8 @@ const statusConfig: Record<TicketStatus, { label: string; className: string }> =
 };
 
 interface StatusBadgeProps {
-  status: TicketStatus;
-  className?: string;
+  readonly status: TicketStatus;
+  readonly className?: string;
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
