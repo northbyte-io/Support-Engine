@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import DOMPurify from "dompurify";
@@ -66,7 +66,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { format, formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
-import type { TicketWithRelations, Comment, User as UserType, Project, CustomerWithRelations } from "@shared/schema";
+import type { TicketWithRelations, Project, CustomerWithRelations } from "@shared/schema";
 import { TicketTimerControl } from "@/components/TicketTimerControl";
 import { WorkEntriesList } from "@/components/WorkEntriesList";
 
@@ -208,15 +208,15 @@ export default function TicketDetailPage() {
     try {
       const response = await apiRequest("GET", `/api/attachments/${attachmentId}/download`);
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.download = fileName;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
+      link.remove();
+      globalThis.URL.revokeObjectURL(url);
+    } catch {
       toast({
         title: "Download fehlgeschlagen",
         description: "Die Datei konnte nicht heruntergeladen werden.",
@@ -365,8 +365,9 @@ export default function TicketDetailPage() {
                 <CardTitle className="text-lg">Beschreibung</CardTitle>
               </CardHeader>
               <CardContent>
-                {ticket.description ? (
-                  ticket.description.includes('<') && ticket.description.includes('>') ? (
+                {(() => {
+                  if (!ticket.description) return <p className="text-muted-foreground italic">Keine Beschreibung vorhanden</p>;
+                  if (ticket.description.includes('<') && ticket.description.includes('>')) return (
                     <div 
                       className="prose prose-sm max-w-none dark:prose-invert overflow-auto"
                       data-testid="text-description"
@@ -388,14 +389,13 @@ export default function TicketDetailPage() {
                         })
                       }}
                     />
-                  ) : (
+                  );
+                  return (
                     <p className="whitespace-pre-wrap" data-testid="text-description">
                       {ticket.description}
                     </p>
-                  )
-                ) : (
-                  <p className="text-muted-foreground italic">Keine Beschreibung vorhanden</p>
-                )}
+                  );
+                })()}
               </CardContent>
             </Card>
 
@@ -538,12 +538,12 @@ export default function TicketDetailPage() {
                         {ticket.attachments.map((attachment) => {
                           const isDownloading = downloadingAttachmentId === attachment.id;
                           return (
-                            <div
+                            <button
                               key={attachment.id}
-                              className={`flex items-center gap-3 p-3 rounded-lg border hover-elevate cursor-pointer ${isDownloading ? "opacity-60 pointer-events-none" : ""}`}
+                              type="button"
+                              className={`w-full text-left flex items-center gap-3 p-3 rounded-lg border hover-elevate cursor-pointer ${isDownloading ? "opacity-60 pointer-events-none" : ""}`}
                               data-testid={`attachment-${attachment.id}`}
                               onClick={() => handleDownloadAttachment(attachment.id, attachment.fileName)}
-                              role="button"
                               aria-label={`${attachment.fileName} herunterladen`}
                               aria-busy={isDownloading}
                             >
@@ -558,7 +558,7 @@ export default function TicketDetailPage() {
                                   {(attachment.fileSize / 1024).toFixed(1)} KB
                                 </p>
                               </div>
-                            </div>
+                            </button>
                           );
                         })}
                       </div>
@@ -683,9 +683,10 @@ export default function TicketDetailPage() {
               <CardContent className="space-y-3">
                 {ticket.customer ? (
                   <div className="space-y-3">
-                    <div 
-                      className="p-3 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
-                      onClick={() => setLocation(`/customers/${ticket.customer.id}`)}
+                    <button
+                      type="button"
+                      className="w-full text-left p-3 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
+                      onClick={() => setLocation(`/customers/${ticket.customer?.id}`)}
                       data-testid="link-customer-detail"
                     >
                       <div className="flex items-center gap-2">
@@ -700,7 +701,7 @@ export default function TicketDetailPage() {
                           {ticket.customer.organization.name}
                         </p>
                       )}
-                    </div>
+                    </button>
                     {ticket.customer.contacts && ticket.customer.contacts.length > 0 && (
                       <div className="space-y-2">
                         <p className="text-xs text-muted-foreground font-medium">Kontakte</p>
@@ -824,7 +825,8 @@ export default function TicketDetailPage() {
                         className="flex items-center justify-between gap-2 p-2 rounded-lg bg-muted/50"
                         data-testid={`project-${tp.projectId}`}
                       >
-                        <div
+                        <button
+                          type="button"
                           className="flex items-center gap-2 cursor-pointer hover:underline"
                           onClick={() => setLocation(`/projects/${tp.projectId}`)}
                         >
@@ -834,7 +836,7 @@ export default function TicketDetailPage() {
                           />
                           <span className="text-sm font-medium">{tp.project?.name}</span>
                           <Badge variant="outline" className="text-xs">{tp.project?.key}</Badge>
-                        </div>
+                        </button>
                         <Button
                           variant="ghost"
                           size="icon"
