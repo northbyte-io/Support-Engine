@@ -287,7 +287,7 @@ export default function TicketFormPage() {
                               {contacts?.map((contact) => (
                                 <SelectItem key={contact.id} value={contact.id}>
                                   {contact.firstName} {contact.lastName}
-                                  {contact.position && ` - ${contact.position}`}
+                                  {contact.title && ` - ${contact.title}`}
                                 </SelectItem>
                               ))}
                             </SelectContent>
