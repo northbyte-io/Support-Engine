@@ -20,11 +20,11 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 
 interface WorkEntryModalProps {
-  open: boolean;
-  onClose: () => void;
-  timer: ActiveTimerWithTicket;
-  durationMs: number;
-  stoppedAt?: string;
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly timer: ActiveTimerWithTicket;
+  readonly durationMs: number;
+  readonly stoppedAt?: string;
 }
 
 function formatDuration(ms: number): string {
