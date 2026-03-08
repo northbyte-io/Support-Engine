@@ -225,9 +225,7 @@ export default function ContactsPage() {
     );
   });
 
-  const contactsTableContent = isLoading ? (
-    <TableSkeleton rows={5} cols={6} />
-  ) : filteredContacts?.length ? (
+  const contactsBody = filteredContacts?.length ? (
     <Table>
       <TableHeader>
         <TableRow>
@@ -331,6 +329,8 @@ export default function ContactsPage() {
   ) : (
     <NoContactsEmpty />
   );
+
+  const contactsTableContent = isLoading ? <TableSkeleton rows={5} cols={6} /> : contactsBody;
 
   return (
     <MainLayout title="Kontakte">
