@@ -421,7 +421,8 @@ export default function ExchangeIntegration() {
         } else {
           setRuleConditions([{ type: rule.conditionType || "all_emails", value: rule.conditionValue || "", operator: "AND" }]);
         }
-      } catch (e) {
+      } catch (err) {
+        console.error(err);
         setRuleConditions([{ type: rule.conditionType || "all_emails", value: rule.conditionValue || "", operator: "AND" }]);
       }
     } else {
@@ -481,7 +482,7 @@ export default function ExchangeIntegration() {
 
   // Handler zum Laden der Ordner
   const handleLoadFolders = async (email: string) => {
-    if (!email || !email.includes("@")) return;
+    if (!email?.includes("@")) return;
     
     setIsLoadingFolders(true);
     setFoldersError(null);
@@ -529,8 +530,9 @@ export default function ExchangeIntegration() {
       } else {
         setRuleFolders(standardFolders);
       }
-    } catch (error) {
+    } catch (err) {
       // Fallback auf Standard-Ordner bei Fehler
+      console.error(err);
       setRuleFolders(standardFolders);
     } finally {
       setIsLoadingRuleFolders(false);
@@ -679,9 +681,8 @@ export default function ExchangeIntegration() {
   };
 
   return (
-    <MainLayout 
-      title="Exchange-Integration" 
-      description="Microsoft Exchange Online E-Mail-Integration verwalten"
+    <MainLayout
+      title="Exchange-Integration"
     >
       <div className="space-y-6">
         {/* Header mit Zurück-Button */}
@@ -756,8 +757,12 @@ export default function ExchangeIntegration() {
                   {setupSteps.map((step, index) => {
                     const isCurrentStep = currentStep === step.id;
                     const isPastStep = currentStep > step.id;
-                    const buttonColorClass = isCurrentStep ? "text-primary" : isPastStep ? "text-green-600 dark:text-green-400" : "text-muted-foreground";
-                    const circleColorClass = isCurrentStep ? "bg-primary text-primary-foreground" : isPastStep ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400" : "bg-muted";
+                    let buttonColorClass = "text-muted-foreground";
+                    if (isCurrentStep) buttonColorClass = "text-primary";
+                    else if (isPastStep) buttonColorClass = "text-green-600 dark:text-green-400";
+                    let circleColorClass = "bg-muted";
+                    if (isCurrentStep) circleColorClass = "bg-primary text-primary-foreground";
+                    else if (isPastStep) circleColorClass = "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400";
                     return (
                     <div key={step.id} className="flex items-center">
                       <button
@@ -1005,15 +1010,18 @@ export default function ExchangeIntegration() {
                 </Button>
               </CardHeader>
               <CardContent>
-                {isLoadingMailboxes ? (
+                {isLoadingMailboxes && (
                   <div className="text-center py-8">
                     <Loader2 className="w-8 h-8 mx-auto animate-spin text-muted-foreground" />
                     <p className="mt-2 text-muted-foreground">Lade Postfächer...</p>
                   </div>
-                ) : (mailboxesData?.length ?? 0) > 0 ? (
+                )}
+                {!isLoadingMailboxes && (mailboxesData?.length ?? 0) > 0 && (
                   <div className="space-y-4">
                     {(mailboxesData ?? []).map((mailbox: any) => {
-                      const mailboxTypeLabel = mailbox.mailboxType === "incoming" ? "Eingehend" : mailbox.mailboxType === "outgoing" ? "Ausgehend" : "Gemeinsam";
+                      let mailboxTypeLabel = "Gemeinsam";
+                      if (mailbox.mailboxType === "incoming") mailboxTypeLabel = "Eingehend";
+                      else if (mailbox.mailboxType === "outgoing") mailboxTypeLabel = "Ausgehend";
                       return (
                       <div key={mailbox.id} className="p-4 border rounded-md space-y-3">
                         <div className="flex items-center justify-between">
@@ -1091,7 +1099,8 @@ export default function ExchangeIntegration() {
                       );
                     })}
                   </div>
-                ) : (
+                )}
+                {!isLoadingMailboxes && (mailboxesData?.length ?? 0) === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
                     <Mail className="w-12 h-12 mx-auto mb-4 opacity-50" />
                     <p>Noch keine Postfächer konfiguriert</p>
@@ -1127,12 +1136,13 @@ export default function ExchangeIntegration() {
                 </Button>
               </CardHeader>
               <CardContent>
-                {isLoadingRules ? (
+                {isLoadingRules && (
                   <div className="text-center py-8">
                     <Loader2 className="w-8 h-8 mx-auto animate-spin text-muted-foreground" />
                     <p className="mt-2 text-muted-foreground">Lade Regeln...</p>
                   </div>
-                ) : (processingRulesData?.length ?? 0) > 0 ? (
+                )}
+                {!isLoadingRules && (processingRulesData?.length ?? 0) > 0 && (
                   <div className="space-y-3">
                     {(processingRulesData ?? []).map((rule: any) => (
                       <div key={rule.id} className="p-4 border rounded-md">
@@ -1245,7 +1255,8 @@ export default function ExchangeIntegration() {
                       </div>
                     ))}
                   </div>
-                ) : (
+                )}
+                {!isLoadingRules && (processingRulesData?.length ?? 0) === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
                     <Filter className="w-12 h-12 mx-auto mb-4 opacity-50" />
                     <p>Noch keine Verarbeitungsregeln definiert</p>
@@ -1511,20 +1522,25 @@ export default function ExchangeIntegration() {
             <Button variant="outline" onClick={() => setShowMailboxDialog(false)}>
               Abbrechen
             </Button>
-            <Button 
-              onClick={handleSaveMailbox} 
-              disabled={isSavingMailbox || !newMailboxEmail || !newMailboxSourceFolderId}
-              data-testid="button-save-mailbox"
-            >
-              {isSavingMailbox ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Speichern...
-                </>
-              ) : (
-                editingMailbox ? "Speichern" : "Postfach hinzufügen"
-              )}
-            </Button>
+            {(() => {
+              const mailboxSaveLabel = editingMailbox ? "Speichern" : "Postfach hinzufügen";
+              return (
+                <Button
+                  onClick={handleSaveMailbox}
+                  disabled={isSavingMailbox || !newMailboxEmail || !newMailboxSourceFolderId}
+                  data-testid="button-save-mailbox"
+                >
+                  {isSavingMailbox ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Speichern...
+                    </>
+                  ) : (
+                    mailboxSaveLabel
+                  )}
+                </Button>
+              );
+            })()}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1681,7 +1697,10 @@ export default function ExchangeIntegration() {
               
               <div className="space-y-3">
                 {ruleConditions.map((condition, index) => {
-                  const conditionPlaceholder = condition.type.includes("sender") ? "@example.com" : condition.type.includes("recipient") ? "support@" : condition.type.includes("subject") ? "DRINGEND" : "Suchbegriff";
+                  let conditionPlaceholder = "Suchbegriff";
+                  if (condition.type.includes("sender")) conditionPlaceholder = "@example.com";
+                  else if (condition.type.includes("recipient")) conditionPlaceholder = "support@";
+                  else if (condition.type.includes("subject")) conditionPlaceholder = "DRINGEND";
                   return (
                   <div key={`condition-${index}-${condition.type}`} className="space-y-2 p-3 border rounded-md bg-muted/30">
                     {/* Logischer Operator (für alle außer dem ersten) */}
@@ -1902,7 +1921,9 @@ export default function ExchangeIntegration() {
               {/* Weiterleitung / Tag Eingabe */}
               {(ruleActions.includes("forward_to") || ruleActions.includes("add_tag")) && (() => {
                 const hasBoth = ruleActions.includes("forward_to") && ruleActions.includes("add_tag");
-                const actionValueLabel = hasBoth ? "Weiterleitungs-E-Mail / Tag-Name" : ruleActions.includes("forward_to") ? "Weiterleitungs-E-Mail" : "Tag-Name";
+                let actionValueLabel = "Tag-Name";
+                if (hasBoth) actionValueLabel = "Weiterleitungs-E-Mail / Tag-Name";
+                else if (ruleActions.includes("forward_to")) actionValueLabel = "Weiterleitungs-E-Mail";
                 return (
                 <div className="space-y-2 pt-2">
                   <Label htmlFor="rule-action-value">
@@ -2020,20 +2041,25 @@ export default function ExchangeIntegration() {
             }}>
               Abbrechen
             </Button>
-            <Button 
-              onClick={handleSaveRule} 
-              disabled={isSavingRule || !ruleName}
-              data-testid="button-save-rule"
-            >
-              {isSavingRule ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Speichern...
-                </>
-              ) : (
-                editingRule ? "Regel aktualisieren" : "Regel erstellen"
-              )}
-            </Button>
+            {(() => {
+              const ruleSaveLabel = editingRule ? "Regel aktualisieren" : "Regel erstellen";
+              return (
+                <Button
+                  onClick={handleSaveRule}
+                  disabled={isSavingRule || !ruleName}
+                  data-testid="button-save-rule"
+                >
+                  {isSavingRule ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Speichern...
+                    </>
+                  ) : (
+                    ruleSaveLabel
+                  )}
+                </Button>
+              );
+            })()}
           </DialogFooter>
         </DialogContent>
       </Dialog>
