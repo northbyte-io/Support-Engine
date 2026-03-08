@@ -14,15 +14,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { 
-  Mail, 
-  Settings, 
-  CheckCircle2, 
-  XCircle, 
+import {
+  Mail,
+  Settings,
+  CheckCircle2,
+  XCircle,
   AlertCircle,
   RefreshCw,
-  Play,
-  Pause,
   Trash2,
   Plus,
   FolderOpen,
@@ -39,10 +37,7 @@ import {
   Save,
   Filter,
   Edit,
-  Power,
   ArrowRight,
-  User,
-  Tag,
   Zap,
   ChevronUp,
   ChevronDown
@@ -50,7 +45,7 @@ import {
 import { Link } from "wouter";
 
 // Status-Badge Komponente
-function ConnectionStatusBadge({ status }: { status: string }) {
+function ConnectionStatusBadge({ status }: Readonly<{ status: string }>) {
   switch (status) {
     case "connected":
       return (
@@ -119,9 +114,6 @@ export default function ExchangeIntegration() {
     value: string;
     operator: "AND" | "OR" | "NOT" | "XOR";
   }[]>([{ type: "all_emails", value: "", operator: "AND" }]);
-  // Legacy-Kompatibilität
-  const ruleConditionType = ruleConditions[0]?.type || "all_emails";
-  const ruleConditionValue = ruleConditions[0]?.value || "";
   const [ruleActions, setRuleActions] = useState<string[]>(["mark_as_read"]);
   const [ruleActionValue, setRuleActionValue] = useState("");
   const [ruleActionFolderId, setRuleActionFolderId] = useState("");
@@ -165,19 +157,15 @@ export default function ExchangeIntegration() {
   const [tenantAzureId, setTenantAzureId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const [authType, setAuthType] = useState("client_secret");
-  const [mailboxEmail, setMailboxEmail] = useState("");
-  const [mailboxType, setMailboxType] = useState("shared");
-  const [sourceFolder, setSourceFolder] = useState("inbox");
-  const [fetchInterval, setFetchInterval] = useState("5");
 
   // Load configuration from API
-  const { data: configData, isLoading: isLoadingConfig } = useQuery<any>({
+  const { data: configData } = useQuery<any>({
     queryKey: ["/api/exchange/configuration"],
   });
 
   // Update form states when config is loaded
   useEffect(() => {
-    if (configData && configData.configured) {
+    if (configData?.configured) {
       setIsEnabled(configData.isEnabled || false);
       setClientId(configData.clientId || "");
       setTenantAzureId(configData.tenantAzureId || "");
@@ -500,7 +488,7 @@ export default function ExchangeIntegration() {
     setAvailableFolders([]);
     
     try {
-      const response = await apiRequest("GET", `/api/exchange/folders/${encodeURIComponent(email)}`, undefined);
+      const response = await apiRequest("GET", `/api/exchange/folders/${encodeURIComponent(email)}`);
       const folders = await response.json();
       setAvailableFolders(folders);
       
@@ -534,9 +522,9 @@ export default function ExchangeIntegration() {
 
     setIsLoadingRuleFolders(true);
     try {
-      const response = await apiRequest("GET", `/api/exchange/folders/${encodeURIComponent(firstMailbox.emailAddress)}`, undefined);
+      const response = await apiRequest("GET", `/api/exchange/folders/${encodeURIComponent(firstMailbox.emailAddress)}`);
       const folders = await response.json();
-      if (folders && folders.length > 0) {
+      if ((folders?.length ?? 0) > 0) {
         setRuleFolders(folders);
       } else {
         setRuleFolders(standardFolders);
@@ -609,39 +597,6 @@ export default function ExchangeIntegration() {
     } finally {
       setIsTestingConnection(false);
     }
-  };
-
-  // Handler für Test-Mailabruf
-  const handleTestFetch = async () => {
-    setIsTestingFetch(true);
-    try {
-      const response = await apiRequest("POST", "/api/exchange/sync", {});
-      const data = await response.json();
-      toast({
-        title: "Synchronisation abgeschlossen",
-        description: `${data.emailsProcessed || 0} E-Mails verarbeitet, ${data.ticketsCreated || 0} Tickets erstellt.`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Fehler bei der Synchronisation",
-        description: error.message || "Die E-Mails konnten nicht abgerufen werden.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsTestingFetch(false);
-    }
-  };
-
-  // Handler für Test-Mailversand
-  const handleTestSend = async () => {
-    setIsTestingSend(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsTestingSend(false);
-    toast({
-      title: "Test-Mailversand",
-      description: "Diese Funktion ist noch nicht implementiert.",
-      variant: "default",
-    });
   };
 
   // Handler für Test-Mailabruf für ein bestimmtes Postfach
@@ -798,27 +753,20 @@ export default function ExchangeIntegration() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between mb-6">
-                  {setupSteps.map((step, index) => (
+                  {setupSteps.map((step, index) => {
+                    const isCurrentStep = currentStep === step.id;
+                    const isPastStep = currentStep > step.id;
+                    const buttonColorClass = isCurrentStep ? "text-primary" : isPastStep ? "text-green-600 dark:text-green-400" : "text-muted-foreground";
+                    const circleColorClass = isCurrentStep ? "bg-primary text-primary-foreground" : isPastStep ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400" : "bg-muted";
+                    return (
                     <div key={step.id} className="flex items-center">
                       <button
                         onClick={() => setCurrentStep(step.id)}
-                        className={`flex flex-col items-center ${
-                          currentStep === step.id
-                            ? "text-primary"
-                            : currentStep > step.id
-                            ? "text-green-600 dark:text-green-400"
-                            : "text-muted-foreground"
-                        }`}
+                        className={`flex flex-col items-center ${buttonColorClass}`}
                         data-testid={`button-step-${step.id}`}
                       >
                         <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                            currentStep === step.id
-                              ? "bg-primary text-primary-foreground"
-                              : currentStep > step.id
-                              ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
-                              : "bg-muted"
-                          }`}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${circleColorClass}`}
                         >
                           {currentStep > step.id ? (
                             <CheckCircle2 className="w-4 h-4" />
@@ -838,7 +786,8 @@ export default function ExchangeIntegration() {
                         />
                       )}
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -1061,9 +1010,11 @@ export default function ExchangeIntegration() {
                     <Loader2 className="w-8 h-8 mx-auto animate-spin text-muted-foreground" />
                     <p className="mt-2 text-muted-foreground">Lade Postfächer...</p>
                   </div>
-                ) : mailboxesData && mailboxesData.length > 0 ? (
+                ) : (mailboxesData?.length ?? 0) > 0 ? (
                   <div className="space-y-4">
-                    {mailboxesData.map((mailbox: any) => (
+                    {(mailboxesData ?? []).map((mailbox: any) => {
+                      const mailboxTypeLabel = mailbox.mailboxType === "incoming" ? "Eingehend" : mailbox.mailboxType === "outgoing" ? "Ausgehend" : "Gemeinsam";
+                      return (
                       <div key={mailbox.id} className="p-4 border rounded-md space-y-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -1078,8 +1029,7 @@ export default function ExchangeIntegration() {
                               {mailbox.isActive ? "Aktiv" : "Inaktiv"}
                             </Badge>
                             <Badge variant="outline">
-                              {mailbox.mailboxType === "incoming" ? "Eingehend" : 
-                               mailbox.mailboxType === "outgoing" ? "Ausgehend" : "Gemeinsam"}
+                              {mailboxTypeLabel}
                             </Badge>
                             <Button
                               variant="ghost"
@@ -1138,7 +1088,8 @@ export default function ExchangeIntegration() {
                           </Button>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
@@ -1181,9 +1132,9 @@ export default function ExchangeIntegration() {
                     <Loader2 className="w-8 h-8 mx-auto animate-spin text-muted-foreground" />
                     <p className="mt-2 text-muted-foreground">Lade Regeln...</p>
                   </div>
-                ) : processingRulesData && processingRulesData.length > 0 ? (
+                ) : (processingRulesData?.length ?? 0) > 0 ? (
                   <div className="space-y-3">
-                    {processingRulesData.map((rule: any) => (
+                    {(processingRulesData ?? []).map((rule: any) => (
                       <div key={rule.id} className="p-4 border rounded-md">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -1234,7 +1185,7 @@ export default function ExchangeIntegration() {
                                     ? JSON.parse(rule.conditions) 
                                     : rule.conditions;
                                 }
-                              } catch (e) {}
+                              } catch (err) { console.error(err); }
                               
                               if (!conditions || conditions.length === 0) {
                                 conditions = [{ type: rule.conditionType, value: rule.conditionValue, operator: 'AND' }];
@@ -1487,7 +1438,7 @@ export default function ExchangeIntegration() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="mailbox-type">Postfachtyp</Label>
-              <Select value={newMailboxType} onValueChange={(v) => setNewMailboxType(v as any)}>
+              <Select value={newMailboxType} onValueChange={(v) => setNewMailboxType(v as "incoming" | "outgoing" | "shared")}>
                 <SelectTrigger id="mailbox-type" data-testid="select-mailbox-type">
                   <SelectValue placeholder="Typ auswählen" />
                 </SelectTrigger>
@@ -1668,7 +1619,7 @@ export default function ExchangeIntegration() {
                   id="rule-priority"
                   type="number"
                   value={rulePriority}
-                  onChange={(e) => setRulePriority(parseInt(e.target.value) || 0)}
+                  onChange={(e) => setRulePriority(Number.parseInt(e.target.value) || 0)}
                   placeholder="0"
                   data-testid="input-rule-priority"
                 />
@@ -1729,8 +1680,10 @@ export default function ExchangeIntegration() {
               </p>
               
               <div className="space-y-3">
-                {ruleConditions.map((condition, index) => (
-                  <div key={index} className="space-y-2 p-3 border rounded-md bg-muted/30">
+                {ruleConditions.map((condition, index) => {
+                  const conditionPlaceholder = condition.type.includes("sender") ? "@example.com" : condition.type.includes("recipient") ? "support@" : condition.type.includes("subject") ? "DRINGEND" : "Suchbegriff";
+                  return (
+                  <div key={`condition-${index}-${condition.type}`} className="space-y-2 p-3 border rounded-md bg-muted/30">
                     {/* Logischer Operator (für alle außer dem ersten) */}
                     {index > 0 && (
                       <div className="flex items-center gap-2 pb-2 border-b">
@@ -1738,7 +1691,7 @@ export default function ExchangeIntegration() {
                           value={condition.operator} 
                           onValueChange={(v) => {
                             const newConditions = [...ruleConditions];
-                            newConditions[index].operator = v as any;
+                            newConditions[index].operator = v as "AND" | "OR" | "NOT" | "XOR";
                             setRuleConditions(newConditions);
                           }}
                         >
@@ -1804,12 +1757,7 @@ export default function ExchangeIntegration() {
                               newConditions[index].value = e.target.value;
                               setRuleConditions(newConditions);
                             }}
-                            placeholder={
-                              condition.type.includes("sender") ? "@example.com" :
-                              condition.type.includes("recipient") ? "support@" :
-                              condition.type.includes("subject") ? "DRINGEND" :
-                              "Suchbegriff"
-                            }
+                            placeholder={conditionPlaceholder}
                             data-testid={`input-condition-value-${index}`}
                           />
                         </div>
@@ -1834,7 +1782,8 @@ export default function ExchangeIntegration() {
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -1951,14 +1900,13 @@ export default function ExchangeIntegration() {
               )}
 
               {/* Weiterleitung / Tag Eingabe */}
-              {(ruleActions.includes("forward_to") || ruleActions.includes("add_tag")) && (
+              {(ruleActions.includes("forward_to") || ruleActions.includes("add_tag")) && (() => {
+                const hasBoth = ruleActions.includes("forward_to") && ruleActions.includes("add_tag");
+                const actionValueLabel = hasBoth ? "Weiterleitungs-E-Mail / Tag-Name" : ruleActions.includes("forward_to") ? "Weiterleitungs-E-Mail" : "Tag-Name";
+                return (
                 <div className="space-y-2 pt-2">
                   <Label htmlFor="rule-action-value">
-                    {ruleActions.includes("forward_to") && ruleActions.includes("add_tag") 
-                      ? "Weiterleitungs-E-Mail / Tag-Name" 
-                      : ruleActions.includes("forward_to") 
-                        ? "Weiterleitungs-E-Mail" 
-                        : "Tag-Name"}
+                    {actionValueLabel}
                   </Label>
                   <Input 
                     id="rule-action-value"
@@ -1970,7 +1918,8 @@ export default function ExchangeIntegration() {
                     data-testid="input-action-value"
                   />
                 </div>
-              )}
+                );
+              })()}
 
               {/* Ordner-Auswahl für move_to_folder */}
               {ruleActions.includes("move_to_folder") && (
@@ -2013,7 +1962,7 @@ export default function ExchangeIntegration() {
               {ruleActions.includes("set_priority") && (
                 <div className="space-y-2 pt-2">
                   <Label htmlFor="rule-action-priority">Ticket-Priorität</Label>
-                  <Select value={ruleActionPriority} onValueChange={(v) => setRuleActionPriority(v as any)}>
+                  <Select value={ruleActionPriority} onValueChange={(v) => setRuleActionPriority(v as "low" | "medium" | "high" | "urgent")}>
                     <SelectTrigger id="rule-action-priority" data-testid="select-action-priority">
                       <SelectValue />
                     </SelectTrigger>
