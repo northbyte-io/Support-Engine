@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
-import { de } from "date-fns/locale";
 import { 
   Search, 
   Download, 
@@ -23,13 +21,12 @@ import {
 import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { queryClient } from "@/lib/queryClient";
 
 interface LogEntry {
   timestamp: string;
@@ -78,7 +75,7 @@ const sourceLabels: Record<string, string> = {
   system: "System",
 };
 
-function LogEntryRow({ log, isExpanded, onToggle }: { log: LogEntry; isExpanded: boolean; onToggle: () => void }) {
+function LogEntryRow({ log, isExpanded, onToggle }: Readonly<{ log: LogEntry; isExpanded: boolean; onToggle: () => void }>) {
   const config = levelConfig[log.level] || levelConfig.info;
   const Icon = config.icon;
 
@@ -230,14 +227,14 @@ export default function LogsPage() {
       const res = await fetch(`/api/logs/export?${params.toString()}`, { headers });
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `logs-export.${format}`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      globalThis.URL.revokeObjectURL(url);
+      a.remove();
     } catch (error) {
       console.error("Export error:", error);
     }
@@ -263,6 +260,73 @@ export default function LogsPage() {
     acc[log.level] = (acc[log.level] || 0) + 1;
     return acc;
   }, {} as Record<string, number>) || {};
+
+  const renderLogContent = () => {
+    if (isLoading) {
+      return (
+        <div className="p-8 text-center">
+          <RefreshCw className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
+          <p className="mt-2 text-muted-foreground">Logs werden geladen...</p>
+        </div>
+      );
+    }
+    if (data?.logs.length === 0) {
+      return (
+        <div className="p-8 text-center">
+          <Info className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">Keine Logs gefunden</h3>
+          <p className="text-muted-foreground">
+            {searchQuery || levelFilter !== "all" || sourceFilter !== "all"
+              ? "Versuchen Sie andere Filterkriterien"
+              : "Es wurden noch keine Logs erfasst"}
+          </p>
+        </div>
+      );
+    }
+    return (
+      <>
+        <ScrollArea className="h-[600px]">
+          <div className="divide-y">
+            {data?.logs.map((log) => (
+              <LogEntryRow
+                key={log.timestamp}
+                log={log}
+                isExpanded={expandedLogs.has(log.timestamp)}
+                onToggle={() => toggleExpanded(log.timestamp)}
+              />
+            ))}
+          </div>
+        </ScrollArea>
+        {data && data.total > limit && (
+          <div className="p-4 border-t flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Zeige {offset + 1} - {Math.min(offset + limit, data.total)} von {data.total} Einträgen
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={offset === 0}
+                onClick={() => setOffset(Math.max(0, offset - limit))}
+                data-testid="button-prev-page"
+              >
+                Zurück
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={offset + limit >= data.total}
+                onClick={() => setOffset(offset + limit)}
+                data-testid="button-next-page"
+              >
+                Weiter
+              </Button>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
 
   return (
     <MainLayout
@@ -382,64 +446,7 @@ export default function LogsPage() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            {isLoading ? (
-              <div className="p-8 text-center">
-                <RefreshCw className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
-                <p className="mt-2 text-muted-foreground">Logs werden geladen...</p>
-              </div>
-            ) : data?.logs.length === 0 ? (
-              <div className="p-8 text-center">
-                <Info className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Keine Logs gefunden</h3>
-                <p className="text-muted-foreground">
-                  {searchQuery || levelFilter !== "all" || sourceFilter !== "all"
-                    ? "Versuchen Sie andere Filterkriterien"
-                    : "Es wurden noch keine Logs erfasst"}
-                </p>
-              </div>
-            ) : (
-              <>
-                <ScrollArea className="h-[600px]">
-                  <div className="divide-y">
-                    {data?.logs.map((log) => (
-                      <LogEntryRow
-                        key={log.timestamp}
-                        log={log}
-                        isExpanded={expandedLogs.has(log.timestamp)}
-                        onToggle={() => toggleExpanded(log.timestamp)}
-                      />
-                    ))}
-                  </div>
-                </ScrollArea>
-                {data && data.total > limit && (
-                  <div className="p-4 border-t flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      Zeige {offset + 1} - {Math.min(offset + limit, data.total)} von {data.total} Einträgen
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={offset === 0}
-                        onClick={() => setOffset(Math.max(0, offset - limit))}
-                        data-testid="button-prev-page"
-                      >
-                        Zurück
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={offset + limit >= data.total}
-                        onClick={() => setOffset(offset + limit)}
-                        data-testid="button-next-page"
-                      >
-                        Weiter
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
+            {renderLogContent()}
           </CardContent>
         </Card>
       </div>
