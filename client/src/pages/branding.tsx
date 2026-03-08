@@ -12,7 +12,6 @@ import {
   Phone,
   Save,
   RotateCcw,
-  Eye,
   Sun,
   Moon,
 } from "lucide-react";
@@ -64,7 +63,7 @@ const fontFamilies = [
   { value: "DM Sans", label: "DM Sans" },
 ];
 
-function ColorPreview({ color, label }: { color: string; label: string }) {
+function ColorPreview({ color, label }: Readonly<{ color: string; label: string }>) {
   return (
     <div className="flex items-center gap-2">
       <div 
