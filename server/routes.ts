@@ -25,13 +25,15 @@ function checkSingleCondition(
   ctx: { senderEmail: string; senderName: string; subject: string; body: string; hasAttachments: boolean }
 ): boolean | null {
   const val = (cond.value || "").toLowerCase();
-  if (cond.type === "imported_emails") return true;
-  if (cond.type === "sender_contains") return ctx.senderEmail.includes(val) || ctx.senderName.includes(val) ? null : false;
-  if (cond.type === "subject_contains") return ctx.subject.includes(val) ? null : false;
-  if (cond.type === "body_contains") return ctx.body.includes(val) ? null : false;
-  if (cond.type === "has_attachment") return ctx.hasAttachments ? null : false;
-  if (cond.type === "sender_domain") return ctx.senderEmail.endsWith(val) ? null : false;
-  return true; // Unbekannte Typen matchen immer
+  switch (cond.type) {
+    case "imported_emails": return true;
+    case "sender_contains": return ctx.senderEmail.includes(val) || ctx.senderName.includes(val) ? null : false;
+    case "subject_contains": return ctx.subject.includes(val) ? null : false;
+    case "body_contains": return ctx.body.includes(val) ? null : false;
+    case "has_attachment": return ctx.hasAttachments ? null : false;
+    case "sender_domain": return ctx.senderEmail.endsWith(val) ? null : false;
+    default: return true; // Unbekannte Typen matchen immer
+  }
 }
 
 // Helper: Prüft ob eine Verarbeitungsregel auf eine E-Mail passt
@@ -927,7 +929,7 @@ export async function registerRoutes(
       const comment = await storage.createComment(data);
 
       // Parse @mentions from comment content
-      const mentionPattern = /@(\S+@\S+\.\S+|\w+)/g;
+      const mentionPattern = /@([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[a-zA-Z0-9_]+)/g;
       const mentionMatches = data.content.match(mentionPattern) || [];
       const tenantUsers = await storage.getUsers(req.tenantId);
       
@@ -3286,7 +3288,7 @@ export async function registerRoutes(
       logger.security("auth", "Sicherheit-Test", "Verdächtige Anmeldeaktivität erkannt - Mehrere fehlgeschlagene Versuche von derselben IP", {
         tenantId: req.tenantId || undefined,
         userId: req.user!.id,
-        metadata: { testType: "security", ipAddress: "192.168.1.100", failedAttempts: 5 },
+        metadata: { testType: "security", ipAddress: req.ip, failedAttempts: 5 },
       });
 
       // Performance log
