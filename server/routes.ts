@@ -14,16 +14,500 @@ import {
   TOKEN_COOKIE_OPTIONS,
   type AuthenticatedRequest
 } from "./auth";
-import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyResponseSchema, insertAssetCategorySchema, insertAssetSchema, insertAssetLicenseSchema, insertAssetContractSchema, insertTicketAssetSchema, insertProjectSchema, insertProjectMemberSchema, insertBoardColumnSchema, insertTicketProjectSchema, insertOrganizationSchema, insertCustomerSchema, insertCustomerLocationSchema, insertContactSchema, insertTicketContactSchema, insertCustomerActivitySchema, updateTenantBrandingSchema, type InsertExchangeConfiguration } from "@shared/schema";
+import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyResponseSchema, insertAssetCategorySchema, insertAssetSchema, insertAssetLicenseSchema, insertAssetContractSchema, insertTicketAssetSchema, insertProjectSchema, insertProjectMemberSchema, insertBoardColumnSchema, insertTicketProjectSchema, insertOrganizationSchema, insertCustomerSchema, insertCustomerLocationSchema, insertContactSchema, insertTicketContactSchema, insertCustomerActivitySchema, updateTenantBrandingSchema, type InsertExchangeConfiguration, type InsertExchangeEmail, type ExchangeConfiguration, type ExchangeMailbox, type EmailProcessingRule } from "@shared/schema";
 import crypto from "node:crypto";
 import { z } from "zod";
+import type { GraphEmail } from "./exchange-service";
+
+// Helper: Prüft eine einzelne Bedingung für das Rule-Matching
+function checkSingleCondition(
+  cond: { type: string; value: string; operator?: string },
+  ctx: { senderEmail: string; senderName: string; subject: string; body: string; hasAttachments: boolean }
+): boolean | null {
+  const val = (cond.value || "").toLowerCase();
+  if (cond.type === "imported_emails") return true;
+  if (cond.type === "sender_contains") return ctx.senderEmail.includes(val) || ctx.senderName.includes(val) ? null : false;
+  if (cond.type === "subject_contains") return ctx.subject.includes(val) ? null : false;
+  if (cond.type === "body_contains") return ctx.body.includes(val) ? null : false;
+  if (cond.type === "has_attachment") return ctx.hasAttachments ? null : false;
+  if (cond.type === "sender_domain") return ctx.senderEmail.endsWith(val) ? null : false;
+  return true; // Unbekannte Typen matchen immer
+}
+
+// Helper: Prüft ob eine Verarbeitungsregel auf eine E-Mail passt
+function ruleMatchesEmail(rule: EmailProcessingRule, graphEmail: GraphEmail): boolean {
+  let conditions: Array<{ type: string; value: string; operator?: string }> = [];
+  if (rule.conditions) {
+    try {
+      conditions = JSON.parse(rule.conditions);
+    } catch {
+      conditions = [];
+    }
+  }
+  if (conditions.length === 0 && rule.conditionType) {
+    conditions = [{ type: rule.conditionType, value: rule.conditionValue || "" }];
+  }
+  if (conditions.length === 0) return true;
+
+  const ctx = {
+    senderEmail: graphEmail.from?.emailAddress?.address?.toLowerCase() || "",
+    senderName: graphEmail.from?.emailAddress?.name?.toLowerCase() || "",
+    subject: graphEmail.subject?.toLowerCase() || "",
+    body: graphEmail.bodyPreview?.toLowerCase() || "",
+    hasAttachments: graphEmail.hasAttachments ?? false,
+  };
+
+  for (const cond of conditions) {
+    const result = checkSingleCondition(cond, ctx);
+    if (result !== null) return result;
+  }
+  return true;
+}
+
+// ExchangeService-Interface für typsichere Übergabe
+interface ExchangeServiceInterface {
+  fetchEmails: (...args: unknown[]) => Promise<GraphEmail[]>;
+  graphEmailToInsert: (...args: unknown[]) => unknown;
+  getRawEmailContent: (...args: unknown[]) => Promise<Buffer | null>;
+  markAsRead: (...args: unknown[]) => Promise<void>;
+  moveEmail: (...args: unknown[]) => Promise<void>;
+  deleteEmail: (...args: unknown[]) => Promise<void>;
+  isConfigurationValid: (config: unknown) => boolean;
+}
+
+// Helper: Einzelne Regel-Aktion ausführen
+async function applySingleRuleAction(
+  ExchangeSvc: ExchangeServiceInterface,
+  config: ExchangeConfiguration,
+  mailboxEmail: string,
+  graphEmailId: string,
+  action: string,
+  rule: EmailProcessingRule
+): Promise<void> {
+  if (action === "mark_as_read") {
+    await ExchangeSvc.markAsRead(config, mailboxEmail, graphEmailId);
+    logger.debug("exchange", "Als gelesen markiert", `E-Mail ${graphEmailId} als gelesen markiert (Regel: ${rule.name})`);
+  } else if (action === "move_to_folder" && rule.actionFolderId) {
+    await ExchangeSvc.moveEmail(config, mailboxEmail, graphEmailId, rule.actionFolderId);
+    logger.debug("exchange", "E-Mail verschoben", `E-Mail ${graphEmailId} nach ${rule.actionFolderName || rule.actionFolderId} verschoben (Regel: ${rule.name})`);
+  } else if (action === "archive") {
+    await ExchangeSvc.moveEmail(config, mailboxEmail, graphEmailId, "archive");
+    logger.debug("exchange", "E-Mail archiviert", `E-Mail ${graphEmailId} wurde archiviert (Regel: ${rule.name})`);
+  } else if (action === "delete") {
+    await ExchangeSvc.deleteEmail(config, mailboxEmail, graphEmailId);
+    logger.debug("exchange", "E-Mail gelöscht", `E-Mail ${graphEmailId} gelöscht (Regel: ${rule.name})`);
+  } else if (action === "keep_unchanged") {
+    logger.debug("exchange", "Keine Aktion", `E-Mail ${graphEmailId} bleibt unverändert (Regel: ${rule.name})`);
+  }
+}
+
+// Helper: Verarbeitungsregeln auf eine E-Mail anwenden
+async function applyRulesToEmail(
+  ExchangeSvc: ExchangeServiceInterface,
+  config: ExchangeConfiguration,
+  mailboxEmail: string,
+  graphEmail: GraphEmail,
+  activeRules: EmailProcessingRule[]
+): Promise<void> {
+  for (const rule of activeRules) {
+    if (!ruleMatchesEmail(rule, graphEmail)) {
+      logger.debug("exchange", "Regel übersprungen", `Regel "${rule.name}" passt nicht auf E-Mail ${graphEmail.id}`);
+      continue;
+    }
+
+    let ruleActions: string[] = rule.actions || [];
+    if (ruleActions.length === 0 && rule.actionType) {
+      ruleActions = [rule.actionType];
+    }
+
+    logger.debug("exchange", "Regel angewendet", `Regel "${rule.name}" mit Aktionen: ${ruleActions.join(", ")} auf E-Mail ${graphEmail.id}`);
+
+    for (const action of ruleActions) {
+      try {
+        await applySingleRuleAction(ExchangeSvc, config, mailboxEmail, graphEmail.id, action, rule);
+      } catch (actionError) {
+        logger.warn("exchange", "Post-Import-Aktion fehlgeschlagen", `Aktion ${action} für E-Mail ${graphEmail.id} fehlgeschlagen (Regel: ${rule.name}): ${actionError}`);
+      }
+    }
+  }
+}
+
+// Helper: .eml-Datei als Anhang im Object Storage speichern
+async function saveEmailAsEml(
+  ExchangeSvc: ExchangeServiceInterface,
+  config: ExchangeConfiguration,
+  mailboxEmail: string,
+  graphEmail: GraphEmail,
+  ticket: { id: string; ticketNumber: string },
+  tenantId: string
+): Promise<void> {
+  try {
+    const rawEmailContent = await ExchangeSvc.getRawEmailContent(config, mailboxEmail, graphEmail.id);
+    logger.debug("exchange", ".eml Inhalt abgerufen", `Größe: ${rawEmailContent?.length || 0} Bytes`);
+
+    if (rawEmailContent && rawEmailContent.length > 0) {
+      const objectStorage = new ObjectStorageClient();
+      const displayFileName = `email_${ticket.ticketNumber}_${Date.now()}.eml`;
+      const storagePath = `.private/emails/${tenantId}/${displayFileName}.b64`;
+      const base64Content = rawEmailContent.toString("base64");
+      await objectStorage.uploadFromText(storagePath, base64Content);
+      await storage.createAttachment({
+        ticketId: ticket.id,
+        fileName: displayFileName,
+        fileSize: rawEmailContent.length,
+        mimeType: "message/rfc822",
+        storagePath: storagePath,
+        uploadedById: null,
+      });
+      logger.info("exchange", ".eml gespeichert", `E-Mail als ${displayFileName} (${rawEmailContent.length} Bytes) an Ticket ${ticket.ticketNumber} angehängt`);
+    } else {
+      logger.warn("exchange", ".eml leer", `Rohe E-Mail-Daten waren leer für Ticket ${ticket.ticketNumber}`);
+    }
+  } catch (emlError) {
+    logger.warn("exchange", ".eml Speicherung fehlgeschlagen", `Konnte .eml nicht speichern: ${emlError}`);
+  }
+}
+
+// Helper: Eine einzelne Graph-E-Mail verarbeiten (importieren, Ticket erstellen, Regeln anwenden)
+async function processGraphEmail(
+  ExchangeSvc: ExchangeServiceInterface,
+  config: ExchangeConfiguration,
+  mailbox: ExchangeMailbox,
+  graphEmail: GraphEmail,
+  tenantId: string,
+  activeRules: EmailProcessingRule[]
+): Promise<{ skipped: boolean; imported: boolean; ticketCreated: boolean; error?: string }> {
+  try {
+    const existingEmail = await storage.getExchangeEmailByMessageId(tenantId, graphEmail.id);
+    if (existingEmail) {
+      logger.debug("exchange", "E-Mail übersprungen", `E-Mail ${graphEmail.id} bereits importiert`);
+      return { skipped: true, imported: false, ticketCreated: false };
+    }
+
+    const emailData = ExchangeSvc.graphEmailToInsert(graphEmail, mailbox.id, tenantId) as InsertExchangeEmail;
+    const savedEmail = await storage.createExchangeEmail(emailData);
+
+    const ticketTitle = graphEmail.subject || "E-Mail ohne Betreff";
+    const ticketDescription = graphEmail.body?.content || graphEmail.bodyPreview || "";
+
+    const ticket = await storage.createTicket({
+      tenantId,
+      title: ticketTitle,
+      description: ticketDescription,
+      status: "open",
+      priority: mailbox.defaultPriority || "medium",
+      ticketTypeId: mailbox.defaultTicketTypeId || null,
+      createdById: null,
+      customerId: null,
+      customFieldValues: {
+        emailSource: mailbox.emailAddress,
+        fromAddress: graphEmail.from?.emailAddress?.address,
+        fromName: graphEmail.from?.emailAddress?.name,
+        originalMessageId: graphEmail.id
+      }
+    });
+
+    await storage.updateExchangeEmail(savedEmail.id, { ticketId: ticket.id }, tenantId);
+    await saveEmailAsEml(ExchangeSvc, config, mailbox.emailAddress, graphEmail, ticket, tenantId);
+
+    logger.info("exchange", "Ticket erstellt", `Ticket ${ticket.ticketNumber} aus E-Mail von ${graphEmail.from?.emailAddress?.address} erstellt`);
+    await applyRulesToEmail(ExchangeSvc, config, mailbox.emailAddress, graphEmail, activeRules);
+
+    return { skipped: false, imported: true, ticketCreated: true };
+  } catch (emailError) {
+    logger.error("exchange", "E-Mail-Verarbeitung fehlgeschlagen", {
+      description: `Fehler bei E-Mail ${graphEmail.id}`,
+      cause: String(emailError),
+      solution: "E-Mail-Daten prüfen und erneut versuchen"
+    });
+    return { skipped: false, imported: false, ticketCreated: false, error: `E-Mail ${graphEmail.subject}: ${emailError}` };
+  }
+}
+
+// Helper: Ein Postfach synchronisieren (E-Mails abrufen, verarbeiten, Statistiken aktualisieren)
+async function syncMailbox(
+  ExchangeSvc: ExchangeServiceInterface,
+  config: ExchangeConfiguration,
+  mailbox: ExchangeMailbox,
+  tenantId: string
+): Promise<{ imported: number; tickets: number; skipped: number; errors: string[] }> {
+  let mailboxImported = 0;
+  let mailboxTickets = 0;
+  let mailboxSkipped = 0;
+  const mailboxErrors: string[] = [];
+  const syncStartedAt = new Date();
+
+  try {
+    const emails = await ExchangeSvc.fetchEmails(config, mailbox);
+    logger.info("exchange", "E-Mails gefunden", `${emails.length} E-Mails in ${mailbox.emailAddress} gefunden`);
+
+    const processingRules = await storage.getEmailProcessingRules(tenantId, mailbox.id);
+    const activeRules = processingRules.filter((r: EmailProcessingRule) => r.isActive);
+
+    for (const graphEmail of emails) {
+      const result = await processGraphEmail(ExchangeSvc, config, mailbox, graphEmail, tenantId, activeRules);
+      if (result.skipped) {
+        mailboxSkipped++;
+      } else if (result.imported) {
+        mailboxImported++;
+        if (result.ticketCreated) mailboxTickets++;
+      }
+      if (result.error) mailboxErrors.push(result.error);
+    }
+
+    await storage.updateExchangeMailbox(mailbox.id, {
+      lastFetchAt: new Date(),
+      lastFetchEmailCount: emails.length,
+      totalImportedEmails: (mailbox.totalImportedEmails || 0) + mailboxImported,
+      totalCreatedTickets: (mailbox.totalCreatedTickets || 0) + mailboxTickets,
+      lastFetchError: null
+    }, tenantId);
+
+    await storage.createExchangeSyncLog({
+      tenantId,
+      mailboxId: mailbox.id,
+      syncType: "fetch",
+      status: mailboxErrors.length > 0 ? "partial" : "success",
+      startedAt: syncStartedAt,
+      completedAt: new Date(),
+      emailsFetched: mailboxImported + mailboxSkipped,
+      ticketsCreated: mailboxTickets,
+      errorsCount: mailboxErrors.length,
+      errorMessage: mailboxErrors.length > 0 ? mailboxErrors.join("; ") : null
+    });
+  } catch (error) {
+    const errorMsg = String(error);
+    mailboxErrors.push(errorMsg);
+
+    await storage.updateExchangeMailbox(mailbox.id, {
+      lastFetchAt: new Date(),
+      lastFetchError: errorMsg
+    }, tenantId);
+
+    await storage.createExchangeSyncLog({
+      tenantId,
+      mailboxId: mailbox.id,
+      syncType: "fetch",
+      status: "failed",
+      startedAt: syncStartedAt,
+      completedAt: new Date(),
+      emailsFetched: 0,
+      ticketsCreated: 0,
+      errorsCount: 1,
+      errorMessage: errorMsg
+    });
+  }
+
+  return { imported: mailboxImported, tickets: mailboxTickets, skipped: mailboxSkipped, errors: mailboxErrors };
+}
+
+// Helper: Survey-Einladung für geschlossenes Ticket erstellen
+async function triggerClosedTicketSurvey(
+  tenantId: string | undefined,
+  ticket: { id: string; ticketNumber: string },
+  originalTicket: { createdById: string | null }
+): Promise<void> {
+  if (!tenantId) return;
+  try {
+    const activeSurvey = await storage.getActiveSurvey(tenantId);
+    if (activeSurvey && originalTicket.createdById) {
+      const token = crypto.randomBytes(32).toString("hex");
+      await storage.createSurveyInvitation({
+        tenantId,
+        surveyId: activeSurvey.id,
+        ticketId: ticket.id,
+        userId: originalTicket.createdById,
+        token,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      });
+      logger.debug("api", "Survey-Einladung erstellt", `Survey-Einladung für Ticket ${ticket.ticketNumber} erstellt`);
+    }
+  } catch (surveyError) {
+    logger.error("api", "Error creating survey invitation", {
+      description: surveyError instanceof Error ? surveyError.message : String(surveyError),
+      cause: "Unbekannter Fehler",
+      solution: "Fehlerursache prüfen"
+    });
+  }
+}
+
+// Seed-Hilfsfunktionen für Demo-Daten
+async function seedDemoUsers(defaultTenant: { id: string }) {
+  const adminUser = await storage.getUserByEmail("admin@demo.de");
+  if (!adminUser) {
+    const hashedPw = await hashPassword("admin123");
+    await storage.createUser({
+      email: "admin@demo.de",
+      password: hashedPw,
+      firstName: "Admin",
+      lastName: "Benutzer",
+      role: "admin",
+      tenantId: defaultTenant.id,
+      isActive: true,
+    });
+  }
+
+  let agentUser = await storage.getUserByEmail("agent@demo.de");
+  if (!agentUser) {
+    const hashedPw = await hashPassword("agent123");
+    agentUser = await storage.createUser({
+      email: "agent@demo.de",
+      password: hashedPw,
+      firstName: "Max",
+      lastName: "Mustermann",
+      role: "agent",
+      tenantId: defaultTenant.id,
+      isActive: true,
+    });
+  }
+
+  let customerUser = await storage.getUserByEmail("kunde@demo.de");
+  if (!customerUser) {
+    const hashedPw = await hashPassword("kunde123");
+    customerUser = await storage.createUser({
+      email: "kunde@demo.de",
+      password: hashedPw,
+      firstName: "Anna",
+      lastName: "Schmidt",
+      role: "customer",
+      tenantId: defaultTenant.id,
+      isActive: true,
+    });
+  }
+
+  return { agentUser, customerUser };
+}
+
+async function seedDemoTicketTypesAndAreas(defaultTenant: { id: string }) {
+  let ticketTypes = await storage.getTicketTypes(defaultTenant.id);
+  if (ticketTypes.length === 0) {
+    await storage.createTicketType({ name: "Fehler", description: "Technische Fehler melden", color: "#EF4444", tenantId: defaultTenant.id });
+    await storage.createTicketType({ name: "Anfrage", description: "Allgemeine Anfragen", color: "#3B82F6", tenantId: defaultTenant.id });
+    await storage.createTicketType({ name: "Verbesserung", description: "Verbesserungsvorschläge", color: "#10B981", tenantId: defaultTenant.id });
+    ticketTypes = await storage.getTicketTypes(defaultTenant.id);
+  }
+
+  let areasList = await storage.getAreas(defaultTenant.id);
+  if (areasList.length === 0) {
+    await storage.createArea({ name: "IT-Support", description: "Technischer Support", color: "#3B82F6", tenantId: defaultTenant.id });
+    await storage.createArea({ name: "Buchhaltung", description: "Finanzabteilung", color: "#10B981", tenantId: defaultTenant.id });
+    await storage.createArea({ name: "Personal", description: "HR-Abteilung", color: "#8B5CF6", tenantId: defaultTenant.id });
+    areasList = await storage.getAreas(defaultTenant.id);
+  }
+
+  const defaultSla = await storage.getDefaultSlaDefinition(defaultTenant.id);
+  if (!defaultSla) {
+    await storage.createSlaDefinition({
+      tenantId: defaultTenant.id,
+      name: "Standard-SLA",
+      description: "Standard Service-Level-Vereinbarung",
+      responseTimeLow: 480,
+      responseTimeMedium: 240,
+      responseTimeHigh: 60,
+      responseTimeUrgent: 15,
+      resolutionTimeLow: 4320,
+      resolutionTimeMedium: 1440,
+      resolutionTimeHigh: 480,
+      resolutionTimeUrgent: 120,
+      isDefault: true,
+      isActive: true,
+    });
+  }
+
+  return { ticketTypes, areasList };
+}
+
+async function seedDemoTickets(
+  defaultTenant: { id: string },
+  ticketTypes: Array<{ id: string }>,
+  areasList: Array<{ id: string }>,
+  agentUser: { id: string },
+  customerUser: { id: string }
+) {
+  const existingTickets = await storage.getTickets({ tenantId: defaultTenant.id });
+  if (existingTickets.length === 0 && ticketTypes.length > 0 && areasList.length > 0) {
+    const ticketData = [
+      { title: "Drucker funktioniert nicht", description: "Der Netzwerkdrucker im 2. Stock reagiert nicht auf Druckaufträge.", status: "open" as const, priority: "high" as const },
+      { title: "E-Mail-Zugang gesperrt", description: "Nach Passwortänderung kann ich mich nicht mehr in Outlook anmelden.", status: "in_progress" as const, priority: "urgent" as const },
+      { title: "Neue Software benötigt", description: "Für das Projekt benötige ich Zugang zu Adobe Creative Suite.", status: "open" as const, priority: "medium" as const },
+      { title: "VPN-Verbindung instabil", description: "Die VPN-Verbindung bricht regelmäßig ab beim Homeoffice.", status: "resolved" as const, priority: "medium" as const },
+      { title: "Laptop-Austausch", description: "Mein Laptop ist über 5 Jahre alt und sehr langsam.", status: "waiting" as const, priority: "low" as const },
+    ];
+
+    for (const data of ticketData) {
+      const ticket = await storage.createTicket({
+        ...data,
+        tenantId: defaultTenant.id,
+        createdById: customerUser.id,
+        ticketTypeId: ticketTypes[0].id,
+      });
+
+      if (data.status !== "open") {
+        await storage.createComment({
+          ticketId: ticket.id,
+          authorId: agentUser.id,
+          content: "Vielen Dank für Ihre Anfrage. Wir bearbeiten Ihr Ticket schnellstmöglich.",
+          visibility: "external",
+        });
+      }
+    }
+  }
+}
+
+async function seedDemoCustomers(defaultTenant: { id: string }) {
+  const existingCustomers = await storage.getCustomers(defaultTenant.id);
+  if (existingCustomers.length === 0) {
+    const customerData = [
+      { customerNumber: "KD-00001", name: "Mustermann GmbH", email: "kontakt@mustermann.de", phone: "+49 30 1234567", address: "Musterstraße 123", city: "Berlin", postalCode: "10115", country: "Deutschland", tenantId: defaultTenant.id },
+      { customerNumber: "KD-00002", name: "Beispiel AG", email: "info@beispiel-ag.de", phone: "+49 89 9876543", address: "Beispielweg 45", city: "München", postalCode: "80331", country: "Deutschland", tenantId: defaultTenant.id },
+      { customerNumber: "KD-00003", name: "Schmidt & Partner", email: "kontakt@schmidt-partner.de", phone: "+49 40 5555555", address: "Partnerplatz 7", city: "Hamburg", postalCode: "20095", country: "Deutschland", tenantId: defaultTenant.id },
+    ];
+    for (const data of customerData) {
+      await storage.createCustomer(data, defaultTenant.id);
+    }
+  }
+  return await storage.getCustomers(defaultTenant.id);
+}
+
+async function seedDemoContactsAndAssets(defaultTenant: { id: string }, customers: Array<{ id: string }>) {
+  const existingContacts = await storage.getContacts(defaultTenant.id);
+  if (existingContacts.length === 0 && customers.length > 0) {
+    const contactData = [
+      { firstName: "Hans", lastName: "Müller", email: "h.mueller@mustermann.de", phone: "+49 30 1234568", position: "IT-Leiter", department: "IT", customerId: customers[0].id, tenantId: defaultTenant.id },
+      { firstName: "Petra", lastName: "Weber", email: "p.weber@mustermann.de", phone: "+49 30 1234569", position: "Assistenz", department: "Verwaltung", customerId: customers[0].id, tenantId: defaultTenant.id },
+      { firstName: "Thomas", lastName: "Fischer", email: "t.fischer@beispiel-ag.de", phone: "+49 89 9876544", position: "Geschäftsführer", department: "Geschäftsleitung", customerId: customers[1].id, tenantId: defaultTenant.id },
+    ];
+    for (const data of contactData) {
+      await storage.createContact(data, defaultTenant.id);
+    }
+  }
+
+  let assetCategories = await storage.getAssetCategories(defaultTenant.id);
+  if (assetCategories.length === 0) {
+    await storage.createAssetCategory({ name: "Computer", description: "PCs und Laptops", assetType: "hardware" }, defaultTenant.id);
+    await storage.createAssetCategory({ name: "Drucker", description: "Drucker und Scanner", assetType: "hardware" }, defaultTenant.id);
+    await storage.createAssetCategory({ name: "Software", description: "Software-Lizenzen", assetType: "software" }, defaultTenant.id);
+    assetCategories = await storage.getAssetCategories(defaultTenant.id);
+  }
+
+  const existingAssets = await storage.getAssets(defaultTenant.id);
+  if (existingAssets.length === 0 && customers.length > 0 && assetCategories.length > 0) {
+    const assetData = [
+      { assetNumber: "AST-00001", name: "Dell Latitude 5540", assetType: "hardware" as const, assetStatus: "active" as const, serialNumber: "DELL-1234567890", categoryId: assetCategories[0].id, customerId: customers[0].id, tenantId: defaultTenant.id },
+      { assetNumber: "AST-00002", name: "HP LaserJet Pro", assetType: "hardware" as const, assetStatus: "active" as const, serialNumber: "HP-9876543210", categoryId: assetCategories[1].id, customerId: customers[0].id, tenantId: defaultTenant.id },
+      { assetNumber: "AST-00003", name: "Microsoft Office 365", assetType: "software" as const, assetStatus: "active" as const, categoryId: assetCategories[2].id, customerId: customers[1].id, tenantId: defaultTenant.id },
+    ];
+    for (const data of assetData) {
+      await storage.createAsset(data, defaultTenant.id);
+    }
+  }
+}
 
 // Seed default data for demo
 async function seedDefaultData() {
   if (process.env.NODE_ENV !== "development") return;
   logger.info("system", "System wird gestartet", "Der Server wird initialisiert und Standarddaten werden geladen");
   try {
-    // Check if default tenant exists
     let defaultTenant = await storage.getTenantBySlug("default");
     defaultTenant ??= await storage.createTenant({
       name: "Demo Unternehmen",
@@ -32,254 +516,11 @@ async function seedDefaultData() {
       isActive: true,
     });
 
-    // Check if admin user exists
-    const adminUser = await storage.getUserByEmail("admin@demo.de");
-    if (!adminUser) {
-      const hashedPw = await hashPassword("admin123");
-      await storage.createUser({
-        email: "admin@demo.de",
-        password: hashedPw,
-        firstName: "Admin",
-        lastName: "Benutzer",
-        role: "admin",
-        tenantId: defaultTenant.id,
-        isActive: true,
-      });
-    }
-
-    // Create agent user
-    let agentUser = await storage.getUserByEmail("agent@demo.de");
-    if (!agentUser) {
-      const hashedPw = await hashPassword("agent123");
-      agentUser = await storage.createUser({
-        email: "agent@demo.de",
-        password: hashedPw,
-        firstName: "Max",
-        lastName: "Mustermann",
-        role: "agent",
-        tenantId: defaultTenant.id,
-        isActive: true,
-      });
-    }
-
-    // Create customer user
-    let customerUser = await storage.getUserByEmail("kunde@demo.de");
-    if (!customerUser) {
-      const hashedPw = await hashPassword("kunde123");
-      customerUser = await storage.createUser({
-        email: "kunde@demo.de",
-        password: hashedPw,
-        firstName: "Anna",
-        lastName: "Schmidt",
-        role: "customer",
-        tenantId: defaultTenant.id,
-        isActive: true,
-      });
-    }
-
-    // Create sample ticket types
-    let ticketTypes = await storage.getTicketTypes(defaultTenant.id);
-    if (ticketTypes.length === 0) {
-      await storage.createTicketType({ name: "Fehler", description: "Technische Fehler melden", color: "#EF4444", tenantId: defaultTenant.id });
-      await storage.createTicketType({ name: "Anfrage", description: "Allgemeine Anfragen", color: "#3B82F6", tenantId: defaultTenant.id });
-      await storage.createTicketType({ name: "Verbesserung", description: "Verbesserungsvorschläge", color: "#10B981", tenantId: defaultTenant.id });
-      ticketTypes = await storage.getTicketTypes(defaultTenant.id);
-    }
-
-    // Create sample areas
-    let areasList = await storage.getAreas(defaultTenant.id);
-    if (areasList.length === 0) {
-      await storage.createArea({ name: "IT-Support", description: "Technischer Support", color: "#3B82F6", tenantId: defaultTenant.id });
-      await storage.createArea({ name: "Buchhaltung", description: "Finanzabteilung", color: "#10B981", tenantId: defaultTenant.id });
-      await storage.createArea({ name: "Personal", description: "HR-Abteilung", color: "#8B5CF6", tenantId: defaultTenant.id });
-      areasList = await storage.getAreas(defaultTenant.id);
-    }
-
-    // Create default SLA definition
-    const defaultSla = await storage.getDefaultSlaDefinition(defaultTenant.id);
-    if (!defaultSla) {
-      await storage.createSlaDefinition({
-        tenantId: defaultTenant.id,
-        name: "Standard-SLA",
-        description: "Standard Service-Level-Vereinbarung",
-        responseTimeLow: 480,
-        responseTimeMedium: 240,
-        responseTimeHigh: 60,
-        responseTimeUrgent: 15,
-        resolutionTimeLow: 4320,
-        resolutionTimeMedium: 1440,
-        resolutionTimeHigh: 480,
-        resolutionTimeUrgent: 120,
-        isDefault: true,
-        isActive: true,
-      });
-    }
-
-    // Create sample tickets
-    const existingTickets = await storage.getTickets({ tenantId: defaultTenant.id });
-    if (existingTickets.length === 0 && ticketTypes.length > 0 && areasList.length > 0) {
-      const ticketData = [
-        { title: "Drucker funktioniert nicht", description: "Der Netzwerkdrucker im 2. Stock reagiert nicht auf Druckaufträge.", status: "open" as const, priority: "high" as const },
-        { title: "E-Mail-Zugang gesperrt", description: "Nach Passwortänderung kann ich mich nicht mehr in Outlook anmelden.", status: "in_progress" as const, priority: "urgent" as const },
-        { title: "Neue Software benötigt", description: "Für das Projekt benötige ich Zugang zu Adobe Creative Suite.", status: "open" as const, priority: "medium" as const },
-        { title: "VPN-Verbindung instabil", description: "Die VPN-Verbindung bricht regelmäßig ab beim Homeoffice.", status: "resolved" as const, priority: "medium" as const },
-        { title: "Laptop-Austausch", description: "Mein Laptop ist über 5 Jahre alt und sehr langsam.", status: "waiting" as const, priority: "low" as const },
-      ];
-
-      for (const data of ticketData) {
-        const ticket = await storage.createTicket({
-          ...data,
-          tenantId: defaultTenant.id,
-          createdById: customerUser.id,
-          ticketTypeId: ticketTypes[0].id,
-        });
-
-        // Add a comment to some tickets
-        if (data.status !== "open") {
-          await storage.createComment({
-            ticketId: ticket.id,
-            authorId: agentUser.id,
-            content: "Vielen Dank für Ihre Anfrage. Wir bearbeiten Ihr Ticket schnellstmöglich.",
-            visibility: "external",
-          });
-        }
-      }
-    }
-
-    // Create sample customers
-    const existingCustomers = await storage.getCustomers(defaultTenant.id);
-    if (existingCustomers.length === 0) {
-      const customerData = [
-        { 
-          customerNumber: "KD-00001", 
-          name: "Mustermann GmbH", 
-          email: "kontakt@mustermann.de",
-          phone: "+49 30 1234567",
-          address: "Musterstraße 123",
-          city: "Berlin",
-          postalCode: "10115",
-          country: "Deutschland",
-          tenantId: defaultTenant.id
-        },
-        { 
-          customerNumber: "KD-00002", 
-          name: "Beispiel AG", 
-          email: "info@beispiel-ag.de",
-          phone: "+49 89 9876543",
-          address: "Beispielweg 45",
-          city: "München",
-          postalCode: "80331",
-          country: "Deutschland",
-          tenantId: defaultTenant.id
-        },
-        { 
-          customerNumber: "KD-00003", 
-          name: "Schmidt & Partner", 
-          email: "kontakt@schmidt-partner.de",
-          phone: "+49 40 5555555",
-          address: "Partnerplatz 7",
-          city: "Hamburg",
-          postalCode: "20095",
-          country: "Deutschland",
-          tenantId: defaultTenant.id
-        }
-      ];
-
-      for (const data of customerData) {
-        await storage.createCustomer(data, defaultTenant.id);
-      }
-    }
-
-    // Create sample contacts for customers
-    const customers = await storage.getCustomers(defaultTenant.id);
-    const existingContacts = await storage.getContacts(defaultTenant.id);
-    if (existingContacts.length === 0 && customers.length > 0) {
-      const contactData = [
-        { 
-          firstName: "Hans", 
-          lastName: "Müller",
-          email: "h.mueller@mustermann.de",
-          phone: "+49 30 1234568",
-          position: "IT-Leiter",
-          department: "IT",
-          customerId: customers[0].id,
-          tenantId: defaultTenant.id
-        },
-        { 
-          firstName: "Petra", 
-          lastName: "Weber",
-          email: "p.weber@mustermann.de",
-          phone: "+49 30 1234569",
-          position: "Assistenz",
-          department: "Verwaltung",
-          customerId: customers[0].id,
-          tenantId: defaultTenant.id
-        },
-        { 
-          firstName: "Thomas", 
-          lastName: "Fischer",
-          email: "t.fischer@beispiel-ag.de",
-          phone: "+49 89 9876544",
-          position: "Geschäftsführer",
-          department: "Geschäftsleitung",
-          customerId: customers[1].id,
-          tenantId: defaultTenant.id
-        }
-      ];
-
-      for (const data of contactData) {
-        await storage.createContact(data, defaultTenant.id);
-      }
-    }
-
-    // Create sample asset categories
-    let assetCategories = await storage.getAssetCategories(defaultTenant.id);
-    if (assetCategories.length === 0) {
-      await storage.createAssetCategory({ name: "Computer", description: "PCs und Laptops", assetType: "hardware" }, defaultTenant.id);
-      await storage.createAssetCategory({ name: "Drucker", description: "Drucker und Scanner", assetType: "hardware" }, defaultTenant.id);
-      await storage.createAssetCategory({ name: "Software", description: "Software-Lizenzen", assetType: "software" }, defaultTenant.id);
-      assetCategories = await storage.getAssetCategories(defaultTenant.id);
-    }
-
-    // Create sample assets for customers
-    const existingAssets = await storage.getAssets(defaultTenant.id);
-    if (existingAssets.length === 0 && customers.length > 0 && assetCategories.length > 0) {
-      const assetData = [
-        {
-          assetNumber: "AST-00001",
-          name: "Dell Latitude 5540",
-          assetType: "hardware" as const,
-          assetStatus: "active" as const,
-          serialNumber: "DELL-1234567890",
-          categoryId: assetCategories[0].id,
-          customerId: customers[0].id,
-          tenantId: defaultTenant.id
-        },
-        {
-          assetNumber: "AST-00002",
-          name: "HP LaserJet Pro",
-          assetType: "hardware" as const,
-          assetStatus: "active" as const,
-          serialNumber: "HP-9876543210",
-          categoryId: assetCategories[1].id,
-          customerId: customers[0].id,
-          tenantId: defaultTenant.id
-        },
-        {
-          assetNumber: "AST-00003",
-          name: "Microsoft Office 365",
-          assetType: "software" as const,
-          assetStatus: "active" as const,
-          categoryId: assetCategories[2].id,
-          customerId: customers[1].id,
-          tenantId: defaultTenant.id
-        }
-      ];
-
-      for (const data of assetData) {
-        await storage.createAsset(data, defaultTenant.id);
-      }
-    }
+    const { agentUser, customerUser } = await seedDemoUsers(defaultTenant);
+    const { ticketTypes, areasList } = await seedDemoTicketTypesAndAreas(defaultTenant);
+    await seedDemoTickets(defaultTenant, ticketTypes, areasList, agentUser, customerUser);
+    const customers = await seedDemoCustomers(defaultTenant);
+    await seedDemoContactsAndAssets(defaultTenant, customers);
 
     console.log("Demo-Daten erfolgreich erstellt");
   } catch (error) {
@@ -569,27 +810,9 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
 
-      // Check if status changed to "closed" - trigger survey
+      // Wenn Ticket auf "closed" gesetzt wurde, Survey-Einladung erstellen
       if (previousStatus !== "closed" && ticket.status === "closed") {
-        try {
-          const activeSurvey = await storage.getActiveSurvey(req.tenantId);
-          if (activeSurvey && originalTicket.createdById) {
-            // Create survey invitation with unique token
-            const token = crypto.randomBytes(32).toString("hex");
-            await storage.createSurveyInvitation({
-              tenantId: req.tenantId,
-              surveyId: activeSurvey.id,
-              ticketId: ticket.id,
-              userId: originalTicket.createdById,
-              token,
-              expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-            });
-            console.log(`Survey invitation created for ticket ${ticket.ticketNumber}`);
-          }
-        } catch (surveyError) {
-          logger.error("api", "Error creating survey invitation", { description: surveyError instanceof Error ? surveyError.message : String(surveyError), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-          // Don't fail the ticket update if survey creation fails
-        }
+        await triggerClosedTicketSurvey(req.tenantId, ticket, originalTicket);
       }
 
       res.json(ticket);
@@ -3654,279 +3877,40 @@ export async function registerRoutes(
       const tenantId = req.user!.tenantId!;
       const { mailboxEmail } = req.body;
       const config = await storage.getExchangeConfiguration(tenantId);
-      
+
       if (!config || !ExchangeService.isConfigurationValid(config)) {
         return res.status(400).json({ message: "Exchange ist nicht konfiguriert oder nicht aktiviert" });
       }
-      
+
       const mailboxes = await storage.getExchangeMailboxes(tenantId);
-      // Hole alle aktiven Postfächer, die E-Mails empfangen können (incoming, shared oder user für Legacy)
-      let incomingMailboxes = mailboxes.filter(m => 
+      let incomingMailboxes = mailboxes.filter((m: ExchangeMailbox) =>
         (m.mailboxType === "incoming" || m.mailboxType === "shared" || m.mailboxType === "user") && m.isActive
       );
-      
-      // Falls eine spezifische E-Mail-Adresse angegeben wurde, nur dieses Postfach synchronisieren
+
       if (mailboxEmail) {
-        incomingMailboxes = incomingMailboxes.filter(m => m.emailAddress === mailboxEmail);
+        incomingMailboxes = incomingMailboxes.filter((m: ExchangeMailbox) => m.emailAddress === mailboxEmail);
       }
-      
+
       if (incomingMailboxes.length === 0) {
         return res.status(400).json({ message: "Keine aktiven Postfächer für den E-Mail-Abruf konfiguriert (Typ: Eingehend oder Gemeinsam)" });
       }
-      
+
       let totalEmails = 0;
       let totalTickets = 0;
       let totalSkipped = 0;
       const errors: string[] = [];
-      
+
       for (const mailbox of incomingMailboxes) {
-        // Per-Mailbox Zähler
-        let mailboxImported = 0;
-        let mailboxTickets = 0;
-        let mailboxSkipped = 0;
-        const mailboxErrors: string[] = [];
-        const syncStartedAt = new Date();
-        
-        try {
-          const emails = await ExchangeService.fetchEmails(config, mailbox);
-          logger.info("exchange", "E-Mails gefunden", `${emails.length} E-Mails in ${mailbox.emailAddress} gefunden`);
-          
-          for (const graphEmail of emails) {
-            try {
-              // Prüfen ob E-Mail bereits importiert wurde (über Graph Message ID)
-              const existingEmail = await storage.getExchangeEmailByMessageId(tenantId, graphEmail.id);
-              if (existingEmail) {
-                logger.debug("exchange", "E-Mail übersprungen", `E-Mail ${graphEmail.id} bereits importiert`);
-                mailboxSkipped++;
-                continue;
-              }
-              
-              // E-Mail in Datenbank speichern
-              const emailData = ExchangeService.graphEmailToInsert(graphEmail, mailbox.id, tenantId);
-              const savedEmail = await storage.createExchangeEmail(emailData);
-              mailboxImported++;
-              
-              // Ticket erstellen - HTML-Inhalt für volle Formatierung verwenden
-              const ticketTitle = graphEmail.subject || "E-Mail ohne Betreff";
-              const ticketDescription = graphEmail.body?.content || graphEmail.bodyPreview || "";
-              
-              const ticket = await storage.createTicket({
-                tenantId,
-                title: ticketTitle,
-                description: ticketDescription,
-                status: "open",
-                priority: mailbox.defaultPriority || "medium",
-                ticketTypeId: mailbox.defaultTicketTypeId || null,
-                createdById: null, // System-generiert
-                customerId: null,
-                customFieldValues: {
-                  emailSource: mailbox.emailAddress,
-                  fromAddress: graphEmail.from?.emailAddress?.address,
-                  fromName: graphEmail.from?.emailAddress?.name,
-                  originalMessageId: graphEmail.id
-                }
-              });
-              
-              // E-Mail mit Ticket verknüpfen
-              await storage.updateExchangeEmail(savedEmail.id, { ticketId: ticket.id }, tenantId);
-              mailboxTickets++;
-              
-              // .eml Datei als Anhang speichern
-              try {
-                const rawEmailContent = await ExchangeService.getRawEmailContent(config, mailbox.emailAddress, graphEmail.id);
-                logger.debug("exchange", ".eml Inhalt abgerufen", `Größe: ${rawEmailContent?.length || 0} Bytes`);
-                
-                if (rawEmailContent && rawEmailContent.length > 0) {
-                  const objectStorage = new ObjectStorageClient();
-                  const displayFileName = `email_${ticket.ticketNumber}_${Date.now()}.eml`;
-                  const storagePath = `.private/emails/${tenantId}/${displayFileName}.b64`;
-                  
-                  // Base64-Kodierung für zuverlässige Speicherung im Object Storage
-                  const base64Content = rawEmailContent.toString("base64");
-                  
-                  // In Object Storage als Text speichern (base64-kodiert)
-                  await objectStorage.uploadFromText(storagePath, base64Content);
-                  
-                  // Attachment-Record erstellen (displayFileName ohne .b64)
-                  await storage.createAttachment({
-                    ticketId: ticket.id,
-                    fileName: displayFileName,
-                    fileSize: rawEmailContent.length,
-                    mimeType: "message/rfc822",
-                    storagePath: storagePath,
-                    uploadedById: null, // System-generiert
-                  });
-                  
-                  logger.info("exchange", ".eml gespeichert", `E-Mail als ${displayFileName} (${rawEmailContent.length} Bytes) an Ticket ${ticket.ticketNumber} angehängt`);
-                } else {
-                  logger.warn("exchange", ".eml leer", `Rohe E-Mail-Daten waren leer für Ticket ${ticket.ticketNumber}`);
-                }
-              } catch (emlError) {
-                logger.warn("exchange", ".eml Speicherung fehlgeschlagen", `Konnte .eml nicht speichern: ${emlError}`);
-              }
-              
-              logger.info("exchange", "Ticket erstellt", `Ticket ${ticket.ticketNumber} aus E-Mail von ${graphEmail.from?.emailAddress?.address} erstellt`);
-              
-              // Post-Import-Aktionen aus Verarbeitungsregeln ausführen
-              const processingRules = await storage.getEmailProcessingRules(tenantId, mailbox.id);
-              const activeRules = processingRules.filter(r => r.isActive);
-              
-              // Helper: Prüft ob eine Regel auf die E-Mail passt
-              const ruleMatchesEmail = (rule: typeof activeRules[0]): boolean => {
-                // Parse conditions JSON
-                let conditions: Array<{type: string, value: string, operator?: string}> = [];
-                if (rule.conditions) {
-                  try {
-                    conditions = JSON.parse(rule.conditions);
-                  } catch { conditions = []; }
-                }
-                
-                // Wenn keine Conditions, prüfe Legacy conditionType
-                if (conditions.length === 0 && rule.conditionType) {
-                  conditions = [{ type: rule.conditionType, value: rule.conditionValue || "" }];
-                }
-                
-                // Wenn immer noch keine Conditions -> immer matchen
-                if (conditions.length === 0) return true;
-                
-                const senderEmail = graphEmail.from?.emailAddress?.address?.toLowerCase() || "";
-                const senderName = graphEmail.from?.emailAddress?.name?.toLowerCase() || "";
-                const subject = graphEmail.subject?.toLowerCase() || "";
-                const body = graphEmail.bodyPreview?.toLowerCase() || "";
-                
-                for (const cond of conditions) {
-                  const val = (cond.value || "").toLowerCase();
-                  switch (cond.type) {
-                    case "imported_emails":
-                      return true; // Alle importierten E-Mails
-                    case "sender_contains":
-                      if (!senderEmail.includes(val) && !senderName.includes(val)) return false;
-                      break;
-                    case "subject_contains":
-                      if (!subject.includes(val)) return false;
-                      break;
-                    case "body_contains":
-                      if (!body.includes(val)) return false;
-                      break;
-                    case "has_attachment":
-                      if (!graphEmail.hasAttachments) return false;
-                      break;
-                    case "sender_domain":
-                      if (!senderEmail.endsWith(val)) return false;
-                      break;
-                    default:
-                      return true; // Unbekannte Typen matchen
-                  }
-                }
-                return true;
-              };
-              
-              for (const rule of activeRules) {
-                // Prüfe ob die Regel auf die E-Mail passt
-                if (!ruleMatchesEmail(rule)) {
-                  logger.debug("exchange", "Regel übersprungen", `Regel "${rule.name}" passt nicht auf E-Mail ${graphEmail.id}`);
-                  continue;
-                }
-                
-                // Aktionen aus rule.actions oder Legacy actionType
-                let ruleActions: string[] = rule.actions || [];
-                if (ruleActions.length === 0 && rule.actionType) {
-                  ruleActions = [rule.actionType];
-                }
-                
-                logger.debug("exchange", "Regel angewendet", `Regel "${rule.name}" mit Aktionen: ${ruleActions.join(", ")} auf E-Mail ${graphEmail.id}`);
-                
-                for (const action of ruleActions) {
-                  try {
-                    if (action === "mark_as_read") {
-                      await ExchangeService.markAsRead(config, mailbox.emailAddress, graphEmail.id);
-                      logger.debug("exchange", "Als gelesen markiert", `E-Mail ${graphEmail.id} als gelesen markiert (Regel: ${rule.name})`);
-                    } else if (action === "move_to_folder" && rule.actionFolderId) {
-                      await ExchangeService.moveEmail(config, mailbox.emailAddress, graphEmail.id, rule.actionFolderId);
-                      logger.debug("exchange", "E-Mail verschoben", `E-Mail ${graphEmail.id} nach ${rule.actionFolderName || rule.actionFolderId} verschoben (Regel: ${rule.name})`);
-                    } else if (action === "archive") {
-                      await ExchangeService.moveEmail(config, mailbox.emailAddress, graphEmail.id, "archive");
-                      logger.debug("exchange", "E-Mail archiviert", `E-Mail ${graphEmail.id} wurde archiviert (Regel: ${rule.name})`);
-                    } else if (action === "delete") {
-                      await ExchangeService.deleteEmail(config, mailbox.emailAddress, graphEmail.id);
-                      logger.debug("exchange", "E-Mail gelöscht", `E-Mail ${graphEmail.id} gelöscht (Regel: ${rule.name})`);
-                    } else if (action === "keep_unchanged") {
-                      logger.debug("exchange", "Keine Aktion", `E-Mail ${graphEmail.id} bleibt unverändert (Regel: ${rule.name})`);
-                    }
-                  } catch (actionError) {
-                    logger.warn("exchange", "Post-Import-Aktion fehlgeschlagen", `Aktion ${action} für E-Mail ${graphEmail.id} fehlgeschlagen (Regel: ${rule.name}): ${actionError}`);
-                  }
-                }
-              }
-              
-            } catch (emailError) {
-              logger.error("exchange", "E-Mail-Verarbeitung fehlgeschlagen", {
-                description: `Fehler bei E-Mail ${graphEmail.id}`,
-                cause: String(emailError),
-                solution: "E-Mail-Daten prüfen und erneut versuchen"
-              });
-              mailboxErrors.push(`E-Mail ${graphEmail.subject}: ${emailError}`);
-            }
-          }
-          
-          // Mailbox-Statistiken aktualisieren (mit per-mailbox Zählern)
-          await storage.updateExchangeMailbox(mailbox.id, {
-            lastFetchAt: new Date(),
-            lastFetchEmailCount: emails.length,
-            totalImportedEmails: (mailbox.totalImportedEmails || 0) + mailboxImported,
-            totalCreatedTickets: (mailbox.totalCreatedTickets || 0) + mailboxTickets,
-            lastFetchError: null
-          }, tenantId);
-          
-          // Sync-Log pro Mailbox erstellen
-          await storage.createExchangeSyncLog({
-            tenantId,
-            mailboxId: mailbox.id,
-            syncType: "fetch",
-            status: mailboxErrors.length > 0 ? "partial" : "success",
-            startedAt: syncStartedAt,
-            completedAt: new Date(),
-            emailsFetched: mailboxImported + mailboxSkipped,
-            ticketsCreated: mailboxTickets,
-            errorsCount: mailboxErrors.length,
-            errorMessage: mailboxErrors.length > 0 ? mailboxErrors.join("; ") : null
-          });
-          
-        } catch (error) {
-          const errorMsg = String(error);
-          mailboxErrors.push(errorMsg);
-          
-          // Fehler im Postfach speichern
-          await storage.updateExchangeMailbox(mailbox.id, {
-            lastFetchAt: new Date(),
-            lastFetchError: errorMsg
-          }, tenantId);
-          
-          // Sync-Log mit Fehler erstellen
-          await storage.createExchangeSyncLog({
-            tenantId,
-            mailboxId: mailbox.id,
-            syncType: "fetch",
-            status: "failed",
-            startedAt: syncStartedAt,
-            completedAt: new Date(),
-            emailsFetched: 0,
-            ticketsCreated: 0,
-            errorsCount: 1,
-            errorMessage: errorMsg
-          });
-        }
-        
-        // Zu Gesamtzählern addieren
-        totalEmails += mailboxImported;
-        totalTickets += mailboxTickets;
-        totalSkipped += mailboxSkipped;
-        errors.push(...mailboxErrors);
+        const result = await syncMailbox(ExchangeService as unknown as ExchangeServiceInterface, config, mailbox, tenantId);
+        totalEmails += result.imported;
+        totalTickets += result.tickets;
+        totalSkipped += result.skipped;
+        errors.push(...result.errors);
       }
-      
+
       logger.info("exchange", "Manuelle Synchronisation", `${totalEmails} E-Mails importiert, ${totalTickets} Tickets erstellt, ${totalSkipped} übersprungen`, { userId: req.user!.id });
-      
-      res.json({ 
+
+      res.json({
         message: "Synchronisation abgeschlossen",
         emailsProcessed: totalEmails,
         emailsSkipped: totalSkipped,

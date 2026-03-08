@@ -100,7 +100,7 @@ interface TokenResponse {
 }
 
 // Graph API E-Mail-Struktur
-interface GraphEmail {
+export interface GraphEmail {
   id: string;
   internetMessageId?: string;
   conversationId?: string;
