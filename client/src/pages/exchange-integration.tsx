@@ -85,6 +85,24 @@ const setupSteps = [
   { id: 3, title: "Test", description: "Verbindung testen" },
 ];
 
+const ruleToast = {
+  update: { title: "Regel aktualisiert", description: "Die Verarbeitungsregel wurde aktualisiert." },
+  create: { title: "Regel erstellt", description: "Die Verarbeitungsregel wurde erstellt." },
+} as const;
+
+type RuleCondition = { type: string; value: string; operator: "AND" | "OR" | "NOT" | "XOR" };
+
+function parseRuleConditions(rule: { conditions?: unknown; conditionType?: string; conditionValue?: string }): RuleCondition[] {
+  const fallback: RuleCondition[] = [{ type: rule.conditionType || "all_emails", value: rule.conditionValue || "", operator: "AND" }];
+  if (!rule.conditions) return fallback;
+  try {
+    const parsed = typeof rule.conditions === "string" ? JSON.parse(rule.conditions) : rule.conditions;
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export default function ExchangeIntegration() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("setup");
@@ -166,10 +184,10 @@ export default function ExchangeIntegration() {
   // Update form states when config is loaded
   useEffect(() => {
     if (configData?.configured) {
-      setIsEnabled(configData.isEnabled || false);
-      setClientId(configData.clientId || "");
-      setTenantAzureId(configData.tenantAzureId || "");
-      setAuthType(configData.authType || "client_secret");
+      setIsEnabled(configData.isEnabled ?? false);
+      setClientId(configData.clientId ?? "");
+      setTenantAzureId(configData.tenantAzureId ?? "");
+      setAuthType(configData.authType ?? "client_secret");
     }
   }, [configData]);
 
@@ -206,18 +224,10 @@ export default function ExchangeIntegration() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/exchange/configuration"] });
-      if (data.success) {
-        toast({
-          title: "Verbindung erfolgreich",
-          description: data.message || "Die Verbindung zu Microsoft Graph API wurde hergestellt.",
-        });
-      } else {
-        toast({
-          title: "Verbindungstest fehlgeschlagen",
-          description: data.message,
-          variant: "destructive",
-        });
-      }
+      toast(data.success
+        ? { title: "Verbindung erfolgreich", description: data.message || "Die Verbindung zu Microsoft Graph API wurde hergestellt." }
+        : { title: "Verbindungstest fehlgeschlagen", description: data.message, variant: "destructive" }
+      );
     },
     onError: (error: any) => {
       toast({
@@ -313,22 +323,16 @@ export default function ExchangeIntegration() {
   // Mutation zum Speichern einer Verarbeitungsregel
   const saveRuleMutation = useMutation({
     mutationFn: async (data: any) => {
-      if (editingRule) {
-        const response = await apiRequest("PATCH", `/api/exchange/processing-rules/${editingRule.id}`, data);
-        return response.json();
-      } else {
-        const response = await apiRequest("POST", "/api/exchange/processing-rules", data);
-        return response.json();
-      }
+      const method = editingRule ? "PATCH" : "POST";
+      const url = editingRule ? `/api/exchange/processing-rules/${editingRule.id}` : "/api/exchange/processing-rules";
+      const response = await apiRequest(method, url, data);
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/exchange/processing-rules"] });
       setShowRuleDialog(false);
       resetRuleForm();
-      toast({
-        title: editingRule ? "Regel aktualisiert" : "Regel erstellt",
-        description: editingRule ? "Die Verarbeitungsregel wurde aktualisiert." : "Die Verarbeitungsregel wurde erstellt.",
-      });
+      toast(editingRule ? ruleToast.update : ruleToast.create);
     },
     onError: (error: any) => {
       toast({
@@ -411,27 +415,7 @@ export default function ExchangeIntegration() {
     setRuleName(rule.name);
     setRuleDescription(rule.description || "");
     // Support both old single condition and new conditions array/JSON
-    if (rule.conditions) {
-      try {
-        const parsed = typeof rule.conditions === 'string' 
-          ? JSON.parse(rule.conditions) 
-          : rule.conditions;
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setRuleConditions(parsed);
-        } else {
-          setRuleConditions([{ type: rule.conditionType || "all_emails", value: rule.conditionValue || "", operator: "AND" }]);
-        }
-      } catch (err) {
-        console.error(err);
-        setRuleConditions([{ type: rule.conditionType || "all_emails", value: rule.conditionValue || "", operator: "AND" }]);
-      }
-    } else {
-      setRuleConditions([{ 
-        type: rule.conditionType || "all_emails", 
-        value: rule.conditionValue || "", 
-        operator: "AND" 
-      }]);
-    }
+    setRuleConditions(parseRuleConditions(rule));
     // Support both old single actionType and new actions array
     const actions = rule.actions || (rule.actionType ? [rule.actionType] : ["mark_as_read"]);
     setRuleActions(Array.isArray(actions) ? actions : [actions]);
@@ -471,7 +455,7 @@ export default function ExchangeIntegration() {
         actionFolderName: ruleActions.includes("move_to_folder") ? ruleActionFolderName : undefined,
         actionPriority: ruleActions.includes("set_priority") ? ruleActionPriority : undefined,
         actionAutoReplyTemplate: ruleActions.includes("auto_reply") ? ruleAutoReplyTemplate : undefined,
-        mailboxId: ruleMailboxId && ruleMailboxId !== "__all__" ? ruleMailboxId : undefined,
+        mailboxId: ["", "__all__"].includes(ruleMailboxId) ? undefined : ruleMailboxId,
         priority: rulePriority,
         isActive: ruleIsActive,
       });
@@ -525,11 +509,7 @@ export default function ExchangeIntegration() {
     try {
       const response = await apiRequest("GET", `/api/exchange/folders/${encodeURIComponent(firstMailbox.emailAddress)}`);
       const folders = await response.json();
-      if ((folders?.length ?? 0) > 0) {
-        setRuleFolders(folders);
-      } else {
-        setRuleFolders(standardFolders);
-      }
+      setRuleFolders((folders?.length ?? 0) > 0 ? folders : standardFolders);
     } catch (err) {
       // Fallback auf Standard-Ordner bei Fehler
       console.error(err);
@@ -583,9 +563,9 @@ export default function ExchangeIntegration() {
           id: editingMailbox.id,
           data: mailboxData,
         });
-      } else {
-        await saveMailboxMutation.mutateAsync(mailboxData);
+        return;
       }
+      await saveMailboxMutation.mutateAsync(mailboxData);
     } finally {
       setIsSavingMailbox(false);
     }
@@ -1371,15 +1351,17 @@ export default function ExchangeIntegration() {
         if (!open) resetMailboxForm();
       }}>
         <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>{editingMailbox ? "Postfach bearbeiten" : "Postfach hinzufügen"}</DialogTitle>
-            <DialogDescription>
-              {editingMailbox 
-                ? "Bearbeiten Sie die Einstellungen des Postfachs"
-                : "Konfigurieren Sie ein neues E-Mail-Postfach für die Exchange-Integration"
-              }
-            </DialogDescription>
-          </DialogHeader>
+          {(() => {
+            const mailboxTexts = editingMailbox
+              ? { title: "Postfach bearbeiten", description: "Bearbeiten Sie die Einstellungen des Postfachs" }
+              : { title: "Postfach hinzufügen", description: "Konfigurieren Sie ein neues E-Mail-Postfach für die Exchange-Integration" };
+            return (
+              <DialogHeader>
+                <DialogTitle>{mailboxTexts.title}</DialogTitle>
+                <DialogDescription>{mailboxTexts.description}</DialogDescription>
+              </DialogHeader>
+            );
+          })()}
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="mailbox-email">E-Mail-Adresse *</Label>
