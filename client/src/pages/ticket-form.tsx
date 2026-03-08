@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { useForm } from "react-hook-form";
@@ -610,16 +610,16 @@ export default function TicketFormPage() {
                 Abbrechen
               </Button>
               <Button type="submit" disabled={isPending} data-testid="button-submit">
-                {isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {isEditing ? "Wird gespeichert..." : "Wird erstellt..."}
-                  </>
-                ) : isEditing ? (
-                  "Speichern"
-                ) : (
-                  "Ticket erstellen"
-                )}
+                {(() => {
+                  if (isPending) return (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      {isEditing ? "Wird gespeichert..." : "Wird erstellt..."}
+                    </>
+                  );
+                  if (isEditing) return "Speichern";
+                  return "Ticket erstellen";
+                })()}
               </Button>
             </div>
           </form>
