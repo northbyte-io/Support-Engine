@@ -28,9 +28,9 @@ const priorityConfig: Record<TicketPriority, { label: string; className: string;
 };
 
 interface PriorityBadgeProps {
-  priority: TicketPriority;
-  showIcon?: boolean;
-  className?: string;
+  readonly priority: TicketPriority;
+  readonly showIcon?: boolean;
+  readonly className?: string;
 }
 
 export function PriorityBadge({ priority, showIcon = true, className }: PriorityBadgeProps) {
@@ -53,7 +53,7 @@ export function PriorityBadge({ priority, showIcon = true, className }: Priority
   );
 }
 
-export function PriorityDot({ priority }: { priority: TicketPriority }) {
+export function PriorityDot({ priority }: Readonly<{ priority: TicketPriority }>) {
   const colors: Record<TicketPriority, string> = {
     low: "bg-slate-400",
     medium: "bg-blue-500",
