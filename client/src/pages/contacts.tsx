@@ -225,6 +225,113 @@ export default function ContactsPage() {
     );
   });
 
+  const contactsTableContent = isLoading ? (
+    <TableSkeleton rows={5} cols={6} />
+  ) : filteredContacts?.length ? (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Name</TableHead>
+          <TableHead>Kunde</TableHead>
+          <TableHead>Kontakt</TableHead>
+          <TableHead>Rolle</TableHead>
+          <TableHead>Abteilung</TableHead>
+          <TableHead className="w-[50px]"></TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {filteredContacts.map((contact) => (
+          <TableRow key={contact.id} data-testid={`row-contact-${contact.id}`}>
+            <TableCell>
+              <div className="flex flex-col">
+                <span className="font-medium">
+                  {contact.salutation && `${contact.salutation} `}
+                  {contact.firstName} {contact.lastName}
+                </span>
+                {contact.title && (
+                  <span className="text-sm text-muted-foreground">{contact.title}</span>
+                )}
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="flex flex-col text-sm">
+                {contact.customer && (
+                  <span className="flex items-center gap-1">
+                    <Building2 className="h-3 w-3" />
+                    {contact.customer.name}
+                  </span>
+                )}
+                {contact.organization && !contact.customer && (
+                  <span className="flex items-center gap-1 text-muted-foreground">
+                    <Building2 className="h-3 w-3" />
+                    {contact.organization.name}
+                  </span>
+                )}
+                {!contact.customer && !contact.organization && (
+                  <span className="text-muted-foreground">-</span>
+                )}
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="flex flex-col text-sm">
+                {contact.email && (
+                  <a href={`mailto:${contact.email}`} className="flex items-center gap-1 hover:underline">
+                    <Mail className="h-3 w-3" />
+                    {contact.email}
+                  </a>
+                )}
+                {contact.phone && (
+                  <a href={`tel:${contact.phone}`} className="flex items-center gap-1 hover:underline">
+                    <Phone className="h-3 w-3" />
+                    {contact.phone}
+                  </a>
+                )}
+                {!contact.email && !contact.phone && (
+                  <span className="text-muted-foreground">-</span>
+                )}
+              </div>
+            </TableCell>
+            <TableCell>
+              {contact.role && (
+                <Badge className={roleConfig[contact.role]?.color}>
+                  {roleConfig[contact.role]?.label}
+                </Badge>
+              )}
+            </TableCell>
+            <TableCell>
+              <span className="text-sm text-muted-foreground">
+                {contact.department || "-"}
+              </span>
+            </TableCell>
+            <TableCell>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" data-testid={`button-contact-actions-${contact.id}`}>
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => openEditDialog(contact)}>
+                    Bearbeiten
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => deleteMutation.mutate(contact.id)}
+                  >
+                    Löschen
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  ) : (
+    <NoContactsEmpty />
+  );
+
   return (
     <MainLayout title="Kontakte">
       <div className="space-y-6">
@@ -247,112 +354,7 @@ export default function ContactsPage() {
 
         <Card>
           <CardContent className="p-0">
-            {isLoading ? (
-              <TableSkeleton rows={5} cols={6} />
-            ) : !filteredContacts?.length ? (
-              <NoContactsEmpty />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Kunde</TableHead>
-                    <TableHead>Kontakt</TableHead>
-                    <TableHead>Rolle</TableHead>
-                    <TableHead>Abteilung</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredContacts.map((contact) => (
-                    <TableRow key={contact.id} data-testid={`row-contact-${contact.id}`}>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium">
-                            {contact.salutation && `${contact.salutation} `}
-                            {contact.firstName} {contact.lastName}
-                          </span>
-                          {contact.title && (
-                            <span className="text-sm text-muted-foreground">{contact.title}</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col text-sm">
-                          {contact.customer && (
-                            <span className="flex items-center gap-1">
-                              <Building2 className="h-3 w-3" />
-                              {contact.customer.name}
-                            </span>
-                          )}
-                          {contact.organization && !contact.customer && (
-                            <span className="flex items-center gap-1 text-muted-foreground">
-                              <Building2 className="h-3 w-3" />
-                              {contact.organization.name}
-                            </span>
-                          )}
-                          {!contact.customer && !contact.organization && (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col text-sm">
-                          {contact.email && (
-                            <a href={`mailto:${contact.email}`} className="flex items-center gap-1 hover:underline">
-                              <Mail className="h-3 w-3" />
-                              {contact.email}
-                            </a>
-                          )}
-                          {contact.phone && (
-                            <a href={`tel:${contact.phone}`} className="flex items-center gap-1 hover:underline">
-                              <Phone className="h-3 w-3" />
-                              {contact.phone}
-                            </a>
-                          )}
-                          {!contact.email && !contact.phone && (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {contact.role && (
-                          <Badge className={roleConfig[contact.role]?.color}>
-                            {roleConfig[contact.role]?.label}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground">
-                          {contact.department || "-"}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" data-testid={`button-contact-actions-${contact.id}`}>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEditDialog(contact)}>
-                              Bearbeiten
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              className="text-destructive"
-                              onClick={() => deleteMutation.mutate(contact.id)}
-                            >
-                              Löschen
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+            {contactsTableContent}
           </CardContent>
         </Card>
       </div>
