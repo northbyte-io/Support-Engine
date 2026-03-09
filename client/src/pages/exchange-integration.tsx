@@ -1379,7 +1379,7 @@ export default function ExchangeIntegration() {
                   type="button" 
                   variant="outline"
                   onClick={() => handleLoadFolders(newMailboxEmail)}
-                  disabled={!newMailboxEmail || !newMailboxEmail.includes("@") || isLoadingFolders}
+                  disabled={!newMailboxEmail?.includes("@") || isLoadingFolders}
                   data-testid="button-load-folders"
                 >
                   {isLoadingFolders ? (
