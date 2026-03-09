@@ -36,6 +36,30 @@ belonging to tenant B.
 
 ---
 
+### 2.4 — Access Tokens Stored in the Database
+
+**Severity:** High · **Commit:** `5235c22`
+
+**Problem:** Microsoft Graph access tokens were stored in the
+`exchangeConfigurations` table (`access_token`, `access_token_expires_at`,
+`refresh_token` columns). A database breach would expose all tenant Exchange
+tokens.
+
+**Fix:**
+- Removed `accessToken`, `accessTokenExpiresAt`, and `refreshToken` columns
+  from the `exchangeConfigurations` schema in `shared/schema.ts`.
+- Added a `private static readonly tokenCache: Map<string, CachedToken>` to
+  `ExchangeService`. `getAccessToken()` now checks this in-memory cache (with
+  a 5-minute pre-expiry buffer) instead of the DB config object. On a cache
+  miss the service fetches a fresh token from Azure AD and stores it only in
+  memory — never in the database. On server restart, a fresh token is
+  transparently requested on first use.
+- Cleaned up `GET /api/exchange/configuration` response handler to no longer
+  destructure the now-removed `accessToken`/`refreshToken` fields.
+- Run `npm run db:push` to drop the three token columns from the database.
+
+---
+
 ### 2.7 — No Rate Limiting on Any Endpoint
 
 **Severity:** High · **Commit:** `acd6140`
@@ -251,7 +275,6 @@ significant refactoring effort. They are logged here for future sprints.
 | # | Issue | Reason deferred |
 |---|-------|----------------|
 | 1.3 | JWT in localStorage (XSS) | Requires migrating the entire auth flow to httpOnly cookies; affects every API call and the auth context. High risk, plan as a dedicated feature. |
-| 2.4 | Exchange access tokens persisted to DB | Requires in-memory token management with TTL logic; impacts `exchange-service.ts` significantly. |
 | 2.5 | Hard deletes of audit-critical data | Adding `deletedAt` soft-delete requires schema migration on `tickets` and `kbArticles` plus updating every list query. |
 | 3.1 | N+1 in `getTicket()` — 10+ queries | Refactor to Drizzle relational API (`db.query.tickets.findFirst({ with: … })`). Large refactor with risk. |
 | 3.2 | N+1 in `getTickets()` — queries in map | Requires batch `inArray()` queries and in-memory join. |
@@ -274,7 +297,7 @@ significant refactoring effort. They are logged here for future sprints.
 |---|---------|----------|----------|--------|
 | 1.3 | `client/src/lib/auth.tsx` | Security | **Critical** | Deferred |
 | 1.6 | `server/routes.ts`, `storage.ts`, `schema.ts` | Security | **High** | **Fixed** |
-| 2.4 | `server/exchange-service.ts` | Security | **High** | Deferred |
+| 2.4 | `server/exchange-service.ts`, `shared/schema.ts` | Security | **High** | **Fixed** |
 | 2.5 | `server/storage.ts` | Compliance | **High** | Deferred |
 | 2.7 | `server/index.ts` | Security | **High** | **Fixed** |
 | 2.9 | `client/src/App.tsx` | Stability | **Medium** | **Fixed** |
@@ -303,5 +326,5 @@ significant refactoring effort. They are logged here for future sprints.
 | 11.2 | Repository | Quality | **Medium** | Deferred |
 | 11.3 | `.gitignore` | Build | **Low** | **Fixed** |
 
-**Fixed: 14 issues** across 12 commits.
-**Deferred: 16 issues** (architectural / large scope).
+**Fixed: 15 issues** across 13 commits.
+**Deferred: 15 issues** (architectural / large scope).
