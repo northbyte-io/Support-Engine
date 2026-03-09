@@ -7,7 +7,7 @@ import { Plus, Search, MoreHorizontal, Loader2, Building2, MapPin, Phone, Mail, 
 import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TableSkeleton } from "@/components/LoadingState";
 import {
@@ -203,11 +203,6 @@ export default function CustomersPage() {
       priority: customer.priority || "medium",
       notes: customer.notes || "",
     });
-  };
-
-  const formatDate = (date: Date | string | null) => {
-    if (!date) return "-";
-    return formatDistanceToNow(new Date(date), { addSuffix: true, locale: de });
   };
 
   const filteredCustomers = customers?.filter((customer) => {
