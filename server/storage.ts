@@ -1024,7 +1024,7 @@ export class DatabaseStorage implements IStorage {
         or(
           ilike(kbArticles.title, `%${params.search}%`),
           ilike(kbArticles.content, `%${params.search}%`)
-        )
+        )!
       );
     }
 
@@ -1780,7 +1780,7 @@ export class DatabaseStorage implements IStorage {
 
   async createAssetLicense(license: InsertAssetLicense, tenantId: string): Promise<AssetLicense> {
     const [asset] = await db.select().from(assets).where(
-      and(eq(assets.id, license.assetId), eq(assets.tenantId, tenantId))
+      and(eq(assets.id, license.assetId ?? ""), eq(assets.tenantId, tenantId))
     );
     if (!asset) {
       throw new Error("Asset gehört nicht zum Mandanten");
@@ -1793,7 +1793,7 @@ export class DatabaseStorage implements IStorage {
     const [existingLicense] = await db.select().from(assetLicenses).where(eq(assetLicenses.id, id));
     if (!existingLicense) return undefined;
     const [asset] = await db.select().from(assets).where(
-      and(eq(assets.id, existingLicense.assetId), eq(assets.tenantId, tenantId))
+      and(eq(assets.id, existingLicense.assetId ?? ""), eq(assets.tenantId, tenantId))
     );
     if (!asset) return undefined;
     const { assetId: _, id: __, ...safeUpdates } = updates as Partial<InsertAssetLicense> & { id?: string; assetId?: string | null };
@@ -1805,7 +1805,7 @@ export class DatabaseStorage implements IStorage {
     const [existingLicense] = await db.select().from(assetLicenses).where(eq(assetLicenses.id, id));
     if (!existingLicense) return;
     const [asset] = await db.select().from(assets).where(
-      and(eq(assets.id, existingLicense.assetId), eq(assets.tenantId, tenantId))
+      and(eq(assets.id, existingLicense.assetId ?? ""), eq(assets.tenantId, tenantId))
     );
     if (!asset) return;
     await db.delete(assetLicenses).where(eq(assetLicenses.id, id));
@@ -1823,7 +1823,7 @@ export class DatabaseStorage implements IStorage {
 
   async createAssetContract(contract: InsertAssetContract, tenantId: string): Promise<AssetContract> {
     const [asset] = await db.select().from(assets).where(
-      and(eq(assets.id, contract.assetId), eq(assets.tenantId, tenantId))
+      and(eq(assets.id, contract.assetId ?? ""), eq(assets.tenantId, tenantId))
     );
     if (!asset) {
       throw new Error("Asset gehört nicht zum Mandanten");
@@ -1836,7 +1836,7 @@ export class DatabaseStorage implements IStorage {
     const [existingContract] = await db.select().from(assetContracts).where(eq(assetContracts.id, id));
     if (!existingContract) return undefined;
     const [asset] = await db.select().from(assets).where(
-      and(eq(assets.id, existingContract.assetId), eq(assets.tenantId, tenantId))
+      and(eq(assets.id, existingContract.assetId ?? ""), eq(assets.tenantId, tenantId))
     );
     if (!asset) return undefined;
     const { assetId: _, id: __, ...safeUpdates } = updates as Partial<InsertAssetContract> & { id?: string; assetId?: string | null };
@@ -1848,7 +1848,7 @@ export class DatabaseStorage implements IStorage {
     const [existingContract] = await db.select().from(assetContracts).where(eq(assetContracts.id, id));
     if (!existingContract) return;
     const [asset] = await db.select().from(assets).where(
-      and(eq(assets.id, existingContract.assetId), eq(assets.tenantId, tenantId))
+      and(eq(assets.id, existingContract.assetId ?? ""), eq(assets.tenantId, tenantId))
     );
     if (!asset) return;
     await db.delete(assetContracts).where(eq(assetContracts.id, id));
@@ -1865,7 +1865,7 @@ export class DatabaseStorage implements IStorage {
     const result: (TicketAsset & { asset?: Asset })[] = [];
     for (const link of links) {
       const [asset] = await db.select().from(assets).where(
-        and(eq(assets.id, link.assetId), eq(assets.tenantId, tenantId))
+        and(eq(assets.id, link.assetId ?? ""), eq(assets.tenantId, tenantId))
       );
       result.push({ ...link, asset: asset || undefined });
     }
@@ -1882,7 +1882,7 @@ export class DatabaseStorage implements IStorage {
     const result: (TicketAsset & { ticket?: Ticket })[] = [];
     for (const link of links) {
       const [ticket] = await db.select().from(tickets).where(
-        and(eq(tickets.id, link.ticketId), eq(tickets.tenantId, tenantId))
+        and(eq(tickets.id, link.ticketId ?? ""), eq(tickets.tenantId, tenantId))
       );
       result.push({ ...link, ticket: ticket || undefined });
     }
@@ -1891,10 +1891,10 @@ export class DatabaseStorage implements IStorage {
 
   async createTicketAsset(link: InsertTicketAsset, tenantId: string): Promise<TicketAsset> {
     const [ticket] = await db.select().from(tickets).where(
-      and(eq(tickets.id, link.ticketId), eq(tickets.tenantId, tenantId))
+      and(eq(tickets.id, link.ticketId ?? ""), eq(tickets.tenantId, tenantId))
     );
     const [asset] = await db.select().from(assets).where(
-      and(eq(assets.id, link.assetId), eq(assets.tenantId, tenantId))
+      and(eq(assets.id, link.assetId ?? ""), eq(assets.tenantId, tenantId))
     );
     if (!ticket || !asset) {
       throw new Error("Ticket oder Asset gehört nicht zum Mandanten");
@@ -1908,7 +1908,7 @@ export class DatabaseStorage implements IStorage {
     if (!link) return;
     
     const [ticket] = await db.select().from(tickets).where(
-      and(eq(tickets.id, link.ticketId), eq(tickets.tenantId, tenantId))
+      and(eq(tickets.id, link.ticketId ?? ""), eq(tickets.tenantId, tenantId))
     );
     if (!ticket) return;
     
@@ -1933,7 +1933,7 @@ export class DatabaseStorage implements IStorage {
 
   async createAssetHistory(entry: InsertAssetHistory, tenantId: string): Promise<AssetHistory> {
     const [asset] = await db.select().from(assets).where(
-      and(eq(assets.id, entry.assetId), eq(assets.tenantId, tenantId))
+      and(eq(assets.id, entry.assetId ?? ""), eq(assets.tenantId, tenantId))
     );
     if (!asset) {
       throw new Error("Asset gehört nicht zum Mandanten");
@@ -2053,7 +2053,7 @@ export class DatabaseStorage implements IStorage {
 
   async addProjectMember(member: InsertProjectMember, tenantId: string): Promise<ProjectMember> {
     const [project] = await db.select().from(projects)
-      .where(and(eq(projects.id, member.projectId), eq(projects.tenantId, tenantId)));
+      .where(and(eq(projects.id, member.projectId ?? ""), eq(projects.tenantId, tenantId)));
     if (!project) {
       throw new Error("Projekt gehört nicht zum Mandanten");
     }
@@ -2084,7 +2084,7 @@ export class DatabaseStorage implements IStorage {
 
   async createBoardColumn(column: InsertBoardColumn, tenantId: string): Promise<BoardColumn> {
     const [project] = await db.select().from(projects)
-      .where(and(eq(projects.id, column.projectId), eq(projects.tenantId, tenantId)));
+      .where(and(eq(projects.id, column.projectId ?? ""), eq(projects.tenantId, tenantId)));
     if (!project) {
       throw new Error("Projekt gehört nicht zum Mandanten");
     }
@@ -2097,7 +2097,7 @@ export class DatabaseStorage implements IStorage {
     if (!existing) return undefined;
 
     const [project] = await db.select().from(projects)
-      .where(and(eq(projects.id, existing.projectId), eq(projects.tenantId, tenantId)));
+      .where(and(eq(projects.id, existing.projectId ?? ""), eq(projects.tenantId, tenantId)));
     if (!project) return undefined;
 
     const { projectId: _, id: __, ...safeUpdates } = updates as any;
@@ -2110,7 +2110,7 @@ export class DatabaseStorage implements IStorage {
     if (!existing) return;
 
     const [project] = await db.select().from(projects)
-      .where(and(eq(projects.id, existing.projectId), eq(projects.tenantId, tenantId)));
+      .where(and(eq(projects.id, existing.projectId ?? ""), eq(projects.tenantId, tenantId)));
     if (!project) return;
 
     await db.delete(boardColumns).where(eq(boardColumns.id, id));
@@ -2136,7 +2136,7 @@ export class DatabaseStorage implements IStorage {
     const result: (TicketProject & { project?: Project })[] = [];
     for (const link of links) {
       const [project] = await db.select().from(projects)
-        .where(and(eq(projects.id, link.projectId), eq(projects.tenantId, tenantId)));
+        .where(and(eq(projects.id, link.projectId ?? ""), eq(projects.tenantId, tenantId)));
       result.push({ ...link, project: project || undefined });
     }
     return result;
@@ -2144,9 +2144,9 @@ export class DatabaseStorage implements IStorage {
 
   async addTicketToProject(ticketProject: InsertTicketProject, tenantId: string): Promise<TicketProject> {
     const [ticket] = await db.select().from(tickets)
-      .where(and(eq(tickets.id, ticketProject.ticketId), eq(tickets.tenantId, tenantId)));
+      .where(and(eq(tickets.id, ticketProject.ticketId ?? ""), eq(tickets.tenantId, tenantId)));
     const [project] = await db.select().from(projects)
-      .where(and(eq(projects.id, ticketProject.projectId), eq(projects.tenantId, tenantId)));
+      .where(and(eq(projects.id, ticketProject.projectId ?? ""), eq(projects.tenantId, tenantId)));
     
     if (!ticket || !project) {
       throw new Error("Ticket oder Projekt gehört nicht zum Mandanten");
@@ -2183,7 +2183,7 @@ export class DatabaseStorage implements IStorage {
     for (const column of columns) {
       const columnTickets: TicketProject[] = [];
       for (const tp of ticketProjectsList) {
-        const [ticket] = await db.select().from(tickets).where(eq(tickets.id, tp.ticketId));
+        const [ticket] = await db.select().from(tickets).where(eq(tickets.id, tp.ticketId ?? ""));
         if (ticket?.status === column.status) {
           columnTickets.push(tp);
         }
@@ -2417,7 +2417,7 @@ export class DatabaseStorage implements IStorage {
 
   async createCustomerLocation(location: InsertCustomerLocation, tenantId: string): Promise<CustomerLocation> {
     const [customer] = await db.select().from(customers)
-      .where(and(eq(customers.id, location.customerId), eq(customers.tenantId, tenantId)));
+      .where(and(eq(customers.id, location.customerId ?? ""), eq(customers.tenantId, tenantId)));
     if (!customer) {
       throw new Error("Kunde gehört nicht zum Mandanten");
     }
@@ -2432,7 +2432,7 @@ export class DatabaseStorage implements IStorage {
     if (!existing) return undefined;
 
     const [customer] = await db.select().from(customers)
-      .where(and(eq(customers.id, existing.customerId), eq(customers.tenantId, tenantId)));
+      .where(and(eq(customers.id, existing.customerId ?? ""), eq(customers.tenantId, tenantId)));
     if (!customer) return undefined;
 
     const [result] = await db.update(customerLocations)
@@ -2448,7 +2448,7 @@ export class DatabaseStorage implements IStorage {
     if (!existing) return;
 
     const [customer] = await db.select().from(customers)
-      .where(and(eq(customers.id, existing.customerId), eq(customers.tenantId, tenantId)));
+      .where(and(eq(customers.id, existing.customerId ?? ""), eq(customers.tenantId, tenantId)));
     if (!customer) return;
 
     await db.delete(customerLocations).where(eq(customerLocations.id, id));
@@ -2560,7 +2560,7 @@ export class DatabaseStorage implements IStorage {
     const links = await db.select().from(ticketContacts).where(eq(ticketContacts.ticketId, ticketId));
     const result: (TicketContact & { contact?: Contact })[] = [];
     for (const link of links) {
-      const [contact] = await db.select().from(contacts).where(eq(contacts.id, link.contactId));
+      const [contact] = await db.select().from(contacts).where(eq(contacts.id, link.contactId ?? ""));
       result.push({ ...link, contact: contact || undefined });
     }
     return result;
@@ -2568,7 +2568,7 @@ export class DatabaseStorage implements IStorage {
 
   async addTicketContact(link: InsertTicketContact, tenantId: string): Promise<TicketContact> {
     const [ticket] = await db.select().from(tickets)
-      .where(and(eq(tickets.id, link.ticketId), eq(tickets.tenantId, tenantId)));
+      .where(and(eq(tickets.id, link.ticketId ?? ""), eq(tickets.tenantId, tenantId)));
     if (!ticket) {
       throw new Error("Ticket gehört nicht zum Mandanten");
     }
@@ -2582,7 +2582,7 @@ export class DatabaseStorage implements IStorage {
     if (!existing) return;
 
     const [ticket] = await db.select().from(tickets)
-      .where(and(eq(tickets.id, existing.ticketId), eq(tickets.tenantId, tenantId)));
+      .where(and(eq(tickets.id, existing.ticketId ?? ""), eq(tickets.tenantId, tenantId)));
     if (!ticket) return;
 
     await db.delete(ticketContacts).where(eq(ticketContacts.id, id));
@@ -2693,9 +2693,9 @@ export class DatabaseStorage implements IStorage {
   async getTlsCertificateActions(certificateId?: string, limit?: number): Promise<(TlsCertificateAction & { performedBy?: User })[]> {
     let query = db.select().from(tlsCertificateActions);
     if (certificateId) {
-      query = query.where(eq(tlsCertificateActions.certificateId, certificateId));
+      query = query.where(eq(tlsCertificateActions.certificateId, certificateId)) as typeof query;
     }
-    query = query.orderBy(desc(tlsCertificateActions.createdAt));
+    query = query.orderBy(desc(tlsCertificateActions.createdAt)) as typeof query;
     const actions = limit ? await query.limit(limit) : await query;
 
     const result: (TlsCertificateAction & { performedBy?: User })[] = [];

@@ -50,8 +50,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { formatDistanceToNow } from "date-fns";
-import { de } from "date-fns/locale";
 import type { CustomerWithRelations, Organization, User } from "@shared/schema";
 import { Link } from "wouter";
 

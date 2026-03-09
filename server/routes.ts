@@ -3667,7 +3667,7 @@ export async function registerRoutes(
         result = await storage.updateExchangeConfiguration(tenantId, configData);
         logger.info("exchange", "Konfiguration aktualisiert", "Exchange-Konfiguration wurde aktualisiert", { userId: req.user!.id });
       } else {
-        result = await storage.createExchangeConfiguration(configData);
+        result = await storage.createExchangeConfiguration(configData as InsertExchangeConfiguration);
         logger.info("exchange", "Konfiguration erstellt", "Exchange-Konfiguration wurde erstellt", { userId: req.user!.id });
       }
       
