@@ -2358,7 +2358,7 @@ export async function registerRoutes(
   // Asset Categories
   app.get("/api/asset-categories", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const categories = await storage.getAssetCategories(req.user!.tenantId!);
+      const categories = await storage.getAssetCategories(req.user?.tenantId ?? "");
       res.json(categories);
     } catch (error) {
       logger.error("api", "Get asset categories error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2372,7 +2372,7 @@ export async function registerRoutes(
         ...req.body,
         tenantId: req.user!.tenantId,
       });
-      const category = await storage.createAssetCategory(data, req.user!.tenantId!);
+      const category = await storage.createAssetCategory(data, req.user?.tenantId ?? "");
       res.status(201).json(category);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -2385,11 +2385,11 @@ export async function registerRoutes(
 
   app.patch("/api/asset-categories/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const category = await storage.getAssetCategory(req.params.id, req.user!.tenantId!);
+      const category = await storage.getAssetCategory(req.params.id, req.user?.tenantId ?? "");
       if (!category) {
         return res.status(404).json({ message: "Kategorie nicht gefunden" });
       }
-      const updated = await storage.updateAssetCategory(req.params.id, req.body, req.user!.tenantId!);
+      const updated = await storage.updateAssetCategory(req.params.id, req.body, req.user?.tenantId ?? "");
       res.json(updated);
     } catch (error) {
       logger.error("api", "Update asset category error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2399,11 +2399,11 @@ export async function registerRoutes(
 
   app.delete("/api/asset-categories/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const category = await storage.getAssetCategory(req.params.id, req.user!.tenantId!);
+      const category = await storage.getAssetCategory(req.params.id, req.user?.tenantId ?? "");
       if (!category) {
         return res.status(404).json({ message: "Kategorie nicht gefunden" });
       }
-      await storage.deleteAssetCategory(req.params.id, req.user!.tenantId!);
+      await storage.deleteAssetCategory(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("api", "Delete asset category error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2415,7 +2415,7 @@ export async function registerRoutes(
   app.get("/api/assets", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const { assetType, status, categoryId, assignedToId, customerId, search } = req.query;
-      const assets = await storage.getAssets(req.user!.tenantId!, {
+      const assets = await storage.getAssets(req.user?.tenantId ?? "", {
         assetType: assetType as string | undefined,
         status: status as string | undefined,
         categoryId: categoryId as string | undefined,
@@ -2432,7 +2432,7 @@ export async function registerRoutes(
 
   app.get("/api/assets/next-number", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const assetNumber = await storage.getNextAssetNumber(req.user!.tenantId!);
+      const assetNumber = await storage.getNextAssetNumber(req.user?.tenantId ?? "");
       res.json({ assetNumber });
     } catch (error) {
       logger.error("api", "Get next asset number error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2442,7 +2442,7 @@ export async function registerRoutes(
 
   app.get("/api/assets/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const asset = await storage.getAsset(req.params.id, req.user!.tenantId!);
+      const asset = await storage.getAsset(req.params.id, req.user?.tenantId ?? "");
       if (!asset) {
         return res.status(404).json({ message: "Asset nicht gefunden" });
       }
@@ -2459,7 +2459,7 @@ export async function registerRoutes(
         ...req.body,
         tenantId: req.user!.tenantId,
       });
-      const asset = await storage.createAsset(data, req.user!.tenantId!);
+      const asset = await storage.createAsset(data, req.user?.tenantId ?? "");
 
       // Create history entry
       await storage.createAssetHistory({
@@ -2467,7 +2467,7 @@ export async function registerRoutes(
         userId: req.user!.id,
         action: "created",
         description: "Asset erstellt",
-      }, req.user!.tenantId!);
+      }, req.user?.tenantId ?? "");
 
       // If software/license type, create license entry
       if ((asset.assetType === "software" || asset.assetType === "license") && req.body.license) {
@@ -2475,7 +2475,7 @@ export async function registerRoutes(
           ...req.body.license,
           assetId: asset.id,
         });
-        await storage.createAssetLicense(licenseData, req.user!.tenantId!);
+        await storage.createAssetLicense(licenseData, req.user?.tenantId ?? "");
       }
 
       // If contract type, create contract entry
@@ -2484,10 +2484,10 @@ export async function registerRoutes(
           ...req.body.contract,
           assetId: asset.id,
         });
-        await storage.createAssetContract(contractData, req.user!.tenantId!);
+        await storage.createAssetContract(contractData, req.user?.tenantId ?? "");
       }
 
-      const fullAsset = await storage.getAsset(asset.id, req.user!.tenantId!);
+      const fullAsset = await storage.getAsset(asset.id, req.user?.tenantId ?? "");
       res.status(201).json(fullAsset);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -2500,12 +2500,12 @@ export async function registerRoutes(
 
   app.patch("/api/assets/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const asset = await storage.getAsset(req.params.id, req.user!.tenantId!);
+      const asset = await storage.getAsset(req.params.id, req.user?.tenantId ?? "");
       if (!asset) {
         return res.status(404).json({ message: "Asset nicht gefunden" });
       }
 
-      const updated = await storage.updateAsset(req.params.id, req.body, req.user!.tenantId!);
+      const updated = await storage.updateAsset(req.params.id, req.body, req.user?.tenantId ?? "");
 
       // Create history entry for update
       await storage.createAssetHistory({
@@ -2515,29 +2515,29 @@ export async function registerRoutes(
         description: "Asset aktualisiert",
         previousValue: asset,
         newValue: updated,
-      }, req.user!.tenantId!);
+      }, req.user?.tenantId ?? "");
 
       // Update license if provided
       if (req.body.license) {
-        const existingLicense = await storage.getAssetLicense(req.params.id, req.user!.tenantId!);
+        const existingLicense = await storage.getAssetLicense(req.params.id, req.user?.tenantId ?? "");
         if (existingLicense) {
-          await storage.updateAssetLicense(existingLicense.id, req.body.license, req.user!.tenantId!);
+          await storage.updateAssetLicense(existingLicense.id, req.body.license, req.user?.tenantId ?? "");
         } else {
-          await storage.createAssetLicense({ ...req.body.license, assetId: req.params.id }, req.user!.tenantId!);
+          await storage.createAssetLicense({ ...req.body.license, assetId: req.params.id }, req.user?.tenantId ?? "");
         }
       }
 
       // Update contract if provided
       if (req.body.contract) {
-        const existingContract = await storage.getAssetContract(req.params.id, req.user!.tenantId!);
+        const existingContract = await storage.getAssetContract(req.params.id, req.user?.tenantId ?? "");
         if (existingContract) {
-          await storage.updateAssetContract(existingContract.id, req.body.contract, req.user!.tenantId!);
+          await storage.updateAssetContract(existingContract.id, req.body.contract, req.user?.tenantId ?? "");
         } else {
-          await storage.createAssetContract({ ...req.body.contract, assetId: req.params.id }, req.user!.tenantId!);
+          await storage.createAssetContract({ ...req.body.contract, assetId: req.params.id }, req.user?.tenantId ?? "");
         }
       }
 
-      const fullAsset = await storage.getAsset(req.params.id, req.user!.tenantId!);
+      const fullAsset = await storage.getAsset(req.params.id, req.user?.tenantId ?? "");
       res.json(fullAsset);
     } catch (error) {
       logger.error("api", "Update asset error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2547,11 +2547,11 @@ export async function registerRoutes(
 
   app.delete("/api/assets/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const asset = await storage.getAsset(req.params.id, req.user!.tenantId!);
+      const asset = await storage.getAsset(req.params.id, req.user?.tenantId ?? "");
       if (!asset) {
         return res.status(404).json({ message: "Asset nicht gefunden" });
       }
-      await storage.deleteAsset(req.params.id, req.user!.tenantId!);
+      await storage.deleteAsset(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("api", "Delete asset error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2562,7 +2562,7 @@ export async function registerRoutes(
   // Ticket Assets (linking)
   app.get("/api/tickets/:ticketId/assets", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const ticketAssets = await storage.getTicketAssets(req.params.ticketId, req.user!.tenantId!);
+      const ticketAssets = await storage.getTicketAssets(req.params.ticketId, req.user?.tenantId ?? "");
       res.json(ticketAssets);
     } catch (error) {
       logger.error("api", "Get ticket assets error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2576,7 +2576,7 @@ export async function registerRoutes(
         ticketId: req.params.ticketId,
         assetId: req.body.assetId,
       });
-      const link = await storage.createTicketAsset(data, req.user!.tenantId!);
+      const link = await storage.createTicketAsset(data, req.user?.tenantId ?? "");
       res.status(201).json(link);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -2592,7 +2592,7 @@ export async function registerRoutes(
 
   app.delete("/api/ticket-assets/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.deleteTicketAsset(req.params.id, req.user!.tenantId!);
+      await storage.deleteTicketAsset(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("api", "Delete ticket asset link error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2603,7 +2603,7 @@ export async function registerRoutes(
   // Asset tickets (get tickets linked to an asset)
   app.get("/api/assets/:assetId/tickets", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const assetTickets = await storage.getAssetTickets(req.params.assetId, req.user!.tenantId!);
+      const assetTickets = await storage.getAssetTickets(req.params.assetId, req.user?.tenantId ?? "");
       res.json(assetTickets);
     } catch (error) {
       logger.error("api", "Get asset tickets error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2614,7 +2614,7 @@ export async function registerRoutes(
   // Asset history
   app.get("/api/assets/:assetId/history", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const history = await storage.getAssetHistory(req.params.assetId, req.user!.tenantId!);
+      const history = await storage.getAssetHistory(req.params.assetId, req.user?.tenantId ?? "");
       res.json(history);
     } catch (error) {
       logger.error("api", "Get asset history error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2627,7 +2627,7 @@ export async function registerRoutes(
   // List all projects
   app.get("/api/projects", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const projects = await storage.getProjects(req.user!.tenantId!);
+      const projects = await storage.getProjects(req.user?.tenantId ?? "");
       res.json(projects);
     } catch (error) {
       logger.error("api", "Get projects error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2638,7 +2638,7 @@ export async function registerRoutes(
   // Get single project
   app.get("/api/projects/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const project = await storage.getProject(req.params.id, req.user!.tenantId!);
+      const project = await storage.getProject(req.params.id, req.user?.tenantId ?? "");
       if (!project) {
         return res.status(404).json({ message: "Projekt nicht gefunden" });
       }
@@ -2653,7 +2653,7 @@ export async function registerRoutes(
   app.post("/api/projects", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const data = insertProjectSchema.parse(req.body);
-      const project = await storage.createProject(data, req.user!.tenantId!);
+      const project = await storage.createProject(data, req.user?.tenantId ?? "");
       res.status(201).json(project);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -2667,11 +2667,11 @@ export async function registerRoutes(
   // Update project
   app.patch("/api/projects/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const project = await storage.getProject(req.params.id, req.user!.tenantId!);
+      const project = await storage.getProject(req.params.id, req.user?.tenantId ?? "");
       if (!project) {
         return res.status(404).json({ message: "Projekt nicht gefunden" });
       }
-      const updated = await storage.updateProject(req.params.id, req.body, req.user!.tenantId!);
+      const updated = await storage.updateProject(req.params.id, req.body, req.user?.tenantId ?? "");
       res.json(updated);
     } catch (error) {
       logger.error("api", "Update project error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2682,11 +2682,11 @@ export async function registerRoutes(
   // Delete project
   app.delete("/api/projects/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const project = await storage.getProject(req.params.id, req.user!.tenantId!);
+      const project = await storage.getProject(req.params.id, req.user?.tenantId ?? "");
       if (!project) {
         return res.status(404).json({ message: "Projekt nicht gefunden" });
       }
-      await storage.deleteProject(req.params.id, req.user!.tenantId!);
+      await storage.deleteProject(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("api", "Delete project error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2697,7 +2697,7 @@ export async function registerRoutes(
   // Project members
   app.get("/api/projects/:projectId/members", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const members = await storage.getProjectMembers(req.params.projectId, req.user!.tenantId!);
+      const members = await storage.getProjectMembers(req.params.projectId, req.user?.tenantId ?? "");
       res.json(members);
     } catch (error) {
       logger.error("api", "Get project members error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2712,7 +2712,7 @@ export async function registerRoutes(
         userId: req.body.userId,
         role: req.body.role,
       });
-      const member = await storage.addProjectMember(data, req.user!.tenantId!);
+      const member = await storage.addProjectMember(data, req.user?.tenantId ?? "");
       res.status(201).json(member);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -2728,7 +2728,7 @@ export async function registerRoutes(
 
   app.delete("/api/projects/:projectId/members/:userId", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.removeProjectMember(req.params.projectId, req.params.userId, req.user!.tenantId!);
+      await storage.removeProjectMember(req.params.projectId, req.params.userId, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("api", "Remove project member error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2739,7 +2739,7 @@ export async function registerRoutes(
   // Board columns
   app.get("/api/projects/:projectId/columns", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const columns = await storage.getBoardColumns(req.params.projectId, req.user!.tenantId!);
+      const columns = await storage.getBoardColumns(req.params.projectId, req.user?.tenantId ?? "");
       res.json(columns);
     } catch (error) {
       logger.error("api", "Get board columns error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2753,7 +2753,7 @@ export async function registerRoutes(
         projectId: req.params.projectId,
         ...req.body,
       });
-      const column = await storage.createBoardColumn(data, req.user!.tenantId!);
+      const column = await storage.createBoardColumn(data, req.user?.tenantId ?? "");
       res.status(201).json(column);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -2766,7 +2766,7 @@ export async function registerRoutes(
 
   app.patch("/api/board-columns/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const column = await storage.updateBoardColumn(req.params.id, req.body, req.user!.tenantId!);
+      const column = await storage.updateBoardColumn(req.params.id, req.body, req.user?.tenantId ?? "");
       if (!column) {
         return res.status(404).json({ message: "Spalte nicht gefunden" });
       }
@@ -2779,7 +2779,7 @@ export async function registerRoutes(
 
   app.delete("/api/board-columns/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.deleteBoardColumn(req.params.id, req.user!.tenantId!);
+      await storage.deleteBoardColumn(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("api", "Delete board column error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2789,7 +2789,7 @@ export async function registerRoutes(
 
   app.post("/api/projects/:projectId/columns/reorder", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.reorderBoardColumns(req.params.projectId, req.body.columnIds, req.user!.tenantId!);
+      await storage.reorderBoardColumns(req.params.projectId, req.body.columnIds, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("api", "Reorder board columns error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2800,7 +2800,7 @@ export async function registerRoutes(
   // Ticket-Project assignments
   app.get("/api/tickets/:ticketId/projects", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const ticketProjects = await storage.getTicketProjects(req.params.ticketId, req.user!.tenantId!);
+      const ticketProjects = await storage.getTicketProjects(req.params.ticketId, req.user?.tenantId ?? "");
       res.json(ticketProjects);
     } catch (error) {
       logger.error("api", "Get ticket projects error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2815,7 +2815,7 @@ export async function registerRoutes(
         projectId: req.body.projectId,
         boardOrder: req.body.boardOrder || 0,
       });
-      const link = await storage.addTicketToProject(data, req.user!.tenantId!);
+      const link = await storage.addTicketToProject(data, req.user?.tenantId ?? "");
       res.status(201).json(link);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -2831,7 +2831,7 @@ export async function registerRoutes(
 
   app.delete("/api/tickets/:ticketId/projects/:projectId", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.removeTicketFromProject(req.params.ticketId, req.params.projectId, req.user!.tenantId!);
+      await storage.removeTicketFromProject(req.params.ticketId, req.params.projectId, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("api", "Remove ticket from project error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2842,11 +2842,11 @@ export async function registerRoutes(
   // Project board view (tickets grouped by column)
   app.get("/api/projects/:projectId/board", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const project = await storage.getProject(req.params.projectId, req.user!.tenantId!);
+      const project = await storage.getProject(req.params.projectId, req.user?.tenantId ?? "");
       if (!project) {
         return res.status(404).json({ message: "Projekt nicht gefunden" });
       }
-      const board = await storage.getProjectTickets(req.params.projectId, req.user!.tenantId!);
+      const board = await storage.getProjectTickets(req.params.projectId, req.user?.tenantId ?? "");
       res.json({ project, board });
     } catch (error) {
       logger.error("api", "Get project board error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2857,7 +2857,7 @@ export async function registerRoutes(
   // Update ticket board order (for drag-drop)
   app.patch("/api/projects/:projectId/tickets/:ticketId/order", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.updateTicketBoardOrder(req.params.ticketId, req.params.projectId, req.body.boardOrder, req.user!.tenantId!);
+      await storage.updateTicketBoardOrder(req.params.ticketId, req.params.projectId, req.body.boardOrder, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("api", "Update ticket board order error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2872,7 +2872,7 @@ export async function registerRoutes(
   app.get("/api/organizations", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const search = req.query.search as string | undefined;
-      const orgs = await storage.getOrganizations(req.user!.tenantId!, { search });
+      const orgs = await storage.getOrganizations(req.user?.tenantId ?? "", { search });
       res.json(orgs);
     } catch (error) {
       logger.error("api", "Get organizations error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2882,7 +2882,7 @@ export async function registerRoutes(
 
   app.get("/api/organizations/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const org = await storage.getOrganization(req.params.id, req.user!.tenantId!);
+      const org = await storage.getOrganization(req.params.id, req.user?.tenantId ?? "");
       if (!org) {
         return res.status(404).json({ message: "Organisation nicht gefunden" });
       }
@@ -2896,7 +2896,7 @@ export async function registerRoutes(
   app.post("/api/organizations", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const data = insertOrganizationSchema.parse(req.body);
-      const org = await storage.createOrganization(data, req.user!.tenantId!);
+      const org = await storage.createOrganization(data, req.user?.tenantId ?? "");
       res.status(201).json(org);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -2909,7 +2909,7 @@ export async function registerRoutes(
 
   app.patch("/api/organizations/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const org = await storage.updateOrganization(req.params.id, req.body, req.user!.tenantId!);
+      const org = await storage.updateOrganization(req.params.id, req.body, req.user?.tenantId ?? "");
       if (!org) {
         return res.status(404).json({ message: "Organisation nicht gefunden" });
       }
@@ -2922,7 +2922,7 @@ export async function registerRoutes(
 
   app.delete("/api/organizations/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.deleteOrganization(req.params.id, req.user!.tenantId!);
+      await storage.deleteOrganization(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("api", "Delete organization error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2938,7 +2938,7 @@ export async function registerRoutes(
     try {
       const search = req.query.search as string | undefined;
       const organizationId = req.query.organizationId as string | undefined;
-      const customers = await storage.getCustomers(req.user!.tenantId!, { search, organizationId });
+      const customers = await storage.getCustomers(req.user?.tenantId ?? "", { search, organizationId });
       res.json(customers);
     } catch (error) {
       logger.error("api", "Get customers error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2948,7 +2948,7 @@ export async function registerRoutes(
 
   app.get("/api/customers/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const customer = await storage.getCustomer(req.params.id, req.user!.tenantId!);
+      const customer = await storage.getCustomer(req.params.id, req.user?.tenantId ?? "");
       if (!customer) {
         return res.status(404).json({ message: "Kunde nicht gefunden" });
       }
@@ -2962,13 +2962,13 @@ export async function registerRoutes(
   app.post("/api/customers", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       // Auto-generate customer number if not provided
-      const existingCustomers = await storage.getCustomers(req.user!.tenantId!, {});
+      const existingCustomers = await storage.getCustomers(req.user?.tenantId ?? "", {});
       const nextNumber = existingCustomers.length + 1;
       const customerNumber = `KD-${String(nextNumber).padStart(5, '0')}`;
       
       const dataWithNumber = { ...req.body, customerNumber };
       const data = insertCustomerSchema.parse(dataWithNumber);
-      const customer = await storage.createCustomer(data, req.user!.tenantId!);
+      const customer = await storage.createCustomer(data, req.user?.tenantId ?? "");
       res.status(201).json(customer);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -2981,7 +2981,7 @@ export async function registerRoutes(
 
   app.patch("/api/customers/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const customer = await storage.updateCustomer(req.params.id, req.body, req.user!.tenantId!);
+      const customer = await storage.updateCustomer(req.params.id, req.body, req.user?.tenantId ?? "");
       if (!customer) {
         return res.status(404).json({ message: "Kunde nicht gefunden" });
       }
@@ -2994,7 +2994,7 @@ export async function registerRoutes(
 
   app.delete("/api/customers/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.deleteCustomer(req.params.id, req.user!.tenantId!);
+      await storage.deleteCustomer(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("api", "Delete customer error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -3005,7 +3005,7 @@ export async function registerRoutes(
   // Customer locations
   app.get("/api/customers/:customerId/locations", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const locations = await storage.getCustomerLocations(req.params.customerId, req.user!.tenantId!);
+      const locations = await storage.getCustomerLocations(req.params.customerId, req.user?.tenantId ?? "");
       res.json(locations);
     } catch (error) {
       logger.error("api", "Get customer locations error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -3019,7 +3019,7 @@ export async function registerRoutes(
         customerId: req.params.customerId,
         ...req.body,
       });
-      const location = await storage.createCustomerLocation(data, req.user!.tenantId!);
+      const location = await storage.createCustomerLocation(data, req.user?.tenantId ?? "");
       res.status(201).json(location);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -3035,7 +3035,7 @@ export async function registerRoutes(
 
   app.patch("/api/customer-locations/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const location = await storage.updateCustomerLocation(req.params.id, req.body, req.user!.tenantId!);
+      const location = await storage.updateCustomerLocation(req.params.id, req.body, req.user?.tenantId ?? "");
       if (!location) {
         return res.status(404).json({ message: "Standort nicht gefunden" });
       }
@@ -3048,7 +3048,7 @@ export async function registerRoutes(
 
   app.delete("/api/customer-locations/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.deleteCustomerLocation(req.params.id, req.user!.tenantId!);
+      await storage.deleteCustomerLocation(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("api", "Delete customer location error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -3065,7 +3065,7 @@ export async function registerRoutes(
       const search = req.query.search as string | undefined;
       const customerId = req.query.customerId as string | undefined;
       const organizationId = req.query.organizationId as string | undefined;
-      const contacts = await storage.getContacts(req.user!.tenantId!, { search, customerId, organizationId });
+      const contacts = await storage.getContacts(req.user?.tenantId ?? "", { search, customerId, organizationId });
       res.json(contacts);
     } catch (error) {
       logger.error("api", "Get contacts error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -3075,7 +3075,7 @@ export async function registerRoutes(
 
   app.get("/api/contacts/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const contact = await storage.getContact(req.params.id, req.user!.tenantId!);
+      const contact = await storage.getContact(req.params.id, req.user?.tenantId ?? "");
       if (!contact) {
         return res.status(404).json({ message: "Kontakt nicht gefunden" });
       }
@@ -3089,7 +3089,7 @@ export async function registerRoutes(
   app.post("/api/contacts", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const data = insertContactSchema.parse(req.body);
-      const contact = await storage.createContact(data, req.user!.tenantId!);
+      const contact = await storage.createContact(data, req.user?.tenantId ?? "");
       res.status(201).json(contact);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -3102,7 +3102,7 @@ export async function registerRoutes(
 
   app.patch("/api/contacts/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const contact = await storage.updateContact(req.params.id, req.body, req.user!.tenantId!);
+      const contact = await storage.updateContact(req.params.id, req.body, req.user?.tenantId ?? "");
       if (!contact) {
         return res.status(404).json({ message: "Kontakt nicht gefunden" });
       }
@@ -3115,7 +3115,7 @@ export async function registerRoutes(
 
   app.delete("/api/contacts/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.deleteContact(req.params.id, req.user!.tenantId!);
+      await storage.deleteContact(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("api", "Delete contact error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -3129,7 +3129,7 @@ export async function registerRoutes(
 
   app.get("/api/tickets/:ticketId/contacts", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const ticketContacts = await storage.getTicketContacts(req.params.ticketId, req.user!.tenantId!);
+      const ticketContacts = await storage.getTicketContacts(req.params.ticketId, req.user?.tenantId ?? "");
       res.json(ticketContacts);
     } catch (error) {
       logger.error("api", "Get ticket contacts error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -3144,7 +3144,7 @@ export async function registerRoutes(
         contactId: req.body.contactId,
         role: req.body.role || "requester",
       });
-      const link = await storage.addTicketContact(data, req.user!.tenantId!);
+      const link = await storage.addTicketContact(data, req.user?.tenantId ?? "");
       res.status(201).json(link);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -3160,7 +3160,7 @@ export async function registerRoutes(
 
   app.delete("/api/ticket-contacts/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.removeTicketContact(req.params.id, req.user!.tenantId!);
+      await storage.removeTicketContact(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("api", "Remove ticket contact error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -3182,7 +3182,7 @@ export async function registerRoutes(
       if (rawLimit !== undefined) {
         limit = Number.isNaN(rawLimit) ? 50 : Math.min(rawLimit, 1000);
       }
-      const activities = await storage.getCustomerActivities(req.user!.tenantId!, { customerId, contactId, ticketId, limit });
+      const activities = await storage.getCustomerActivities(req.user?.tenantId ?? "", { customerId, contactId, ticketId, limit });
       res.json(activities);
     } catch (error) {
       logger.error("api", "Get customer activities error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -3196,7 +3196,7 @@ export async function registerRoutes(
         ...req.body,
         createdById: req.user!.id,
       });
-      const activity = await storage.createCustomerActivity(data, req.user!.tenantId!);
+      const activity = await storage.createCustomerActivity(data, req.user?.tenantId ?? "");
       res.status(201).json(activity);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -3550,7 +3550,7 @@ export async function registerRoutes(
   // Delete certificate
   app.delete("/api/tls/certificates/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.deleteTlsCertificate(req.params.id, req.user!.tenantId!);
+      await storage.deleteTlsCertificate(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("api", "TLS certificate delete error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -3617,7 +3617,7 @@ export async function registerRoutes(
   // Get Exchange configuration
   app.get("/api/exchange/configuration", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const config = await storage.getExchangeConfiguration(req.user!.tenantId!);
+      const config = await storage.getExchangeConfiguration(req.user?.tenantId ?? "");
       if (!config) {
         return res.json({ configured: false });
       }
@@ -3639,7 +3639,7 @@ export async function registerRoutes(
   app.post("/api/exchange/configuration", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const { ExchangeService } = await import("./exchange-service");
-      const tenantId = req.user!.tenantId!;
+      const tenantId = req.user?.tenantId ?? "";
       const { clientId, tenantAzureId, authType, clientSecret, certificatePem, certificateThumbprint, isEnabled } = req.body;
       
       let existingConfig = await storage.getExchangeConfiguration(tenantId);
@@ -3667,7 +3667,7 @@ export async function registerRoutes(
         result = await storage.updateExchangeConfiguration(tenantId, configData);
         logger.info("exchange", "Konfiguration aktualisiert", "Exchange-Konfiguration wurde aktualisiert", { userId: req.user!.id });
       } else {
-        result = await storage.createExchangeConfiguration(configData as InsertExchangeConfiguration);
+        result = await storage.createExchangeConfiguration(configData);
         logger.info("exchange", "Konfiguration erstellt", "Exchange-Konfiguration wurde erstellt", { userId: req.user!.id });
       }
       
@@ -3682,7 +3682,7 @@ export async function registerRoutes(
   app.post("/api/exchange/test-connection", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const { ExchangeService } = await import("./exchange-service");
-      const tenantId = req.user!.tenantId!;
+      const tenantId = req.user?.tenantId ?? "";
       const config = await storage.getExchangeConfiguration(tenantId);
       
       if (!config) {
@@ -3727,7 +3727,7 @@ export async function registerRoutes(
   // Get Exchange mailboxes
   app.get("/api/exchange/mailboxes", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const mailboxes = await storage.getExchangeMailboxes(req.user!.tenantId!);
+      const mailboxes = await storage.getExchangeMailboxes(req.user?.tenantId ?? "");
       res.json(mailboxes);
     } catch (error) {
       logger.error("exchange", "Fehler beim Abrufen der Postfächer", { description: String(error), cause: "Datenbankfehler", solution: "Überprüfen Sie die Datenbankverbindung" });
@@ -3738,7 +3738,7 @@ export async function registerRoutes(
   // Create Exchange mailbox
   app.post("/api/exchange/mailboxes", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const tenantId = req.user!.tenantId!;
+      const tenantId = req.user?.tenantId ?? "";
       const config = await storage.getExchangeConfiguration(tenantId);
       
       if (!config) {
@@ -3762,7 +3762,7 @@ export async function registerRoutes(
   // Update Exchange mailbox
   app.patch("/api/exchange/mailboxes/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const mailbox = await storage.updateExchangeMailbox(req.params.id, req.body, req.user!.tenantId!);
+      const mailbox = await storage.updateExchangeMailbox(req.params.id, req.body, req.user?.tenantId ?? "");
       if (!mailbox) {
         return res.status(404).json({ message: "Postfach nicht gefunden" });
       }
@@ -3776,7 +3776,7 @@ export async function registerRoutes(
   // Delete Exchange mailbox
   app.delete("/api/exchange/mailboxes/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.deleteExchangeMailbox(req.params.id, req.user!.tenantId!);
+      await storage.deleteExchangeMailbox(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("exchange", "Fehler beim Löschen des Postfachs", { description: String(error), cause: "Löschfehler", solution: "Überprüfen Sie die Postfach-ID" });
@@ -3787,7 +3787,7 @@ export async function registerRoutes(
   // Get assignment rules for a mailbox
   app.get("/api/exchange/mailboxes/:mailboxId/rules", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const rules = await storage.getExchangeAssignmentRules(req.params.mailboxId, req.user!.tenantId!);
+      const rules = await storage.getExchangeAssignmentRules(req.params.mailboxId, req.user?.tenantId ?? "");
       res.json(rules);
     } catch (error) {
       logger.error("exchange", "Fehler beim Abrufen der Regeln", { description: String(error), cause: "Datenbankfehler", solution: "Überprüfen Sie die Datenbankverbindung" });
@@ -3801,7 +3801,7 @@ export async function registerRoutes(
       const rule = await storage.createExchangeAssignmentRule({
         ...req.body,
         mailboxId: req.params.mailboxId,
-        tenantId: req.user!.tenantId!
+        tenantId: req.user?.tenantId ?? ""
       });
       res.status(201).json(rule);
     } catch (error) {
@@ -3813,7 +3813,7 @@ export async function registerRoutes(
   // Update assignment rule
   app.patch("/api/exchange/rules/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const rule = await storage.updateExchangeAssignmentRule(req.params.id, req.body, req.user!.tenantId!);
+      const rule = await storage.updateExchangeAssignmentRule(req.params.id, req.body, req.user?.tenantId ?? "");
       if (!rule) {
         return res.status(404).json({ message: "Regel nicht gefunden" });
       }
@@ -3827,7 +3827,7 @@ export async function registerRoutes(
   // Delete assignment rule
   app.delete("/api/exchange/rules/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      await storage.deleteExchangeAssignmentRule(req.params.id, req.user!.tenantId!);
+      await storage.deleteExchangeAssignmentRule(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
       logger.error("exchange", "Fehler beim Löschen der Regel", { description: String(error), cause: "Löschfehler", solution: "Überprüfen Sie die Regel-ID" });
@@ -3839,7 +3839,7 @@ export async function registerRoutes(
   app.get("/api/exchange/folders/:emailAddress", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const { ExchangeService } = await import("./exchange-service");
-      const tenantId = req.user!.tenantId!;
+      const tenantId = req.user?.tenantId ?? "";
       const config = await storage.getExchangeConfiguration(tenantId);
       
       if (!config || !ExchangeService.isConfigurationValid(config)) {
@@ -3865,7 +3865,7 @@ export async function registerRoutes(
     try {
       const limit = req.query.limit ? Math.min(Number.parseInt(req.query.limit as string, 10) || 50, 1000) : 50;
       const mailboxId = req.query.mailboxId as string | undefined;
-      const logs = await storage.getExchangeSyncLogs(req.user!.tenantId!, { mailboxId, limit });
+      const logs = await storage.getExchangeSyncLogs(req.user?.tenantId ?? "", { mailboxId, limit });
       res.json(logs);
     } catch (error) {
       logger.error("exchange", "Fehler beim Abrufen der Sync-Logs", { description: String(error), cause: "Datenbankfehler", solution: "Überprüfen Sie die Datenbankverbindung" });
@@ -3877,7 +3877,7 @@ export async function registerRoutes(
   app.post("/api/exchange/sync", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const { ExchangeService } = await import("./exchange-service");
-      const tenantId = req.user!.tenantId!;
+      const tenantId = req.user?.tenantId ?? "";
       const { mailboxEmail } = req.body;
       const config = await storage.getExchangeConfiguration(tenantId);
 
@@ -3930,7 +3930,7 @@ export async function registerRoutes(
   app.post("/api/exchange/send-test", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const { ExchangeService } = await import("./exchange-service");
-      const tenantId = req.user!.tenantId!;
+      const tenantId = req.user?.tenantId ?? "";
       const { mailboxEmail, recipientEmail } = req.body;
       
       if (!mailboxEmail) {
@@ -3984,7 +3984,7 @@ export async function registerRoutes(
   // Alle Regeln abrufen
   app.get("/api/exchange/processing-rules", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const tenantId = req.user!.tenantId!;
+      const tenantId = req.user?.tenantId ?? "";
       const mailboxId = req.query.mailboxId as string | undefined;
       const rules = await storage.getEmailProcessingRules(tenantId, mailboxId);
       res.json(rules);
@@ -3997,7 +3997,7 @@ export async function registerRoutes(
   // Einzelne Regel abrufen
   app.get("/api/exchange/processing-rules/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const tenantId = req.user!.tenantId!;
+      const tenantId = req.user?.tenantId ?? "";
       const rule = await storage.getEmailProcessingRule(req.params.id, tenantId);
       if (!rule) {
         return res.status(404).json({ message: "Regel nicht gefunden" });
@@ -4012,7 +4012,7 @@ export async function registerRoutes(
   // Neue Regel erstellen
   app.post("/api/exchange/processing-rules", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const tenantId = req.user!.tenantId!;
+      const tenantId = req.user?.tenantId ?? "";
       const rule = await storage.createEmailProcessingRule({
         ...req.body,
         tenantId
@@ -4028,7 +4028,7 @@ export async function registerRoutes(
   // Regel aktualisieren
   app.patch("/api/exchange/processing-rules/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const tenantId = req.user!.tenantId!;
+      const tenantId = req.user?.tenantId ?? "";
       const rule = await storage.updateEmailProcessingRule(req.params.id, req.body, tenantId);
       if (!rule) {
         return res.status(404).json({ message: "Regel nicht gefunden" });
@@ -4044,7 +4044,7 @@ export async function registerRoutes(
   // Regel löschen
   app.delete("/api/exchange/processing-rules/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const tenantId = req.user!.tenantId!;
+      const tenantId = req.user?.tenantId ?? "";
       await storage.deleteEmailProcessingRule(req.params.id, tenantId);
       logger.info("exchange", "Verarbeitungsregel gelöscht", req.params.id, { userId: req.user!.id });
       res.status(204).send();
