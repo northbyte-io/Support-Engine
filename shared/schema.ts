@@ -1311,10 +1311,6 @@ export const exchangeConfigurations = pgTable("exchange_configurations", {
   clientSecretEncrypted: text("client_secret_encrypted"), // Verschlüsselt
   certificatePemEncrypted: text("certificate_pem_encrypted"), // Verschlüsselt
   certificateThumbprint: text("certificate_thumbprint"),
-  // Token-Handling
-  accessToken: text("access_token"),
-  accessTokenExpiresAt: timestamp("access_token_expires_at"),
-  refreshToken: text("refresh_token"),
   // Verbindungsstatus
   connectionStatus: text("connection_status").default("not_configured"), // not_configured, connected, error, disconnected
   lastConnectionTest: timestamp("last_connection_test"),
@@ -1508,8 +1504,8 @@ export const exchangeSyncLogs = pgTable("exchange_sync_logs", {
 });
 
 // Exchange Insert Schemas
-export const insertExchangeConfigurationSchema = createInsertSchema(exchangeConfigurations).omit({ 
-  id: true, createdAt: true, updatedAt: true, accessToken: true, accessTokenExpiresAt: true, refreshToken: true 
+export const insertExchangeConfigurationSchema = createInsertSchema(exchangeConfigurations).omit({
+  id: true, createdAt: true, updatedAt: true
 });
 export const updateExchangeConfigurationSchema = insertExchangeConfigurationSchema.partial();
 export const insertExchangeMailboxSchema = createInsertSchema(exchangeMailboxes).omit({

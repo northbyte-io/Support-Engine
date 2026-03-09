@@ -96,7 +96,12 @@ interface TokenResponse {
   access_token: string;
   token_type: string;
   expires_in: number;
-  refresh_token?: string;
+}
+
+// In-memory Token-Cache (keyed by configId)
+interface CachedToken {
+  token: string;
+  expiresAt: Date;
 }
 
 // Graph API E-Mail-Struktur
@@ -150,6 +155,7 @@ interface GraphFolder {
  */
 export class ExchangeService {
   private static readonly logSource: LogSource = "exchange";
+  private static readonly tokenCache = new Map<string, CachedToken>();
 
   /**
    * Prüft ob eine Konfiguration vollständig und aktiviert ist
@@ -180,21 +186,22 @@ export class ExchangeService {
   }
 
   /**
-   * Holt ein Access-Token von Azure AD
-   * Verwendet Client Credentials Flow (App-only)
+   * Holt ein Access-Token von Azure AD.
+   * Tokens werden nur im Arbeitsspeicher gehalten (nie in der Datenbank gespeichert).
+   * Bei Serverstart wird automatisch ein neues Token angefordert.
    */
   static async getAccessToken(config: ExchangeConfiguration): Promise<string> {
     if (!this.isConfigurationValid(config)) {
       throw new ExchangeError("NOT_CONFIGURED");
     }
 
-    // Prüfe ob existierendes Token noch gültig ist
-    if (config.accessToken && config.accessTokenExpiresAt) {
-      const expiresAt = new Date(config.accessTokenExpiresAt);
+    // Prüfe In-Memory-Cache
+    const cached = this.tokenCache.get(config.id);
+    if (cached) {
       const now = new Date();
       // Token 5 Minuten vor Ablauf erneuern
-      if (expiresAt.getTime() - now.getTime() > 5 * 60 * 1000) {
-        return config.accessToken;
+      if (cached.expiresAt.getTime() - now.getTime() > 5 * 60 * 1000) {
+        return cached.token;
       }
     }
 
@@ -235,9 +242,13 @@ export class ExchangeService {
       }
 
       const tokenData: TokenResponse = await response.json();
-      
+
+      // Token im Arbeitsspeicher cachen — niemals in der Datenbank speichern
+      const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
+      this.tokenCache.set(config.id, { token: tokenData.access_token, expiresAt });
+
       logger.info(this.logSource, "Token erhalten", "Access-Token erfolgreich von Azure AD erhalten");
-      
+
       return tokenData.access_token;
     } catch (error) {
       if (error instanceof ExchangeError) throw error;

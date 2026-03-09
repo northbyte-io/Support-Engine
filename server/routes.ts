@@ -3622,7 +3622,7 @@ export async function registerRoutes(
         return res.json({ configured: false });
       }
       // Do not return encrypted secrets to frontend
-      const { clientSecretEncrypted, certificatePemEncrypted, accessToken, refreshToken, ...safeConfig } = config;
+      const { clientSecretEncrypted, certificatePemEncrypted, ...safeConfig } = config;
       res.json({ 
         configured: true, 
         ...safeConfig,
