@@ -8,9 +8,9 @@ import type { ActiveTimer, ActiveTimerWithTicket } from "@shared/schema";
 import { WorkEntryModal } from "@/components/WorkEntryModal";
 
 interface TicketTimerControlProps {
-  ticketId: string;
-  ticketNumber?: string;
-  ticketTitle?: string;
+  readonly ticketId: string;
+  readonly ticketNumber?: string;
+  readonly ticketTitle?: string;
 }
 
 function formatDuration(ms: number): string {
@@ -25,7 +25,7 @@ function formatDuration(ms: number): string {
 }
 
 function calculateElapsedTime(timer: ActiveTimer): number {
-  const now = new Date().getTime();
+  const now = Date.now();
   const startTime = new Date(timer.startedAt).getTime();
   const totalPausedMs = timer.totalPausedMs || 0;
   
@@ -148,17 +148,7 @@ export function TicketTimerControl({ ticketId, ticketNumber, ticketTitle }: Tick
 
   return (
     <>
-      {!timer ? (
-        <Button
-          variant="outline"
-          onClick={() => startMutation.mutate()}
-          disabled={startMutation.isPending}
-          data-testid="button-start-timer"
-        >
-          <Play className="w-4 h-4 mr-2" />
-          Timer starten
-        </Button>
-      ) : (
+      {timer ? (
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted border">
           <Clock className={`w-4 h-4 ${isRunning ? "text-primary animate-pulse" : "text-muted-foreground"}`} />
           <span className={`font-mono text-sm font-medium ${isPaused ? "text-muted-foreground" : ""}`}>
@@ -201,6 +191,16 @@ export function TicketTimerControl({ ticketId, ticketNumber, ticketTitle }: Tick
             </Button>
           </div>
         </div>
+      ) : (
+        <Button
+          variant="outline"
+          onClick={() => startMutation.mutate()}
+          disabled={startMutation.isPending}
+          data-testid="button-start-timer"
+        >
+          <Play className="w-4 h-4 mr-2" />
+          Timer starten
+        </Button>
       )}
 
       {stoppedTimerData && (

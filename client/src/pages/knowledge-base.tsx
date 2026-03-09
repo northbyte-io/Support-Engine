@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { MainLayout } from "@/components/MainLayout";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -39,8 +38,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Plus,
   Search,
@@ -53,7 +50,7 @@ import {
   Clock,
   User,
 } from "lucide-react";
-import type { KbCategory, KbArticle, KbArticleWithRelations } from "@shared/schema";
+import type { KbCategory, KbArticleWithRelations } from "@shared/schema";
 
 const categoryFormSchema = z.object({
   name: z.string().min(1, "Name ist erforderlich"),
@@ -76,7 +73,7 @@ const articleFormSchema = z.object({
 type CategoryFormData = z.infer<typeof categoryFormSchema>;
 type ArticleFormData = z.infer<typeof articleFormSchema>;
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status }: Readonly<{ status: string }>) {
   const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
     draft: { label: "Entwurf", variant: "secondary" },
     published: { label: "Veröffentlicht", variant: "default" },
@@ -89,7 +86,6 @@ function StatusBadge({ status }: { status: string }) {
 export default function KnowledgeBase() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
@@ -97,12 +93,11 @@ export default function KnowledgeBase() {
   const [editingCategory, setEditingCategory] = useState<KbCategory | null>(null);
   const [editingArticle, setEditingArticle] = useState<KbArticleWithRelations | null>(null);
   const [viewingArticle, setViewingArticle] = useState<KbArticleWithRelations | null>(null);
-  const [activeTab, setActiveTab] = useState("articles");
-  
+
   const isAgent = user?.role === "agent" || user?.role === "admin";
   const isAdmin = user?.role === "admin";
 
-  const { data: categories = [], isLoading: categoriesLoading } = useQuery<KbCategory[]>({
+  const { data: categories = [] } = useQuery<KbCategory[]>({
     queryKey: ["/api/kb/categories"],
   });
 
@@ -170,19 +165,6 @@ export default function KnowledgeBase() {
     },
     onError: () => {
       toast({ title: "Fehler", description: "Kategorie konnte nicht aktualisiert werden.", variant: "destructive" });
-    },
-  });
-
-  const deleteCategoryMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/kb/categories/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/kb/categories"] });
-      toast({ title: "Kategorie gelöscht", description: "Die Kategorie wurde erfolgreich gelöscht." });
-    },
-    onError: () => {
-      toast({ title: "Fehler", description: "Kategorie konnte nicht gelöscht werden.", variant: "destructive" });
     },
   });
 
@@ -306,12 +288,12 @@ export default function KnowledgeBase() {
   const generateSlug = (name: string) => {
     return name
       .toLowerCase()
-      .replace(/[äÄ]/g, "ae")
-      .replace(/[öÖ]/g, "oe")
-      .replace(/[üÜ]/g, "ue")
-      .replace(/ß/g, "ss")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+      .replaceAll(/[äÄ]/g, "ae")
+      .replaceAll(/[öÖ]/g, "oe")
+      .replaceAll(/[üÜ]/g, "ue")
+      .replaceAll("ß", "ss")
+      .replaceAll(/[^a-z0-9]+/g, "-")
+      .replaceAll(/(^-|-$)/g, "");
   };
 
   const formatDate = (date: Date | string | null) => {
@@ -321,6 +303,105 @@ export default function KnowledgeBase() {
       month: "2-digit",
       year: "numeric",
     });
+  };
+
+  const renderArticleListOrEmpty = () => {
+    if (articlesLoading) {
+      return (
+        <div className="text-center py-8 text-muted-foreground">
+          Artikel werden geladen...
+        </div>
+      );
+    }
+    if (articles.length === 0) {
+      return (
+        <div className="text-center py-8 text-muted-foreground">
+          <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <p>Keine Artikel gefunden</p>
+          {isAgent && (
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => openArticleDialog()}
+              data-testid="button-create-first-article"
+            >
+              Ersten Artikel erstellen
+            </Button>
+          )}
+        </div>
+      );
+    }
+    return (
+      <div className="grid gap-4">
+        {articles.map((article) => (
+          <Card
+            key={article.id}
+            className="hover-elevate cursor-pointer"
+            onClick={() => setViewingArticle(article)}
+            data-testid={`card-article-${article.id}`}
+          >
+            <CardHeader className="pb-2">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <CardTitle className="text-lg">{article.title}</CardTitle>
+                  {article.summary && (
+                    <CardDescription className="mt-1 line-clamp-2">
+                      {article.summary}
+                    </CardDescription>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={article.status || "draft"} />
+                  {isAgent && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openArticleDialog(article);
+                        }}
+                        data-testid={`button-edit-article-${article.id}`}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteArticleMutation.mutate(article.id);
+                          }}
+                          data-testid={`button-delete-article-${article.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                {article.category && (
+                  <Badge variant="outline">{article.category.name}</Badge>
+                )}
+                <div className="flex items-center gap-1">
+                  <Clock className="w-4 h-4" />
+                  {formatDate(article.updatedAt)}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Eye className="w-4 h-4" />
+                  {article.viewCount} Aufrufe
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -401,26 +482,7 @@ export default function KnowledgeBase() {
         </div>
 
         <div className="flex-1 overflow-auto p-4">
-          {articlesLoading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Artikel werden geladen...
-            </div>
-          ) : articles.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Keine Artikel gefunden</p>
-              {isAgent && (
-                <Button
-                  variant="outline"
-                  className="mt-4"
-                  onClick={() => openArticleDialog()}
-                  data-testid="button-create-first-article"
-                >
-                  Ersten Artikel erstellen
-                </Button>
-              )}
-            </div>
-          ) : viewingArticle ? (
+          {viewingArticle ? (
             <div className="max-w-3xl mx-auto">
               <Button
                 variant="ghost"
@@ -479,77 +541,7 @@ export default function KnowledgeBase() {
                 </CardContent>
               </Card>
             </div>
-          ) : (
-            <div className="grid gap-4">
-              {articles.map((article) => (
-                <Card
-                  key={article.id}
-                  className="hover-elevate cursor-pointer"
-                  onClick={() => setViewingArticle(article)}
-                  data-testid={`card-article-${article.id}`}
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">{article.title}</CardTitle>
-                        {article.summary && (
-                          <CardDescription className="mt-1 line-clamp-2">
-                            {article.summary}
-                          </CardDescription>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <StatusBadge status={article.status || "draft"} />
-                        {isAgent && (
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openArticleDialog(article);
-                              }}
-                              data-testid={`button-edit-article-${article.id}`}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            {isAdmin && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteArticleMutation.mutate(article.id);
-                                }}
-                                data-testid={`button-delete-article-${article.id}`}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      {article.category && (
-                        <Badge variant="outline">{article.category.name}</Badge>
-                      )}
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        {formatDate(article.updatedAt)}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Eye className="w-4 h-4" />
-                        {article.viewCount} Aufrufe
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          ) : renderArticleListOrEmpty()}
         </div>
       </div>
 

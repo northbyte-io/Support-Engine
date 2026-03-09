@@ -1,8 +1,8 @@
 import winston from "winston";
 import DailyRotateFile from "winston-daily-rotate-file";
 import chalk from "chalk";
-import path from "path";
-import fs from "fs";
+import path from "node:path";
+import fs from "node:fs";
 
 // Log levels with German descriptions
 export type LogLevel = "debug" | "info" | "warn" | "error" | "security" | "performance";
@@ -112,7 +112,8 @@ function formatConsoleLog(entry: LogEntry, timestamp: Date): string {
   
   let entityInfo = "";
   if (entry.entityType && entry.entityType !== "none") {
-    entityInfo = chalk.gray(` [${entry.entityType}${entry.entityId ? `:${entry.entityId.slice(0, 8)}` : ""}]`);
+    const entitySuffix = entry.entityId ? `:${entry.entityId.slice(0, 8)}` : "";
+    entityInfo = chalk.gray(` [${entry.entityType}${entitySuffix}]`);
   }
   
   let tenantUser = "";
@@ -144,7 +145,8 @@ function formatFileLog(entry: LogEntry, timestamp: Date): string {
   
   let entityInfo = "";
   if (entry.entityType && entry.entityType !== "none") {
-    entityInfo = ` [${entry.entityType}${entry.entityId ? `:${entry.entityId}` : ""}]`;
+    const entitySuffix = entry.entityId ? `:${entry.entityId}` : "";
+    entityInfo = ` [${entry.entityType}${entitySuffix}]`;
   }
   
   let tenantUser = "";
@@ -267,22 +269,25 @@ function addToBuffer(entry: LogEntry, timestamp: Date) {
   }
 }
 
+// Base keys present in all convenience method signatures
+type LogEntryBaseKeys = "level" | "source" | "title" | "description";
+
 // Main logger class
 class Logger {
   private maskSensitiveData(text: string): string {
     // Handle undefined/null gracefully
     if (!text) return text ?? '';
     // Mask passwords (including common aliases)
-    let masked = text.replace(/(?:password|passwd|pwd|pass)['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'password: [MASKIERT]');
+    let masked = text.replaceAll(/(?:password|passwd|pwd|pass)['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'password: [MASKIERT]');
     // Mask API keys
-    masked = masked.replace(/api[_-]?key['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'api_key: [MASKIERT]');
+    masked = masked.replaceAll(/api[_-]?key['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'api_key: [MASKIERT]');
     // Mask tokens and Bearer values
-    masked = masked.replace(/token['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'token: [MASKIERT]');
-    masked = masked.replace(/Bearer\s+[A-Za-z0-9\-._~+/]+=*/g, 'Bearer [MASKIERT]');
+    masked = masked.replaceAll(/token['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'token: [MASKIERT]');
+    masked = masked.replaceAll(/Bearer\s+[-A-Za-z0-9._~+/]+=*/g, 'Bearer [MASKIERT]');
     // Mask secrets and credentials
-    masked = masked.replace(/(?:secret|credential|private[_-]?key|privateKey)['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'secret: [MASKIERT]');
+    masked = masked.replaceAll(/(?:secret|credential|private[_-]?key|privateKey)['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'secret: [MASKIERT]');
     // Mask email addresses partially
-    masked = masked.replace(/([a-zA-Z0-9._-]+)@([a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi, (match, local, domain) => {
+    masked = masked.replaceAll(/([a-z0-9._-]+)@([a-z0-9-]+(?:\.[a-z0-9-]+)+)/gi, (_match, local, domain) => {
       if (local.length > 2) {
         return `${local.slice(0, 2)}***@${domain}`;
       }
@@ -330,19 +335,19 @@ class Logger {
   }
 
   // Convenience methods
-  debug(source: LogSource, title: string, description: string, options?: Partial<Omit<LogEntry, "level" | "source" | "title" | "description">>) {
+  debug(source: LogSource, title: string, description: string, options?: Partial<Omit<LogEntry, LogEntryBaseKeys>>) {
     this.log({ level: "debug", source, title, description, ...options });
   }
 
-  info(source: LogSource, title: string, description: string, options?: Partial<Omit<LogEntry, "level" | "source" | "title" | "description">>) {
+  info(source: LogSource, title: string, description: string, options?: Partial<Omit<LogEntry, LogEntryBaseKeys>>) {
     this.log({ level: "info", source, title, description, ...options });
   }
 
-  warn(source: LogSource, title: string, description: string, options?: Partial<Omit<LogEntry, "level" | "source" | "title" | "description">>) {
+  warn(source: LogSource, title: string, description: string, options?: Partial<Omit<LogEntry, LogEntryBaseKeys>>) {
     this.log({ level: "warn", source, title, description, ...options });
   }
 
-  error(source: LogSource, title: string, errorInfo: { description: string; cause: string; solution: string }, options?: Partial<Omit<LogEntry, "level" | "source" | "title" | "description" | "error">>) {
+  error(source: LogSource, title: string, errorInfo: { description: string; cause: string; solution: string }, options?: Partial<Omit<LogEntry, LogEntryBaseKeys | "error">>) {
     this.log({ 
       level: "error", 
       source, 
@@ -353,17 +358,49 @@ class Logger {
     });
   }
 
-  security(source: LogSource, title: string, description: string, options?: Partial<Omit<LogEntry, "level" | "source" | "title" | "description">>) {
+  security(source: LogSource, title: string, description: string, options?: Partial<Omit<LogEntry, LogEntryBaseKeys>>) {
     this.log({ level: "security", source, title, description, ...options });
   }
 
-  performance(source: LogSource, title: string, description: string, options?: Partial<Omit<LogEntry, "level" | "source" | "title" | "description">>) {
+  performance(source: LogSource, title: string, description: string, options?: Partial<Omit<LogEntry, LogEntryBaseKeys>>) {
     this.log({ level: "performance", source, title, description, ...options });
   }
 
   // Success helper (info level with green styling in description)
-  success(source: LogSource, title: string, description: string, options?: Partial<Omit<LogEntry, "level" | "source" | "title" | "description">>) {
+  success(source: LogSource, title: string, description: string, options?: Partial<Omit<LogEntry, LogEntryBaseKeys>>) {
     this.log({ level: "info", source, title, description: `✓ ${description}`, ...options });
+  }
+
+  private applyFilters(
+    entries: typeof logBuffer,
+    filters: NonNullable<Parameters<Logger["getLogs"]>[0]>
+  ): typeof logBuffer {
+    let result = entries;
+    if (filters.level) result = result.filter(l => l.entry.level === filters.level);
+    if (filters.source) result = result.filter(l => l.entry.source === filters.source);
+    if (filters.tenantId) result = result.filter(l => l.entry.tenantId === filters.tenantId);
+    if (filters.userId) result = result.filter(l => l.entry.userId === filters.userId);
+    if (filters.entityType) result = result.filter(l => l.entry.entityType === filters.entityType);
+    if (filters.entityId) result = result.filter(l => l.entry.entityId === filters.entityId);
+    if (filters.startDate) {
+      const { startDate } = filters;
+      result = result.filter(l => l.timestamp >= startDate);
+    }
+    if (filters.endDate) {
+      const { endDate } = filters;
+      result = result.filter(l => l.timestamp <= endDate);
+    }
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      result = result.filter(l =>
+        l.entry.title.toLowerCase().includes(searchLower) ||
+        l.entry.description.toLowerCase().includes(searchLower) ||
+        l.entry.error?.description.toLowerCase().includes(searchLower) ||
+        l.entry.error?.cause.toLowerCase().includes(searchLower) ||
+        l.entry.error?.solution.toLowerCase().includes(searchLower)
+      );
+    }
+    return result;
   }
 
   // Get logs from buffer for UI
@@ -380,55 +417,18 @@ class Logger {
     limit?: number;
     offset?: number;
   }): { logs: object[]; total: number } {
-    let filtered = [...logBuffer];
-    
-    if (filters) {
-      if (filters.level) {
-        filtered = filtered.filter(l => l.entry.level === filters.level);
-      }
-      if (filters.source) {
-        filtered = filtered.filter(l => l.entry.source === filters.source);
-      }
-      if (filters.tenantId) {
-        filtered = filtered.filter(l => l.entry.tenantId === filters.tenantId);
-      }
-      if (filters.userId) {
-        filtered = filtered.filter(l => l.entry.userId === filters.userId);
-      }
-      if (filters.entityType) {
-        filtered = filtered.filter(l => l.entry.entityType === filters.entityType);
-      }
-      if (filters.entityId) {
-        filtered = filtered.filter(l => l.entry.entityId === filters.entityId);
-      }
-      if (filters.startDate) {
-        filtered = filtered.filter(l => l.timestamp >= filters.startDate!);
-      }
-      if (filters.endDate) {
-        filtered = filtered.filter(l => l.timestamp <= filters.endDate!);
-      }
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        filtered = filtered.filter(l => 
-          l.entry.title.toLowerCase().includes(searchLower) ||
-          l.entry.description.toLowerCase().includes(searchLower) ||
-          l.entry.error?.description.toLowerCase().includes(searchLower) ||
-          l.entry.error?.cause.toLowerCase().includes(searchLower) ||
-          l.entry.error?.solution.toLowerCase().includes(searchLower)
-        );
-      }
-    }
-    
+    let filtered = filters ? this.applyFilters([...logBuffer], filters) : [...logBuffer];
+
     const total = filtered.length;
-    
+
     // Sort by timestamp descending (newest first)
     filtered.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    
+
     // Apply pagination
     const offset = filters?.offset || 0;
     const limit = filters?.limit || 100;
     filtered = filtered.slice(offset, offset + limit);
-    
+
     return {
       logs: filtered.map(l => l.formatted),
       total,

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Ticket, Clock, CheckCircle, AlertCircle, ArrowRight, TrendingUp } from "lucide-react";
+import { Ticket, Clock, CheckCircle, ArrowRight, TrendingUp } from "lucide-react";
 import { MainLayout } from "@/components/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -111,7 +111,7 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {statCards.map((stat, index) => (
-            <Card key={index} data-testid={`stat-card-${index}`}>
+            <Card key={stat.title} data-testid={`stat-card-${index}`}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -150,9 +150,10 @@ export default function DashboardPage() {
               ) : (
                 <div className="space-y-3">
                   {recentTickets.map((ticket) => (
-                    <div
+                    <button
                       key={ticket.id}
-                      className="flex items-center justify-between gap-4 p-3 rounded-lg border hover-elevate cursor-pointer"
+                      type="button"
+                      className="w-full flex items-center justify-between gap-4 p-3 rounded-lg border hover-elevate cursor-pointer"
                       onClick={() => setLocation(`/tickets/${ticket.id}`)}
                       data-testid={`ticket-row-${ticket.id}`}
                     >
@@ -173,7 +174,7 @@ export default function DashboardPage() {
                           {formatDate(ticket.createdAt)}
                         </span>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}

@@ -155,6 +155,9 @@ export default function AreasPage() {
     );
   }
 
+  const submitLabel = editingArea ? "Speichern" : "Erstellen";
+  const submitPendingLabel = editingArea ? "Wird gespeichert..." : "Wird erstellt...";
+
   return (
     <MainLayout
       title="Bereiche"
@@ -304,12 +307,10 @@ export default function AreasPage() {
                   {isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      {editingArea ? "Wird gespeichert..." : "Wird erstellt..."}
+                      {submitPendingLabel}
                     </>
-                  ) : editingArea ? (
-                    "Speichern"
                   ) : (
-                    "Erstellen"
+                    submitLabel
                   )}
                 </Button>
               </div>

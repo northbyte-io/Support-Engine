@@ -14,15 +14,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { 
-  Mail, 
-  Settings, 
-  CheckCircle2, 
-  XCircle, 
+import {
+  Mail,
+  Settings,
+  CheckCircle2,
+  XCircle,
   AlertCircle,
   RefreshCw,
-  Play,
-  Pause,
   Trash2,
   Plus,
   FolderOpen,
@@ -39,10 +37,7 @@ import {
   Save,
   Filter,
   Edit,
-  Power,
   ArrowRight,
-  User,
-  Tag,
   Zap,
   ChevronUp,
   ChevronDown
@@ -50,7 +45,7 @@ import {
 import { Link } from "wouter";
 
 // Status-Badge Komponente
-function ConnectionStatusBadge({ status }: { status: string }) {
+function ConnectionStatusBadge({ status }: Readonly<{ status: string }>) {
   switch (status) {
     case "connected":
       return (
@@ -90,6 +85,24 @@ const setupSteps = [
   { id: 3, title: "Test", description: "Verbindung testen" },
 ];
 
+const ruleToast = {
+  update: { title: "Regel aktualisiert", description: "Die Verarbeitungsregel wurde aktualisiert." },
+  create: { title: "Regel erstellt", description: "Die Verarbeitungsregel wurde erstellt." },
+} as const;
+
+type RuleCondition = { type: string; value: string; operator: "AND" | "OR" | "NOT" | "XOR" };
+
+function parseRuleConditions(rule: { conditions?: unknown; conditionType?: string; conditionValue?: string }): RuleCondition[] {
+  const fallback: RuleCondition[] = [{ type: rule.conditionType || "all_emails", value: rule.conditionValue || "", operator: "AND" }];
+  if (!rule.conditions) return fallback;
+  try {
+    const parsed = typeof rule.conditions === "string" ? JSON.parse(rule.conditions) : rule.conditions;
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export default function ExchangeIntegration() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("setup");
@@ -119,9 +132,6 @@ export default function ExchangeIntegration() {
     value: string;
     operator: "AND" | "OR" | "NOT" | "XOR";
   }[]>([{ type: "all_emails", value: "", operator: "AND" }]);
-  // Legacy-Kompatibilität
-  const ruleConditionType = ruleConditions[0]?.type || "all_emails";
-  const ruleConditionValue = ruleConditions[0]?.value || "";
   const [ruleActions, setRuleActions] = useState<string[]>(["mark_as_read"]);
   const [ruleActionValue, setRuleActionValue] = useState("");
   const [ruleActionFolderId, setRuleActionFolderId] = useState("");
@@ -165,23 +175,19 @@ export default function ExchangeIntegration() {
   const [tenantAzureId, setTenantAzureId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const [authType, setAuthType] = useState("client_secret");
-  const [mailboxEmail, setMailboxEmail] = useState("");
-  const [mailboxType, setMailboxType] = useState("shared");
-  const [sourceFolder, setSourceFolder] = useState("inbox");
-  const [fetchInterval, setFetchInterval] = useState("5");
 
   // Load configuration from API
-  const { data: configData, isLoading: isLoadingConfig } = useQuery<any>({
+  const { data: configData } = useQuery<any>({
     queryKey: ["/api/exchange/configuration"],
   });
 
   // Update form states when config is loaded
   useEffect(() => {
-    if (configData && configData.configured) {
-      setIsEnabled(configData.isEnabled || false);
-      setClientId(configData.clientId || "");
-      setTenantAzureId(configData.tenantAzureId || "");
-      setAuthType(configData.authType || "client_secret");
+    if (configData?.configured) {
+      setIsEnabled(configData.isEnabled ?? false);
+      setClientId(configData.clientId ?? "");
+      setTenantAzureId(configData.tenantAzureId ?? "");
+      setAuthType(configData.authType ?? "client_secret");
     }
   }, [configData]);
 
@@ -218,18 +224,10 @@ export default function ExchangeIntegration() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/exchange/configuration"] });
-      if (data.success) {
-        toast({
-          title: "Verbindung erfolgreich",
-          description: data.message || "Die Verbindung zu Microsoft Graph API wurde hergestellt.",
-        });
-      } else {
-        toast({
-          title: "Verbindungstest fehlgeschlagen",
-          description: data.message,
-          variant: "destructive",
-        });
-      }
+      toast(data.success
+        ? { title: "Verbindung erfolgreich", description: data.message || "Die Verbindung zu Microsoft Graph API wurde hergestellt." }
+        : { title: "Verbindungstest fehlgeschlagen", description: data.message, variant: "destructive" }
+      );
     },
     onError: (error: any) => {
       toast({
@@ -325,22 +323,16 @@ export default function ExchangeIntegration() {
   // Mutation zum Speichern einer Verarbeitungsregel
   const saveRuleMutation = useMutation({
     mutationFn: async (data: any) => {
-      if (editingRule) {
-        const response = await apiRequest("PATCH", `/api/exchange/processing-rules/${editingRule.id}`, data);
-        return response.json();
-      } else {
-        const response = await apiRequest("POST", "/api/exchange/processing-rules", data);
-        return response.json();
-      }
+      const method = editingRule ? "PATCH" : "POST";
+      const url = editingRule ? `/api/exchange/processing-rules/${editingRule.id}` : "/api/exchange/processing-rules";
+      const response = await apiRequest(method, url, data);
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/exchange/processing-rules"] });
       setShowRuleDialog(false);
       resetRuleForm();
-      toast({
-        title: editingRule ? "Regel aktualisiert" : "Regel erstellt",
-        description: editingRule ? "Die Verarbeitungsregel wurde aktualisiert." : "Die Verarbeitungsregel wurde erstellt.",
-      });
+      toast(editingRule ? ruleToast.update : ruleToast.create);
     },
     onError: (error: any) => {
       toast({
@@ -423,26 +415,7 @@ export default function ExchangeIntegration() {
     setRuleName(rule.name);
     setRuleDescription(rule.description || "");
     // Support both old single condition and new conditions array/JSON
-    if (rule.conditions) {
-      try {
-        const parsed = typeof rule.conditions === 'string' 
-          ? JSON.parse(rule.conditions) 
-          : rule.conditions;
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setRuleConditions(parsed);
-        } else {
-          setRuleConditions([{ type: rule.conditionType || "all_emails", value: rule.conditionValue || "", operator: "AND" }]);
-        }
-      } catch (e) {
-        setRuleConditions([{ type: rule.conditionType || "all_emails", value: rule.conditionValue || "", operator: "AND" }]);
-      }
-    } else {
-      setRuleConditions([{ 
-        type: rule.conditionType || "all_emails", 
-        value: rule.conditionValue || "", 
-        operator: "AND" 
-      }]);
-    }
+    setRuleConditions(parseRuleConditions(rule));
     // Support both old single actionType and new actions array
     const actions = rule.actions || (rule.actionType ? [rule.actionType] : ["mark_as_read"]);
     setRuleActions(Array.isArray(actions) ? actions : [actions]);
@@ -482,7 +455,7 @@ export default function ExchangeIntegration() {
         actionFolderName: ruleActions.includes("move_to_folder") ? ruleActionFolderName : undefined,
         actionPriority: ruleActions.includes("set_priority") ? ruleActionPriority : undefined,
         actionAutoReplyTemplate: ruleActions.includes("auto_reply") ? ruleAutoReplyTemplate : undefined,
-        mailboxId: ruleMailboxId && ruleMailboxId !== "__all__" ? ruleMailboxId : undefined,
+        mailboxId: ["", "__all__"].includes(ruleMailboxId) ? undefined : ruleMailboxId,
         priority: rulePriority,
         isActive: ruleIsActive,
       });
@@ -493,14 +466,14 @@ export default function ExchangeIntegration() {
 
   // Handler zum Laden der Ordner
   const handleLoadFolders = async (email: string) => {
-    if (!email || !email.includes("@")) return;
+    if (!email?.includes("@")) return;
     
     setIsLoadingFolders(true);
     setFoldersError(null);
     setAvailableFolders([]);
     
     try {
-      const response = await apiRequest("GET", `/api/exchange/folders/${encodeURIComponent(email)}`, undefined);
+      const response = await apiRequest("GET", `/api/exchange/folders/${encodeURIComponent(email)}`);
       const folders = await response.json();
       setAvailableFolders(folders);
       
@@ -534,15 +507,12 @@ export default function ExchangeIntegration() {
 
     setIsLoadingRuleFolders(true);
     try {
-      const response = await apiRequest("GET", `/api/exchange/folders/${encodeURIComponent(firstMailbox.emailAddress)}`, undefined);
+      const response = await apiRequest("GET", `/api/exchange/folders/${encodeURIComponent(firstMailbox.emailAddress)}`);
       const folders = await response.json();
-      if (folders && folders.length > 0) {
-        setRuleFolders(folders);
-      } else {
-        setRuleFolders(standardFolders);
-      }
-    } catch (error) {
+      setRuleFolders((folders?.length ?? 0) > 0 ? folders : standardFolders);
+    } catch (err) {
       // Fallback auf Standard-Ordner bei Fehler
+      console.error(err);
       setRuleFolders(standardFolders);
     } finally {
       setIsLoadingRuleFolders(false);
@@ -593,9 +563,9 @@ export default function ExchangeIntegration() {
           id: editingMailbox.id,
           data: mailboxData,
         });
-      } else {
-        await saveMailboxMutation.mutateAsync(mailboxData);
+        return;
       }
+      await saveMailboxMutation.mutateAsync(mailboxData);
     } finally {
       setIsSavingMailbox(false);
     }
@@ -609,39 +579,6 @@ export default function ExchangeIntegration() {
     } finally {
       setIsTestingConnection(false);
     }
-  };
-
-  // Handler für Test-Mailabruf
-  const handleTestFetch = async () => {
-    setIsTestingFetch(true);
-    try {
-      const response = await apiRequest("POST", "/api/exchange/sync", {});
-      const data = await response.json();
-      toast({
-        title: "Synchronisation abgeschlossen",
-        description: `${data.emailsProcessed || 0} E-Mails verarbeitet, ${data.ticketsCreated || 0} Tickets erstellt.`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Fehler bei der Synchronisation",
-        description: error.message || "Die E-Mails konnten nicht abgerufen werden.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsTestingFetch(false);
-    }
-  };
-
-  // Handler für Test-Mailversand
-  const handleTestSend = async () => {
-    setIsTestingSend(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsTestingSend(false);
-    toast({
-      title: "Test-Mailversand",
-      description: "Diese Funktion ist noch nicht implementiert.",
-      variant: "default",
-    });
   };
 
   // Handler für Test-Mailabruf für ein bestimmtes Postfach
@@ -724,9 +661,8 @@ export default function ExchangeIntegration() {
   };
 
   return (
-    <MainLayout 
-      title="Exchange-Integration" 
-      description="Microsoft Exchange Online E-Mail-Integration verwalten"
+    <MainLayout
+      title="Exchange-Integration"
     >
       <div className="space-y-6">
         {/* Header mit Zurück-Button */}
@@ -798,27 +734,24 @@ export default function ExchangeIntegration() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between mb-6">
-                  {setupSteps.map((step, index) => (
+                  {setupSteps.map((step, index) => {
+                    const isCurrentStep = currentStep === step.id;
+                    const isPastStep = currentStep > step.id;
+                    let buttonColorClass = "text-muted-foreground";
+                    if (isCurrentStep) buttonColorClass = "text-primary";
+                    else if (isPastStep) buttonColorClass = "text-green-600 dark:text-green-400";
+                    let circleColorClass = "bg-muted";
+                    if (isCurrentStep) circleColorClass = "bg-primary text-primary-foreground";
+                    else if (isPastStep) circleColorClass = "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400";
+                    return (
                     <div key={step.id} className="flex items-center">
                       <button
                         onClick={() => setCurrentStep(step.id)}
-                        className={`flex flex-col items-center ${
-                          currentStep === step.id
-                            ? "text-primary"
-                            : currentStep > step.id
-                            ? "text-green-600 dark:text-green-400"
-                            : "text-muted-foreground"
-                        }`}
+                        className={`flex flex-col items-center ${buttonColorClass}`}
                         data-testid={`button-step-${step.id}`}
                       >
                         <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                            currentStep === step.id
-                              ? "bg-primary text-primary-foreground"
-                              : currentStep > step.id
-                              ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
-                              : "bg-muted"
-                          }`}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${circleColorClass}`}
                         >
                           {currentStep > step.id ? (
                             <CheckCircle2 className="w-4 h-4" />
@@ -838,7 +771,8 @@ export default function ExchangeIntegration() {
                         />
                       )}
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -1056,14 +990,19 @@ export default function ExchangeIntegration() {
                 </Button>
               </CardHeader>
               <CardContent>
-                {isLoadingMailboxes ? (
+                {isLoadingMailboxes && (
                   <div className="text-center py-8">
                     <Loader2 className="w-8 h-8 mx-auto animate-spin text-muted-foreground" />
                     <p className="mt-2 text-muted-foreground">Lade Postfächer...</p>
                   </div>
-                ) : mailboxesData && mailboxesData.length > 0 ? (
+                )}
+                {!isLoadingMailboxes && (mailboxesData?.length ?? 0) > 0 && (
                   <div className="space-y-4">
-                    {mailboxesData.map((mailbox: any) => (
+                    {(mailboxesData ?? []).map((mailbox: any) => {
+                      let mailboxTypeLabel = "Gemeinsam";
+                      if (mailbox.mailboxType === "incoming") mailboxTypeLabel = "Eingehend";
+                      else if (mailbox.mailboxType === "outgoing") mailboxTypeLabel = "Ausgehend";
+                      return (
                       <div key={mailbox.id} className="p-4 border rounded-md space-y-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -1078,8 +1017,7 @@ export default function ExchangeIntegration() {
                               {mailbox.isActive ? "Aktiv" : "Inaktiv"}
                             </Badge>
                             <Badge variant="outline">
-                              {mailbox.mailboxType === "incoming" ? "Eingehend" : 
-                               mailbox.mailboxType === "outgoing" ? "Ausgehend" : "Gemeinsam"}
+                              {mailboxTypeLabel}
                             </Badge>
                             <Button
                               variant="ghost"
@@ -1138,9 +1076,11 @@ export default function ExchangeIntegration() {
                           </Button>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
-                ) : (
+                )}
+                {!isLoadingMailboxes && (mailboxesData?.length ?? 0) === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
                     <Mail className="w-12 h-12 mx-auto mb-4 opacity-50" />
                     <p>Noch keine Postfächer konfiguriert</p>
@@ -1176,14 +1116,15 @@ export default function ExchangeIntegration() {
                 </Button>
               </CardHeader>
               <CardContent>
-                {isLoadingRules ? (
+                {isLoadingRules && (
                   <div className="text-center py-8">
                     <Loader2 className="w-8 h-8 mx-auto animate-spin text-muted-foreground" />
                     <p className="mt-2 text-muted-foreground">Lade Regeln...</p>
                   </div>
-                ) : processingRulesData && processingRulesData.length > 0 ? (
+                )}
+                {!isLoadingRules && (processingRulesData?.length ?? 0) > 0 && (
                   <div className="space-y-3">
-                    {processingRulesData.map((rule: any) => (
+                    {(processingRulesData ?? []).map((rule: any) => (
                       <div key={rule.id} className="p-4 border rounded-md">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -1234,7 +1175,7 @@ export default function ExchangeIntegration() {
                                     ? JSON.parse(rule.conditions) 
                                     : rule.conditions;
                                 }
-                              } catch (e) {}
+                              } catch (err) { console.error(err); }
                               
                               if (!conditions || conditions.length === 0) {
                                 conditions = [{ type: rule.conditionType, value: rule.conditionValue, operator: 'AND' }];
@@ -1294,7 +1235,8 @@ export default function ExchangeIntegration() {
                       </div>
                     ))}
                   </div>
-                ) : (
+                )}
+                {!isLoadingRules && (processingRulesData?.length ?? 0) === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
                     <Filter className="w-12 h-12 mx-auto mb-4 opacity-50" />
                     <p>Noch keine Verarbeitungsregeln definiert</p>
@@ -1409,15 +1351,17 @@ export default function ExchangeIntegration() {
         if (!open) resetMailboxForm();
       }}>
         <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>{editingMailbox ? "Postfach bearbeiten" : "Postfach hinzufügen"}</DialogTitle>
-            <DialogDescription>
-              {editingMailbox 
-                ? "Bearbeiten Sie die Einstellungen des Postfachs"
-                : "Konfigurieren Sie ein neues E-Mail-Postfach für die Exchange-Integration"
-              }
-            </DialogDescription>
-          </DialogHeader>
+          {(() => {
+            const mailboxTexts = editingMailbox
+              ? { title: "Postfach bearbeiten", description: "Bearbeiten Sie die Einstellungen des Postfachs" }
+              : { title: "Postfach hinzufügen", description: "Konfigurieren Sie ein neues E-Mail-Postfach für die Exchange-Integration" };
+            return (
+              <DialogHeader>
+                <DialogTitle>{mailboxTexts.title}</DialogTitle>
+                <DialogDescription>{mailboxTexts.description}</DialogDescription>
+              </DialogHeader>
+            );
+          })()}
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="mailbox-email">E-Mail-Adresse *</Label>
@@ -1487,7 +1431,7 @@ export default function ExchangeIntegration() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="mailbox-type">Postfachtyp</Label>
-              <Select value={newMailboxType} onValueChange={(v) => setNewMailboxType(v as any)}>
+              <Select value={newMailboxType} onValueChange={(v) => setNewMailboxType(v as "incoming" | "outgoing" | "shared")}>
                 <SelectTrigger id="mailbox-type" data-testid="select-mailbox-type">
                   <SelectValue placeholder="Typ auswählen" />
                 </SelectTrigger>
@@ -1560,20 +1504,25 @@ export default function ExchangeIntegration() {
             <Button variant="outline" onClick={() => setShowMailboxDialog(false)}>
               Abbrechen
             </Button>
-            <Button 
-              onClick={handleSaveMailbox} 
-              disabled={isSavingMailbox || !newMailboxEmail || !newMailboxSourceFolderId}
-              data-testid="button-save-mailbox"
-            >
-              {isSavingMailbox ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Speichern...
-                </>
-              ) : (
-                editingMailbox ? "Speichern" : "Postfach hinzufügen"
-              )}
-            </Button>
+            {(() => {
+              const mailboxSaveLabel = editingMailbox ? "Speichern" : "Postfach hinzufügen";
+              return (
+                <Button
+                  onClick={handleSaveMailbox}
+                  disabled={isSavingMailbox || !newMailboxEmail || !newMailboxSourceFolderId}
+                  data-testid="button-save-mailbox"
+                >
+                  {isSavingMailbox ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Speichern...
+                    </>
+                  ) : (
+                    mailboxSaveLabel
+                  )}
+                </Button>
+              );
+            })()}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1668,7 +1617,7 @@ export default function ExchangeIntegration() {
                   id="rule-priority"
                   type="number"
                   value={rulePriority}
-                  onChange={(e) => setRulePriority(parseInt(e.target.value) || 0)}
+                  onChange={(e) => setRulePriority(Number.parseInt(e.target.value) || 0)}
                   placeholder="0"
                   data-testid="input-rule-priority"
                 />
@@ -1729,8 +1678,13 @@ export default function ExchangeIntegration() {
               </p>
               
               <div className="space-y-3">
-                {ruleConditions.map((condition, index) => (
-                  <div key={index} className="space-y-2 p-3 border rounded-md bg-muted/30">
+                {ruleConditions.map((condition, index) => {
+                  let conditionPlaceholder = "Suchbegriff";
+                  if (condition.type.includes("sender")) conditionPlaceholder = "@example.com";
+                  else if (condition.type.includes("recipient")) conditionPlaceholder = "support@";
+                  else if (condition.type.includes("subject")) conditionPlaceholder = "DRINGEND";
+                  return (
+                  <div key={`condition-${index}-${condition.type}`} className="space-y-2 p-3 border rounded-md bg-muted/30">
                     {/* Logischer Operator (für alle außer dem ersten) */}
                     {index > 0 && (
                       <div className="flex items-center gap-2 pb-2 border-b">
@@ -1738,7 +1692,7 @@ export default function ExchangeIntegration() {
                           value={condition.operator} 
                           onValueChange={(v) => {
                             const newConditions = [...ruleConditions];
-                            newConditions[index].operator = v as any;
+                            newConditions[index].operator = v as "AND" | "OR" | "NOT" | "XOR";
                             setRuleConditions(newConditions);
                           }}
                         >
@@ -1804,12 +1758,7 @@ export default function ExchangeIntegration() {
                               newConditions[index].value = e.target.value;
                               setRuleConditions(newConditions);
                             }}
-                            placeholder={
-                              condition.type.includes("sender") ? "@example.com" :
-                              condition.type.includes("recipient") ? "support@" :
-                              condition.type.includes("subject") ? "DRINGEND" :
-                              "Suchbegriff"
-                            }
+                            placeholder={conditionPlaceholder}
                             data-testid={`input-condition-value-${index}`}
                           />
                         </div>
@@ -1834,7 +1783,8 @@ export default function ExchangeIntegration() {
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -1951,14 +1901,15 @@ export default function ExchangeIntegration() {
               )}
 
               {/* Weiterleitung / Tag Eingabe */}
-              {(ruleActions.includes("forward_to") || ruleActions.includes("add_tag")) && (
+              {(ruleActions.includes("forward_to") || ruleActions.includes("add_tag")) && (() => {
+                const hasBoth = ruleActions.includes("forward_to") && ruleActions.includes("add_tag");
+                let actionValueLabel = "Tag-Name";
+                if (hasBoth) actionValueLabel = "Weiterleitungs-E-Mail / Tag-Name";
+                else if (ruleActions.includes("forward_to")) actionValueLabel = "Weiterleitungs-E-Mail";
+                return (
                 <div className="space-y-2 pt-2">
                   <Label htmlFor="rule-action-value">
-                    {ruleActions.includes("forward_to") && ruleActions.includes("add_tag") 
-                      ? "Weiterleitungs-E-Mail / Tag-Name" 
-                      : ruleActions.includes("forward_to") 
-                        ? "Weiterleitungs-E-Mail" 
-                        : "Tag-Name"}
+                    {actionValueLabel}
                   </Label>
                   <Input 
                     id="rule-action-value"
@@ -1970,7 +1921,8 @@ export default function ExchangeIntegration() {
                     data-testid="input-action-value"
                   />
                 </div>
-              )}
+                );
+              })()}
 
               {/* Ordner-Auswahl für move_to_folder */}
               {ruleActions.includes("move_to_folder") && (
@@ -2013,7 +1965,7 @@ export default function ExchangeIntegration() {
               {ruleActions.includes("set_priority") && (
                 <div className="space-y-2 pt-2">
                   <Label htmlFor="rule-action-priority">Ticket-Priorität</Label>
-                  <Select value={ruleActionPriority} onValueChange={(v) => setRuleActionPriority(v as any)}>
+                  <Select value={ruleActionPriority} onValueChange={(v) => setRuleActionPriority(v as "low" | "medium" | "high" | "urgent")}>
                     <SelectTrigger id="rule-action-priority" data-testid="select-action-priority">
                       <SelectValue />
                     </SelectTrigger>
@@ -2071,20 +2023,25 @@ export default function ExchangeIntegration() {
             }}>
               Abbrechen
             </Button>
-            <Button 
-              onClick={handleSaveRule} 
-              disabled={isSavingRule || !ruleName}
-              data-testid="button-save-rule"
-            >
-              {isSavingRule ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Speichern...
-                </>
-              ) : (
-                editingRule ? "Regel aktualisieren" : "Regel erstellen"
-              )}
-            </Button>
+            {(() => {
+              const ruleSaveLabel = editingRule ? "Regel aktualisieren" : "Regel erstellen";
+              return (
+                <Button
+                  onClick={handleSaveRule}
+                  disabled={isSavingRule || !ruleName}
+                  data-testid="button-save-rule"
+                >
+                  {isSavingRule ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Speichern...
+                    </>
+                  ) : (
+                    ruleSaveLabel
+                  )}
+                </Button>
+              );
+            })()}
           </DialogFooter>
         </DialogContent>
       </Dialog>

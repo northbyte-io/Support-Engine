@@ -45,12 +45,42 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 interface TipTapEditorProps {
-  content: string;
-  onChange: (content: string) => void;
-  placeholder?: string;
-  className?: string;
-  minHeight?: string;
-  "data-testid"?: string;
+  readonly content: string;
+  readonly onChange: (content: string) => void;
+  readonly placeholder?: string;
+  readonly className?: string;
+  readonly minHeight?: string;
+  readonly "data-testid"?: string;
+}
+
+interface ToolbarButtonProps {
+  readonly onClick: () => void;
+  readonly isActive?: boolean;
+  readonly disabled?: boolean;
+  readonly tooltip: string;
+  readonly children: ReactNode;
+}
+
+function ToolbarButton({ onClick, isActive, disabled, tooltip, children }: ToolbarButtonProps) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={cn("h-8 w-8", isActive && "bg-muted")}
+          onClick={onClick}
+          disabled={disabled}
+        >
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{tooltip}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 export function TipTapEditor({
@@ -143,38 +173,6 @@ export function TipTapEditor({
   if (!editor) {
     return null;
   }
-
-  const ToolbarButton = ({
-    onClick,
-    isActive,
-    disabled,
-    tooltip,
-    children,
-  }: {
-    onClick: () => void;
-    isActive?: boolean;
-    disabled?: boolean;
-    tooltip: string;
-    children: ReactNode;
-  }) => (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={cn("h-8 w-8", isActive && "bg-muted")}
-          onClick={onClick}
-          disabled={disabled}
-        >
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>{tooltip}</p>
-      </TooltipContent>
-    </Tooltip>
-  );
 
   return (
     <div className={cn("border rounded-md overflow-hidden", className)} data-testid={testId}>

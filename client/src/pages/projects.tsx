@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -23,7 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreHorizontal, Kanban, Users, Ticket, Folder, Trash2, Pencil } from "lucide-react";
+import { Plus, MoreHorizontal, Kanban, Users, Ticket, Folder, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -42,7 +41,7 @@ const projectFormSchema = z.object({
 
 type ProjectFormData = z.infer<typeof projectFormSchema>;
 
-function ProjectStatusBadge({ status }: { status: string }) {
+function ProjectStatusBadge({ status }: Readonly<{ status: string }>) {
   const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
     active: { label: "Aktiv", variant: "default" },
     on_hold: { label: "Pausiert", variant: "secondary" },
@@ -54,7 +53,7 @@ function ProjectStatusBadge({ status }: { status: string }) {
   return <Badge variant={config.variant} data-testid={`badge-status-${status}`}>{config.label}</Badge>;
 }
 
-function CreateProjectDialog({ onCreated }: { onCreated: () => void }) {
+function CreateProjectDialog({ onCreated }: Readonly<{ onCreated: () => void }>) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
@@ -222,32 +221,35 @@ export default function ProjectsPage() {
       actions={isAdmin ? <CreateProjectDialog onCreated={() => refetch()} /> : undefined}
     >
       <div className="space-y-6">
-        {isLoading ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="animate-pulse">
-                <CardHeader>
-                  <div className="h-5 bg-muted rounded w-3/4" />
-                  <div className="h-4 bg-muted rounded w-1/2 mt-2" />
-                </CardHeader>
-                <CardContent>
-                  <div className="h-4 bg-muted rounded w-full" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : projects?.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Folder className="w-12 h-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">Keine Projekte vorhanden</h3>
-              <p className="text-muted-foreground text-center mb-4">
-                Erstellen Sie Ihr erstes Projekt, um Tickets zu organisieren.
-              </p>
-              {isAdmin && <CreateProjectDialog onCreated={() => refetch()} />}
-            </CardContent>
-          </Card>
-        ) : (
+        {(() => {
+          if (isLoading) return (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardHeader>
+                    <div className="h-5 bg-muted rounded w-3/4" />
+                    <div className="h-4 bg-muted rounded w-1/2 mt-2" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-4 bg-muted rounded w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          );
+          if (projects?.length === 0) return (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Folder className="w-12 h-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Keine Projekte vorhanden</h3>
+                <p className="text-muted-foreground text-center mb-4">
+                  Erstellen Sie Ihr erstes Projekt, um Tickets zu organisieren.
+                </p>
+                {isAdmin && <CreateProjectDialog onCreated={() => refetch()} />}
+              </CardContent>
+            </Card>
+          );
+          return (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {projects?.map((project) => (
               <Card
@@ -329,7 +331,8 @@ export default function ProjectsPage() {
               </Card>
             ))}
           </div>
-        )}
+          );
+        })()}
       </div>
     </MainLayout>
   );

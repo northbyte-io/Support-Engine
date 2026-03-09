@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Search, MoreHorizontal, Loader2, Building2, MapPin, Users, Phone, Mail, ExternalLink } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Loader2, Building2, MapPin, Phone, Mail, ExternalLink } from "lucide-react";
 import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -223,6 +223,120 @@ export default function CustomersPage() {
 
   const agents = users?.filter(u => u.role === "agent" || u.role === "admin");
 
+  const customersBody = filteredCustomers?.length ? (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Kundennummer</TableHead>
+          <TableHead>Name</TableHead>
+          <TableHead>Organisation</TableHead>
+          <TableHead>Kontakt</TableHead>
+          <TableHead>Priorität</TableHead>
+          <TableHead>Kundenbetreuer</TableHead>
+          <TableHead className="w-[50px]"></TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {filteredCustomers.map((customer) => (
+          <TableRow key={customer.id} data-testid={`row-customer-${customer.id}`}>
+            <TableCell>
+              <Badge variant="outline" className="font-mono">
+                {customer.customerNumber}
+              </Badge>
+            </TableCell>
+            <TableCell>
+              <div className="flex flex-col">
+                <Link href={`/customers/${customer.id}`} className="font-medium hover:underline">
+                  {customer.name}
+                </Link>
+                {customer.city && (
+                  <span className="text-sm text-muted-foreground flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    {customer.city}
+                  </span>
+                )}
+              </div>
+            </TableCell>
+            <TableCell>
+              {customer.organization ? (
+                <div className="flex items-center gap-1">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span>{customer.organization.name}</span>
+                </div>
+              ) : (
+                <span className="text-muted-foreground">-</span>
+              )}
+            </TableCell>
+            <TableCell>
+              <div className="flex flex-col text-sm">
+                {customer.email && (
+                  <a href={`mailto:${customer.email}`} className="flex items-center gap-1 hover:underline">
+                    <Mail className="h-3 w-3" />
+                    {customer.email}
+                  </a>
+                )}
+                {customer.phone && (
+                  <a href={`tel:${customer.phone}`} className="flex items-center gap-1 hover:underline">
+                    <Phone className="h-3 w-3" />
+                    {customer.phone}
+                  </a>
+                )}
+                {!customer.email && !customer.phone && (
+                  <span className="text-muted-foreground">-</span>
+                )}
+              </div>
+            </TableCell>
+            <TableCell>
+              {customer.priority && (
+                <Badge className={priorityConfig[customer.priority]?.color}>
+                  {priorityConfig[customer.priority]?.label}
+                </Badge>
+              )}
+            </TableCell>
+            <TableCell>
+              {customer.accountManager ? (
+                <span>{customer.accountManager.firstName} {customer.accountManager.lastName}</span>
+              ) : (
+                <span className="text-muted-foreground">-</span>
+              )}
+            </TableCell>
+            <TableCell>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" data-testid={`button-customer-actions-${customer.id}`}>
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link href={`/customers/${customer.id}`} className="flex items-center gap-2 cursor-pointer">
+                      <ExternalLink className="h-4 w-4" />
+                      Details anzeigen
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openEditDialog(customer)}>
+                    Bearbeiten
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => deleteMutation.mutate(customer.id)}
+                  >
+                    Löschen
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  ) : (
+    <NoCustomersEmpty />
+  );
+
+  const customersContent = isLoading ? <TableSkeleton rows={5} cols={6} /> : customersBody;
+
   return (
     <MainLayout title="Kunden">
       <div className="space-y-6">
@@ -245,119 +359,7 @@ export default function CustomersPage() {
 
         <Card>
           <CardContent className="p-0">
-            {isLoading ? (
-              <TableSkeleton rows={5} cols={6} />
-            ) : !filteredCustomers?.length ? (
-              <NoCustomersEmpty />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Kundennummer</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Organisation</TableHead>
-                    <TableHead>Kontakt</TableHead>
-                    <TableHead>Priorität</TableHead>
-                    <TableHead>Kundenbetreuer</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredCustomers.map((customer) => (
-                    <TableRow key={customer.id} data-testid={`row-customer-${customer.id}`}>
-                      <TableCell>
-                        <Badge variant="outline" className="font-mono">
-                          {customer.customerNumber}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <Link href={`/customers/${customer.id}`} className="font-medium hover:underline">
-                            {customer.name}
-                          </Link>
-                          {customer.city && (
-                            <span className="text-sm text-muted-foreground flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              {customer.city}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {customer.organization ? (
-                          <div className="flex items-center gap-1">
-                            <Building2 className="h-4 w-4 text-muted-foreground" />
-                            <span>{customer.organization.name}</span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col text-sm">
-                          {customer.email && (
-                            <a href={`mailto:${customer.email}`} className="flex items-center gap-1 hover:underline">
-                              <Mail className="h-3 w-3" />
-                              {customer.email}
-                            </a>
-                          )}
-                          {customer.phone && (
-                            <a href={`tel:${customer.phone}`} className="flex items-center gap-1 hover:underline">
-                              <Phone className="h-3 w-3" />
-                              {customer.phone}
-                            </a>
-                          )}
-                          {!customer.email && !customer.phone && (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {customer.priority && (
-                          <Badge className={priorityConfig[customer.priority]?.color}>
-                            {priorityConfig[customer.priority]?.label}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {customer.accountManager ? (
-                          <span>{customer.accountManager.firstName} {customer.accountManager.lastName}</span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" data-testid={`button-customer-actions-${customer.id}`}>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/customers/${customer.id}`} className="flex items-center gap-2 cursor-pointer">
-                                <ExternalLink className="h-4 w-4" />
-                                Details anzeigen
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEditDialog(customer)}>
-                              Bearbeiten
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              className="text-destructive"
-                              onClick={() => deleteMutation.mutate(customer.id)}
-                            >
-                              Löschen
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+            {customersContent}
           </CardContent>
         </Card>
       </div>

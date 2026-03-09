@@ -161,15 +161,16 @@ export default function UsersPage() {
           </div>
         </div>
 
-        {isLoading ? (
-          <TableSkeleton rows={5} cols={5} />
-        ) : !filteredUsers || filteredUsers.length === 0 ? (
-          <Card>
-            <CardContent className="p-0">
-              <NoUsersEmpty onCreateUser={() => setShowCreateDialog(true)} />
-            </CardContent>
-          </Card>
-        ) : (
+        {(() => {
+          if (isLoading) return <TableSkeleton rows={5} cols={5} />;
+          if (!filteredUsers || filteredUsers.length === 0) return (
+            <Card>
+              <CardContent className="p-0">
+                <NoUsersEmpty onCreateUser={() => setShowCreateDialog(true)} />
+              </CardContent>
+            </Card>
+          );
+          return (
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -251,7 +252,8 @@ export default function UsersPage() {
               </Table>
             </CardContent>
           </Card>
-        )}
+          );
+        })()}
 
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogContent>

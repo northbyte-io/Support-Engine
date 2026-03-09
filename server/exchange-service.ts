@@ -13,10 +13,7 @@ import { encryptSecretToJson, decryptSecretFromJson } from "./keyVault";
 import type {
   ExchangeConfiguration,
   ExchangeMailbox,
-  ExchangeEmail,
-  ExchangeSyncLog,
   InsertExchangeEmail,
-  InsertExchangeSyncLog
 } from "@shared/schema";
 
 // Graph API Endpoints
@@ -103,7 +100,7 @@ interface TokenResponse {
 }
 
 // Graph API E-Mail-Struktur
-interface GraphEmail {
+export interface GraphEmail {
   id: string;
   internetMessageId?: string;
   conversationId?: string;
@@ -152,7 +149,7 @@ interface GraphFolder {
  * Verarbeitet alle Interaktionen mit Microsoft Graph API
  */
 export class ExchangeService {
-  private static logSource: LogSource = "exchange";
+  private static readonly logSource: LogSource = "exchange";
 
   /**
    * Prüft ob eine Konfiguration vollständig und aktiviert ist
@@ -207,7 +204,7 @@ export class ExchangeService {
       const tokenUrl = `${GRAPH_AUTH_URL}/${config.tenantAzureId}/oauth2/v2.0/token`;
       
       const params = new URLSearchParams();
-      params.append("client_id", config.clientId!);
+      params.append("client_id", config.clientId!); // clientId is guaranteed by isConfigurationValid()
       params.append("scope", "https://graph.microsoft.com/.default");
       params.append("grant_type", "client_credentials");
 
@@ -294,8 +291,7 @@ export class ExchangeService {
           };
         } else {
           // Token funktioniert, aber /users Zugriff fehlt - das ist OK für Mail-Only
-          const errorText = await response.text();
-          logger.info(this.logSource, "Token gültig, API-Test optional", 
+          logger.info(this.logSource, "Token gültig, API-Test optional",
             "Access-Token funktioniert. Zusätzliche Berechtigungen können für /users erforderlich sein.");
           return {
             success: true,
@@ -307,7 +303,7 @@ export class ExchangeService {
             }
           };
         }
-      } catch (graphError) {
+      } catch {
         // Netzwerkfehler beim Graph-Test, aber Token war OK
         return {
           success: true,
@@ -356,7 +352,7 @@ export class ExchangeService {
         const roles = payload.roles || [];
         logger.info(this.logSource, "Token-Berechtigungen", `Rollen im Token: ${roles.join(', ') || 'Keine Rollen gefunden'}`);
       }
-    } catch (e) {
+    } catch {
       logger.debug(this.logSource, "Token-Debug", "Konnte Token nicht dekodieren");
     }
 
@@ -773,9 +769,10 @@ export class ExchangeService {
       const arrayBuffer = await response.arrayBuffer();
       return Buffer.from(arrayBuffer);
     } catch (error) {
-      logger.error(this.logSource, "MIME-Abruf fehlgeschlagen", { 
+      logger.error(this.logSource, "MIME-Abruf fehlgeschlagen", {
         description: String(error),
-        cause: "Graph API Fehler"
+        cause: "Graph API Fehler",
+        solution: "Überprüfen Sie die Verbindung zur Microsoft Graph API"
       });
       return null;
     }

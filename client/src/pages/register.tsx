@@ -163,7 +163,7 @@ export default function RegisterPage() {
             <div className="mt-6 text-center text-sm text-muted-foreground">
               Bereits ein Konto?{" "}
               <Button
-                variant="link"
+                variant="ghost"
                 className="p-0 h-auto font-medium"
                 onClick={() => setLocation("/login")}
                 data-testid="link-login"

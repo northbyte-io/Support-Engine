@@ -14,3 +14,4 @@ sonar-project.properties
 .vscode
 AGENTS.md
 .github/instructions
+.firecrawl/

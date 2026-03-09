@@ -12,7 +12,6 @@ import {
   useDroppable,
   DragStartEvent,
   DragEndEvent,
-  DragOverEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -59,7 +58,7 @@ interface BoardData {
   }[];
 }
 
-function PriorityBadge({ priority }: { priority: string }) {
+function PriorityBadge({ priority }: Readonly<{ priority: string }>) {
   const priorityConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
     low: { label: "Niedrig", variant: "outline" },
     medium: { label: "Mittel", variant: "secondary" },
@@ -74,10 +73,10 @@ function PriorityBadge({ priority }: { priority: string }) {
 function SortableTicketCard({
   ticket,
   onStatusChange,
-}: {
+}: Readonly<{
   ticket: TicketWithRelations;
   onStatusChange: (newStatus: string) => void;
-}) {
+}>) {
   const [, setLocation] = useLocation();
   const {
     attributes,
@@ -112,13 +111,14 @@ function SortableTicketCard({
               </span>
               <PriorityBadge priority={ticket.priority || "medium"} />
             </div>
-            <h4
-              className="text-sm font-medium line-clamp-2 hover:underline cursor-pointer"
+            <button
+              type="button"
+              className="text-sm font-medium line-clamp-2 hover:underline cursor-pointer text-left w-full"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => setLocation(`/tickets/${ticket.id}`)}
             >
               {ticket.title}
-            </h4>
+            </button>
             {ticket.ticketType && (
               <div className="mt-2">
                 <Badge variant="outline" className="text-xs" style={{ borderColor: ticket.ticketType.color || undefined }}>
@@ -166,7 +166,7 @@ function SortableTicketCard({
   );
 }
 
-function TicketCardOverlay({ ticket }: { ticket: TicketWithRelations }) {
+function TicketCardOverlay({ ticket }: Readonly<{ ticket: TicketWithRelations }>) {
   return (
     <Card className="w-64 shadow-lg rotate-3">
       <CardContent className="p-3">
@@ -187,12 +187,12 @@ function DroppableColumn({
   tickets,
   onAddTicket,
   onStatusChange,
-}: {
+}: Readonly<{
   column: BoardColumn;
   tickets: TicketWithRelations[];
   onAddTicket: () => void;
   onStatusChange: (ticketId: string, newStatus: string) => void;
-}) {
+}>) {
   const { setNodeRef, isOver } = useDroppable({
     id: `column-${column.status}`,
     data: {
@@ -265,13 +265,13 @@ function AddTicketDialog({
   onOpenChange,
   onAdded,
   existingTicketIds,
-}: {
+}: Readonly<{
   projectId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdded: () => void;
   existingTicketIds: string[];
-}) {
+}>) {
   const { toast } = useToast();
   const [selectedTicketId, setSelectedTicketId] = useState<string>("");
 
@@ -519,7 +519,7 @@ export default function ProjectBoardPage() {
       </DndContext>
 
       <AddTicketDialog
-        projectId={params.id!}
+        projectId={params.id}
         open={addTicketOpen}
         onOpenChange={setAddTicketOpen}
         onAdded={() => queryClient.invalidateQueries({ queryKey: [`/api/projects/${params.id}/board`] })}

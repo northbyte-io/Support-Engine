@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Calendar, Timer, Trash2, Edit2 } from "lucide-react";
+import { Clock, Calendar, Timer, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface WorkEntriesListProps {
-  ticketId: string;
+  readonly ticketId: string;
 }
 
 type WorkEntryWithUser = WorkEntry & { user?: User };

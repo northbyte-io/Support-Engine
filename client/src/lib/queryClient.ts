@@ -10,7 +10,7 @@ async function throwIfResNotOk(res: Response) {
 export async function apiRequest(
   method: string,
   url: string,
-  data?: unknown | undefined,
+  data?: unknown,
 ): Promise<Response> {
   const headers: HeadersInit = {};
 
@@ -31,38 +31,42 @@ export async function apiRequest(
 
 type UnauthorizedBehavior = "returnNull" | "throw";
 
+function buildUrl(queryKey: readonly unknown[]): string {
+  const pathParts: string[] = [];
+  let queryParams: Record<string, unknown> | null = null;
+
+  for (const part of queryKey) {
+    if (typeof part === "string") {
+      pathParts.push(part);
+    } else if (part && typeof part === "object" && !Array.isArray(part)) {
+      queryParams = part as Record<string, unknown>;
+    }
+  }
+
+  let url = pathParts.join("/").replaceAll(/\/+/g, "/");
+
+  if (queryParams) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(queryParams)) {
+      if (value !== undefined && value !== null) {
+        params.append(key, String(value));
+      }
+    }
+    const paramString = params.toString();
+    if (paramString) {
+      url = `${url}?${paramString}`;
+    }
+  }
+
+  return url;
+}
+
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    // Build URL from queryKey
-    // Supports: ['/api/tickets'], ['/api/tickets', id], ['/api/tickets', { limit: 5 }]
-    const pathParts: string[] = [];
-    let queryParams: Record<string, unknown> | null = null;
-
-    for (const part of queryKey) {
-      if (typeof part === "string") {
-        pathParts.push(part);
-      } else if (part && typeof part === "object" && !Array.isArray(part)) {
-        queryParams = part as Record<string, unknown>;
-      }
-    }
-
-    let url = pathParts.join("/").replace(/\/+/g, "/");
-
-    if (queryParams) {
-      const params = new URLSearchParams();
-      for (const [key, value] of Object.entries(queryParams)) {
-        if (value !== undefined && value !== null) {
-          params.append(key, String(value));
-        }
-      }
-      const paramString = params.toString();
-      if (paramString) {
-        url = `${url}?${paramString}`;
-      }
-    }
+    const url = buildUrl(queryKey);
 
     const res = await fetch(url, {
       credentials: "include",

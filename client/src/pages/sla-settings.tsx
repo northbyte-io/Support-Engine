@@ -17,13 +17,13 @@ import type { SlaDefinitionWithEscalations } from "@shared/schema";
 function formatMinutes(minutes: number): string {
   if (minutes >= 1440) {
     const days = Math.floor(minutes / 1440);
-    return `${days} Tag${days !== 1 ? 'e' : ''}`;
+    return `${days} Tag${days === 1 ? '' : 'e'}`;
   }
   if (minutes >= 60) {
     const hours = Math.floor(minutes / 60);
-    return `${hours} Stunde${hours !== 1 ? 'n' : ''}`;
+    return `${hours} Stunde${hours === 1 ? '' : 'n'}`;
   }
-  return `${minutes} Minute${minutes !== 1 ? 'n' : ''}`;
+  return `${minutes} Minute${minutes === 1 ? '' : 'n'}`;
 }
 
 export default function SlaSettings() {
@@ -82,14 +82,14 @@ export default function SlaSettings() {
     const data = {
       name: formData.get('name') as string,
       description: formData.get('description') as string,
-      responseTimeLow: parseInt(formData.get('responseTimeLow') as string) || 480,
-      responseTimeMedium: parseInt(formData.get('responseTimeMedium') as string) || 240,
-      responseTimeHigh: parseInt(formData.get('responseTimeHigh') as string) || 60,
-      responseTimeUrgent: parseInt(formData.get('responseTimeUrgent') as string) || 15,
-      resolutionTimeLow: parseInt(formData.get('resolutionTimeLow') as string) || 4320,
-      resolutionTimeMedium: parseInt(formData.get('resolutionTimeMedium') as string) || 1440,
-      resolutionTimeHigh: parseInt(formData.get('resolutionTimeHigh') as string) || 480,
-      resolutionTimeUrgent: parseInt(formData.get('resolutionTimeUrgent') as string) || 120,
+      responseTimeLow: Number.parseInt(formData.get('responseTimeLow') as string) || 480,
+      responseTimeMedium: Number.parseInt(formData.get('responseTimeMedium') as string) || 240,
+      responseTimeHigh: Number.parseInt(formData.get('responseTimeHigh') as string) || 60,
+      responseTimeUrgent: Number.parseInt(formData.get('responseTimeUrgent') as string) || 15,
+      resolutionTimeLow: Number.parseInt(formData.get('resolutionTimeLow') as string) || 4320,
+      resolutionTimeMedium: Number.parseInt(formData.get('resolutionTimeMedium') as string) || 1440,
+      resolutionTimeHigh: Number.parseInt(formData.get('resolutionTimeHigh') as string) || 480,
+      resolutionTimeUrgent: Number.parseInt(formData.get('resolutionTimeUrgent') as string) || 120,
       isDefault: formData.get('isDefault') === 'on',
       isActive: true,
     };
@@ -246,7 +246,7 @@ interface SlaFormProps {
   isLoading?: boolean;
 }
 
-function SlaForm({ defaultValues, onSubmit, isLoading }: SlaFormProps) {
+function SlaForm({ defaultValues, onSubmit, isLoading }: Readonly<SlaFormProps>) {
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <div className="space-y-4">
@@ -393,7 +393,11 @@ function SlaForm({ defaultValues, onSubmit, isLoading }: SlaFormProps) {
 
       <DialogFooter>
         <Button type="submit" disabled={isLoading} data-testid="button-submit-sla">
-          {isLoading ? 'Speichern...' : defaultValues ? 'Aktualisieren' : 'Erstellen'}
+          {(() => {
+            if (isLoading) return 'Speichern...';
+            if (defaultValues) return 'Aktualisieren';
+            return 'Erstellen';
+          })()}
         </Button>
       </DialogFooter>
     </form>
