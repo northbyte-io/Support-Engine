@@ -204,7 +204,7 @@ export class ExchangeService {
       const tokenUrl = `${GRAPH_AUTH_URL}/${config.tenantAzureId}/oauth2/v2.0/token`;
       
       const params = new URLSearchParams();
-      params.append("client_id", config.clientId!); // clientId is guaranteed by isConfigurationValid()
+      params.append("client_id", config.clientId ?? ""); // clientId is guaranteed by isConfigurationValid()
       params.append("scope", "https://graph.microsoft.com/.default");
       params.append("grant_type", "client_credentials");
 
