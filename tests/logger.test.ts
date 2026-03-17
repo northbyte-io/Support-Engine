@@ -14,7 +14,7 @@ function logAndGet(title: string, description: string): { title: string; descrip
 }
 
 // Eindeutiger Präfix pro Test-Suite-Lauf, um Kollisionen im Buffer zu vermeiden
-const uid = () => Math.random().toString(36).slice(2, 9);
+const uid = () => crypto.randomUUID().slice(0, 7);
 
 // --- PII-Maskierung ---
 
