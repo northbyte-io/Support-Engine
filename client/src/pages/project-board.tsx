@@ -58,6 +58,25 @@ interface BoardData {
   }[];
 }
 
+function applyOptimisticMove(old: BoardData, ticketId: string, newStatus: string): BoardData {
+  let movingEntry: BoardData["board"][number]["tickets"][number] | undefined;
+  const stripped = old.board.map((col) => {
+    const found = col.tickets.find((t) => t.ticketId === ticketId);
+    if (found) movingEntry = found;
+    return { ...col, tickets: col.tickets.filter((t) => t.ticketId !== ticketId) };
+  });
+  if (!movingEntry) return old;
+  const typedColStatus = newStatus as TicketWithRelations["status"];
+  return {
+    ...old,
+    board: stripped.map((col) =>
+      col.column.status === typedColStatus
+        ? { ...col, tickets: [...col.tickets, movingEntry!] }
+        : col
+    ),
+  };
+}
+
 function PriorityBadge({ priority }: Readonly<{ priority: string }>) {
   const priorityConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
     low: { label: "Niedrig", variant: "outline" },
@@ -389,25 +408,7 @@ export default function ProjectBoardPage() {
       const previousList = queryClient.getQueryData<TicketWithRelations[]>(["/api/tickets"]);
       queryClient.setQueryData<BoardData>(
         [`/api/projects/${params.id}/board`],
-        (old) => {
-          if (!old) return old;
-          let movingEntry: BoardData["board"][number]["tickets"][number] | undefined;
-          const stripped = old.board.map((col) => {
-            const found = col.tickets.find((t) => t.ticketId === ticketId);
-            if (found) movingEntry = found;
-            return { ...col, tickets: col.tickets.filter((t) => t.ticketId !== ticketId) };
-          });
-          if (!movingEntry) return old;
-          const typedColStatus = newStatus as TicketWithRelations["status"];
-          return {
-            ...old,
-            board: stripped.map((col) =>
-              col.column.status === typedColStatus
-                ? { ...col, tickets: [...col.tickets, movingEntry!] }
-                : col
-            ),
-          };
-        }
+        (old) => old ? applyOptimisticMove(old, ticketId, newStatus) : old
       );
       const typedStatus = newStatus as TicketWithRelations["status"];
       queryClient.setQueryData<TicketWithRelations[]>(
