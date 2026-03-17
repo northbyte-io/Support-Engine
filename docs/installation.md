@@ -1,76 +1,139 @@
 # Installation
 
+Diese Anleitung beschreibt die Installation von Support-Engine für Entwicklungs- und Produktivumgebungen.
+
 ## Voraussetzungen
 
-Stellen Sie sicher, dass folgende Software installiert ist:
+| Software | Mindestversion | Empfohlen |
+|----------|---------------|-----------|
+| **Node.js** | 20.x | 20 LTS |
+| **PostgreSQL** | 14 | 16 |
+| **npm** | 9.x | ≥ 10 |
+| **Git** | – | aktuell |
 
-- **Node.js** >= 20.x
-- **PostgreSQL** >= 14
-- **npm** oder **yarn**
+Überprüfen Sie die installierten Versionen:
 
-## Schnellinstallation
+```bash
+node --version   # sollte v20.x.x ausgeben
+psql --version   # sollte psql (PostgreSQL) 14.x... ausgeben
+npm --version
+```
 
-### 1. Repository klonen
+## Repository klonen
 
 ```bash
 git clone https://github.com/northbyte-io/Support-Engine.git
 cd Support-Engine
 ```
 
-### 2. Abhängigkeiten installieren
+## Abhängigkeiten installieren
 
 ```bash
 npm install
 ```
 
-### 3. Umgebungsvariablen konfigurieren
+## Umgebungsvariablen konfigurieren
 
-Erstellen Sie eine `.env` Datei basierend auf `.env.example`:
+Erstellen Sie eine `.env`-Datei im Projektstamm:
 
 ```bash
-cp .env.example .env
+touch .env
 ```
 
-Wichtige Umgebungsvariablen:
+Fügen Sie die folgenden Variablen ein:
 
-| Variable | Beschreibung | Beispiel |
-|----------|--------------|----------|
-| `DATABASE_URL` | PostgreSQL Verbindungs-URL | `postgresql://user:pass@localhost:5432/support` |
-| `JWT_SECRET` | Geheimer Schlüssel für JWT-Token | `ihr-geheimer-schluessel` |
-| `SESSION_SECRET` | Session-Verschlüsselung | `session-geheimer-schluessel` |
+```env
+# Pflichtfelder
+DATABASE_URL=postgresql://user:password@localhost:5432/support_engine
+SESSION_SECRET=ihr-sicherer-geheimer-schluessel-mindestens-32-zeichen
 
-### 4. Datenbank einrichten
+# Optional
+PORT=5000
+```
+
+### Variablenreferenz
+
+| Variable | Pflicht | Beschreibung |
+|----------|---------|--------------|
+| `DATABASE_URL` | ✅ | PostgreSQL-Verbindungs-URL |
+| `SESSION_SECRET` | ✅ | Geheimer Schlüssel zum Signieren von JWT-Tokens. Mindestens 32 zufällige Zeichen. |
+| `PORT` | – | HTTP-Port des Servers (Standard: `5000`) |
+
+:::{warning}
+Committen Sie die `.env`-Datei niemals in das Repository. Sie ist in `.gitignore` eingetragen.
+:::
+
+## Datenbank einrichten
+
+Erstellen Sie zunächst die Datenbank in PostgreSQL:
+
+```sql
+CREATE DATABASE support_engine;
+```
+
+Wenden Sie dann das Drizzle-Schema an:
 
 ```bash
 npm run db:push
 ```
 
-### 5. Anwendung starten
+Dieser Befehl erstellt alle erforderlichen Tabellen und Indizes in der Datenbank.
 
-**Entwicklungsmodus:**
+## Anwendung starten
+
+### Entwicklungsmodus
+
 ```bash
 npm run dev
 ```
 
-**Produktionsmodus:**
+Startet den Express-Server mit Vite HMR (Hot Module Replacement) auf Port `5000`. Änderungen am Frontend werden sofort ohne Neustart übernommen.
+
+### Produktionsmodus
+
 ```bash
-npm run build
-npm run start
+npm run build   # Erstellt dist/public/ (Vite) und dist/index.cjs (esbuild)
+npm start       # Startet den produktiven Server
 ```
 
-Die Anwendung ist nun unter `http://localhost:5000` erreichbar.
+Die Anwendung ist nach dem Start unter `http://localhost:5000` erreichbar.
 
-## Docker Installation
+## Ersten Administrator anlegen
+
+Nach dem ersten Start ist noch kein Benutzer vorhanden:
+
+1. Öffnen Sie `http://localhost:5000/register`
+2. Füllen Sie das Registrierungsformular aus
+3. Der **erste Benutzer** einer Instanz erhält automatisch die Rolle **Admin**
+
+## Docker (optional)
+
+Wenn Sie Docker bevorzugen:
 
 ```bash
 docker-compose up -d
 ```
 
-## Erste Schritte nach der Installation
+:::{note}
+Eine `docker-compose.yml` muss gegebenenfalls noch für Ihre Umgebung angepasst werden
+(Datenbankhost, Volumes, Secrets).
+:::
 
-1. Öffnen Sie die Anwendung im Browser
-2. Registrieren Sie den ersten Administrator-Benutzer
-3. Konfigurieren Sie Ihren ersten Mandanten
-4. Beginnen Sie mit der Ticketerstellung
+## Verfügbare Befehle
 
-Weitere Details finden Sie im Kapitel [Schnellstart](schnellstart.md).
+| Befehl | Beschreibung |
+|--------|-------------|
+| `npm run dev` | Entwicklungsserver mit Vite HMR starten |
+| `npm run build` | Produktions-Bundle erstellen |
+| `npm start` | Produktionsserver starten |
+| `npm run check` | TypeScript strict mode prüfen |
+| `npm run lint` | ESLint-Analyse ausführen |
+| `npm run db:push` | Drizzle-Schema in die Datenbank pushen |
+| `npm run e2e` | Playwright E2E-Tests ausführen |
+| `npm test` | Vitest Unit-Tests ausführen |
+
+## Nächste Schritte
+
+- [Schnellstart – erste Einrichtung](schnellstart.md)
+- [E-Mail-Integration einrichten](admin/email-integration.md)
+- [Entwicklungsumgebung konfigurieren](entwickler/entwicklungsumgebung.md)

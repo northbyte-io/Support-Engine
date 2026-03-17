@@ -4,11 +4,15 @@
 import os
 import sys
 
+# -- Project information -----------------------------------------------------
+
 project = 'Support-Engine'
-copyright = '2025, NorthByte.io'
+copyright = '2026, NorthByte.io'
 author = 'NorthByte.io'
-release = '0.1.1'
-version = '0.1.1'
+release = '0.1.4'
+version = '0.1.4'
+
+# -- General configuration ---------------------------------------------------
 
 extensions = [
     'myst_parser',
@@ -37,6 +41,8 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 language = 'de'
 
+# -- Options for HTML output -------------------------------------------------
+
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 
@@ -45,12 +51,12 @@ html_theme_options = {
     'display_version': True,
     'prev_next_buttons_location': 'bottom',
     'style_external_links': True,
-    'style_nav_header_background': '#2980B9',
+    'style_nav_header_background': '#1a1a2e',
     'collapse_navigation': False,
     'sticky_navigation': True,
     'navigation_depth': 4,
     'includehidden': True,
-    'titles_only': False
+    'titles_only': False,
 }
 
 html_context = {
@@ -64,6 +70,8 @@ html_context = {
 html_show_sourcelink = True
 html_show_sphinx = False
 html_show_copyright = True
+
+# -- Source file types -------------------------------------------------------
 
 source_suffix = {
     '.rst': 'restructuredtext',

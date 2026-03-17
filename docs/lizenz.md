@@ -2,41 +2,41 @@
 
 ## GNU Affero General Public License v3.0 (AGPL-3.0)
 
-Support-Engine ist unter der **GNU Affero General Public License v3.0** lizenziert.
+Support-Engine ist unter der **GNU Affero General Public License v3.0 (AGPL-3.0)** veröffentlicht.
 
-### Was bedeutet das?
+## Was bedeutet AGPL-3.0?
 
-Die AGPL-3.0 ist eine Copyleft-Lizenz, die folgende Anforderungen stellt:
+Die AGPL-3.0 ist eine Copyleft-Lizenz, die speziell für netzwerkbasierte Software entwickelt wurde.
 
-#### Sie dürfen:
+### Erlaubt
 
-- Die Software **kommerziell nutzen**
-- Die Software **modifizieren**
-- Die Software **verbreiten**
-- Die Software **privat nutzen**
+| Nutzung | Bedingung |
+|---------|-----------|
+| Kommerzielle Nutzung | Quellcode muss verfügbar gemacht werden |
+| Modifikation | Änderungen müssen unter derselben Lizenz stehen |
+| Weitergabe | Copyright-Hinweis muss erhalten bleiben |
+| Private Nutzung | Ohne Einschränkungen |
 
-#### Bedingungen:
+### Besonderheit: Network Copyleft
 
-- **Quellcode-Verfügbarkeit**: Wenn Sie die Software als Netzwerkdienst betreiben, müssen Sie den Quellcode Ihren Nutzern zugänglich machen
-- **Gleiche Lizenz**: Modifikationen müssen unter derselben Lizenz veröffentlicht werden
-- **Lizenzhinweis**: Der Lizenzhinweis muss erhalten bleiben
+Anders als bei der GPL reicht es bei der AGPL-3.0 **nicht aus**, Software nur intern zu betreiben. Wenn Sie Support-Engine als Netzwerkdienst betreiben und Benutzern Zugang gewähren, müssen Sie diesen Benutzern den vollständigen Quellcode der von Ihnen eingesetzten Version (einschließlich aller Änderungen) zugänglich machen.
 
-### Quellcode-Zugang
-
-Die Anwendung stellt den Quellcode über folgende Endpunkte bereit:
+Diese Anforderung ist direkt in die Anwendung integriert:
 
 | Endpunkt | Beschreibung |
-|----------|--------------|
-| `/api/license` | Zeigt die Lizenzinformationen |
-| `/api/source` | Link zum Quellcode-Repository |
+|----------|-------------|
+| `/api/license` | Zeigt den vollständigen AGPL-3.0-Lizenztext |
+| `/api/source` | Gibt den Link zum Quellcode-Repository zurück |
 
-### Vollständiger Lizenztext
+Beide Endpunkte sind auch in der Benutzeroberfläche verlinkt (Sidebar-Footer).
 
-Der vollständige Lizenztext ist in der Datei [LICENSE](https://github.com/northbyte-io/Support-Engine/blob/main/LICENSE) im Repository verfügbar.
+## Vollständiger Lizenztext
 
-### Kontakt
+Der vollständige Lizenztext ist in der Datei [`LICENSE`](https://github.com/northbyte-io/Support-Engine/blob/main/LICENSE) im Repository verfügbar.
 
-Bei Fragen zur Lizenzierung wenden Sie sich an:
+## Kontakt
+
+Bei Fragen zur Lizenzierung:
 
 - **E-Mail**: info@northbyte.io
-- **Repository**: https://github.com/northbyte-io/Support-Engine
+- **GitHub**: https://github.com/northbyte-io/Support-Engine
