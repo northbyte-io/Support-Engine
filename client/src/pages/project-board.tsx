@@ -382,17 +382,59 @@ export default function ProjectBoardPage() {
     mutationFn: async ({ ticketId, status }: { ticketId: string; status: string }) => {
       return apiRequest("PATCH", `/api/tickets/${ticketId}`, { status });
     },
-    onSuccess: () => {
-      toast({ title: "Status aktualisiert" });
-      queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${params.id}/board`] });
+    onMutate: async ({ ticketId, status: newStatus }) => {
+      await queryClient.cancelQueries({ queryKey: [`/api/projects/${params.id}/board`] });
+      await queryClient.cancelQueries({ queryKey: ["/api/tickets"] });
+      const previousBoard = queryClient.getQueryData<BoardData>([`/api/projects/${params.id}/board`]);
+      const previousList = queryClient.getQueryData<TicketWithRelations[]>(["/api/tickets"]);
+      queryClient.setQueryData<BoardData>(
+        [`/api/projects/${params.id}/board`],
+        (old) => {
+          if (!old) return old;
+          let movingEntry: BoardData["board"][number]["tickets"][number] | undefined;
+          const stripped = old.board.map((col) => {
+            const found = col.tickets.find((t) => t.ticketId === ticketId);
+            if (found) movingEntry = found;
+            return { ...col, tickets: col.tickets.filter((t) => t.ticketId !== ticketId) };
+          });
+          if (!movingEntry) return old;
+          const typedColStatus = newStatus as TicketWithRelations["status"];
+          return {
+            ...old,
+            board: stripped.map((col) =>
+              col.column.status === typedColStatus
+                ? { ...col, tickets: [...col.tickets, movingEntry!] }
+                : col
+            ),
+          };
+        }
+      );
+      const typedStatus = newStatus as TicketWithRelations["status"];
+      queryClient.setQueryData<TicketWithRelations[]>(
+        ["/api/tickets"],
+        (old) => old?.map((t) => t.id === ticketId ? { ...t, status: typedStatus } : t)
+      );
+      return { previousBoard, previousList };
     },
-    onError: (error) => {
+    onError: (error, _vars, context) => {
+      if (context?.previousBoard !== undefined) {
+        queryClient.setQueryData([`/api/projects/${params.id}/board`], context.previousBoard);
+      }
+      if (context?.previousList !== undefined) {
+        queryClient.setQueryData(["/api/tickets"], context.previousList);
+      }
       toast({
         title: "Fehler",
         description: error instanceof Error ? error.message : "Status konnte nicht aktualisiert werden.",
         variant: "destructive",
       });
+    },
+    onSuccess: () => {
+      toast({ title: "Status aktualisiert" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${params.id}/board`] });
     },
   });
 

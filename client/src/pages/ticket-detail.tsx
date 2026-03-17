@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useAuth } from "@/lib/auth.tsx";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import DOMPurify from "dompurify";
@@ -74,6 +75,7 @@ export default function TicketDetailPage() {
   const params = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [newComment, setNewComment] = useState("");
   const [isInternalComment, setIsInternalComment] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -117,16 +119,40 @@ export default function TicketDetailPage() {
     mutationFn: async (status: string) => {
       return apiRequest("PATCH", `/api/tickets/${params.id}`, { status });
     },
+    onMutate: async (newStatus: string) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/tickets", params.id] });
+      await queryClient.cancelQueries({ queryKey: ["/api/tickets"] });
+      const previousTicket = queryClient.getQueryData<TicketWithRelations>(["/api/tickets", params.id]);
+      const previousList = queryClient.getQueryData<TicketWithRelations[]>(["/api/tickets"]);
+      const typedStatus = newStatus as TicketWithRelations["status"];
+      queryClient.setQueryData<TicketWithRelations>(
+        ["/api/tickets", params.id],
+        (old) => old ? { ...old, status: typedStatus } : old
+      );
+      queryClient.setQueryData<TicketWithRelations[]>(
+        ["/api/tickets"],
+        (old) => old?.map((t) => t.id === params.id ? { ...t, status: typedStatus } : t)
+      );
+      return { previousTicket, previousList };
+    },
+    onError: (_err, _newStatus, context) => {
+      if (context?.previousTicket !== undefined) {
+        queryClient.setQueryData(["/api/tickets", params.id], context.previousTicket);
+      }
+      if (context?.previousList !== undefined) {
+        queryClient.setQueryData(["/api/tickets"], context.previousList);
+      }
+      toast({ title: "Fehler beim Aktualisieren", variant: "destructive" });
+    },
     onSuccess: () => {
+      toast({ title: "Status aktualisiert" });
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tickets", params.id] });
       queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
       ticketProjects?.forEach((tp) => {
         queryClient.invalidateQueries({ queryKey: [`/api/projects/${tp.projectId}/board`] });
       });
-      toast({ title: "Status aktualisiert" });
-    },
-    onError: () => {
-      toast({ title: "Fehler beim Aktualisieren", variant: "destructive" });
     },
   });
 
@@ -147,13 +173,41 @@ export default function TicketDetailPage() {
     mutationFn: async (data: { content: string; visibility: "internal" | "external" }) => {
       return apiRequest("POST", `/api/tickets/${params.id}/comments`, data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tickets", params.id] });
+    onMutate: async (newData) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/tickets", params.id] });
+      const previousTicket = queryClient.getQueryData<TicketWithRelations>(["/api/tickets", params.id]);
+      const optimisticComment = {
+        id: `optimistic-${Date.now()}`,
+        ticketId: params.id,
+        authorId: user?.id ?? null,
+        content: newData.content,
+        visibility: newData.visibility,
+        isNote: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        author: user
+          ? (({ password: _pw, ...rest }) => rest)(user)
+          : undefined,
+        attachments: [] as NonNullable<TicketWithRelations["attachments"]>,
+      };
+      queryClient.setQueryData<TicketWithRelations>(
+        ["/api/tickets", params.id],
+        (old) => old ? { ...old, comments: [...(old.comments ?? []), optimisticComment] } : old
+      );
       setNewComment("");
+      return { previousTicket };
+    },
+    onError: (_err, _data, context) => {
+      if (context?.previousTicket !== undefined) {
+        queryClient.setQueryData(["/api/tickets", params.id], context.previousTicket);
+      }
+      toast({ title: "Fehler beim Hinzufügen", variant: "destructive" });
+    },
+    onSuccess: () => {
       toast({ title: "Kommentar hinzugefügt" });
     },
-    onError: () => {
-      toast({ title: "Fehler beim Hinzufügen", variant: "destructive" });
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets", params.id] });
     },
   });
 
