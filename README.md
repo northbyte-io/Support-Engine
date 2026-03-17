@@ -17,6 +17,16 @@
 [![Express](https://img.shields.io/badge/Express-4.x-000000?style=flat-square&logo=express&logoColor=white)]()
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)]()
 
+[![SonarQube Cloud](https://sonarcloud.io/images/project_badges/sonarcloud-dark.svg)](https://sonarcloud.io/summary/new_code?id=northbyte-io_Support-Engine)
+
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=northbyte-io_Support-Engine&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=northbyte-io_Support-Engine)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=northbyte-io_Support-Engine&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=northbyte-io_Support-Engine)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=northbyte-io_Support-Engine&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=northbyte-io_Support-Engine)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=northbyte-io_Support-Engine&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=northbyte-io_Support-Engine)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=northbyte-io_Support-Engine&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=northbyte-io_Support-Engine)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=northbyte-io_Support-Engine&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=northbyte-io_Support-Engine)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=northbyte-io_Support-Engine&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=northbyte-io_Support-Engine)
+
 Multi-Tenant | REST API | SLA Management | CRM | Knowledge Base | Asset Management | Exchange Online
 
 </div>
