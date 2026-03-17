@@ -178,7 +178,7 @@ Die folgende Tabelle listet die technisch-organisatorischen Maßnahmen (TOMs) di
 
 ## Offene Compliance-Lücken (Zusammenfassung)
 
-Die folgende Tabelle listet alle identifizierten Lücken mit Priorität. Details, betroffene Dateien und Lösungsempfehlungen sind in `COMPLIANCE_ISSUES.md` dokumentiert.
+Die folgende Tabelle listet alle identifizierten Lücken mit Priorität. Details, betroffene Dateien und Lösungsempfehlungen sind in {doc}`compliance-issues` dokumentiert.
 
 | ID | Beschreibung | Priorität | DSGVO | BSI |
 |----|-------------|-----------|-------|-----|
@@ -190,6 +190,8 @@ Die folgende Tabelle listet alle identifizierten Lücken mit Priorität. Details
 | H-04 | Offene Selbstregistrierung ohne Einladung | 🟠 Hoch | Art. 5 | ORP.4.A3 |
 | H-05 | Keine kontobezogene Brute-Force-Sperre | 🟠 Hoch | Art. 32 | ORP.4.A23 |
 | H-06 | KeyVault-Fallback auf SESSION_SECRET | 🟠 Hoch | Art. 32 | APP.3.1 |
+| H-07 | Keine Multi-Faktor-Authentifizierung (MFA) | 🟠 Hoch | Art. 32 | ORP.4.A12 |
+| H-08 | Keine JWT-Token-Invalidierung (kein Revocation) | 🟠 Hoch | Art. 17, 32 | APP.3.1.A10 |
 | M-01 | E-Mail-Adresse in Security-Logs | 🟡 Mittel | Art. 25 | OPS.1.1.5 |
 | M-02 | Keine MIME-Typ-Validierung bei Dateiuploads | 🟡 Mittel | Art. 32 | APP.3.1.A14 |
 | M-03 | Keine automatischen Aufbewahrungsfristen | 🟡 Mittel | Art. 5 lit. e | CON.2.A7 |
