@@ -286,13 +286,18 @@ class Logger {
     masked = masked.replaceAll(/Bearer\s+[-A-Za-z0-9._~+/]+=*/g, 'Bearer [MASKIERT]');
     // Mask secrets and credentials
     masked = masked.replaceAll(/(?:secret|credential|private[_-]?key|privateKey)['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'secret: [MASKIERT]');
-    // Mask email addresses partially
-    masked = masked.replaceAll(/([a-z0-9._-]+)@([a-z0-9._-]+)/gi, (_match, local, domain) => {
-      if (local.length > 2) {
-        return `${local.slice(0, 2)}***@${domain}`;
-      }
-      return `***@${domain}`;
-    });
+    // Mask email addresses partially — split on @ to avoid unanchored quantifiers (S5852)
+    masked = masked.split('@').reduce((acc: string, part: string, i: number) => {
+      if (i === 0) return part;
+      const localMatch = acc.match(/[a-z0-9._-]+$/i);
+      const local = localMatch?.[0] ?? '';
+      const prefix = local ? acc.slice(0, -local.length) : acc;
+      const maskedLocal = local.length > 2 ? `${local.slice(0, 2)}***` : (local ? '***' : '');
+      const domainMatch = part.match(/^[a-z0-9._-]+/i);
+      const domain = domainMatch?.[0] ?? '';
+      const suffix = part.slice(domain.length);
+      return `${prefix}${maskedLocal}@${domain}${suffix}`;
+    }, '');
     return masked;
   }
 
