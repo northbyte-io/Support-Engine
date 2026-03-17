@@ -171,7 +171,7 @@ import {
   type ActiveTimerWithTicket,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, sql, ilike, or, count, gt, lt, inArray } from "drizzle-orm";
+import { eq, and, desc, asc, sql, ilike, or, count, gt, lt, inArray, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -195,6 +195,7 @@ export interface IStorage {
   createTicket(ticket: InsertTicket): Promise<Ticket>;
   updateTicket(id: string, updates: Partial<InsertTicket>, tenantId?: string): Promise<Ticket | undefined>;
   deleteTicket(id: string, tenantId?: string): Promise<void>;
+  hardDeleteTicket(id: string, tenantId?: string): Promise<void>;
   getNextTicketNumber(tenantId: string): Promise<string>;
 
   // Ticket Types
@@ -274,6 +275,7 @@ export interface IStorage {
   createKbArticle(article: InsertKbArticle): Promise<KbArticle>;
   updateKbArticle(id: string, updates: Partial<InsertKbArticle>): Promise<KbArticle | undefined>;
   deleteKbArticle(id: string): Promise<void>;
+  hardDeleteKbArticle(id: string): Promise<void>;
   incrementKbArticleViewCount(id: string): Promise<void>;
 
   // Knowledge Base Article Versions
@@ -567,7 +569,7 @@ export class DatabaseStorage implements IStorage {
 
   // Tickets
   async getTicket(id: string): Promise<TicketWithRelations | undefined> {
-    const [ticket] = await db.select().from(tickets).where(eq(tickets.id, id));
+    const [ticket] = await db.select().from(tickets).where(and(eq(tickets.id, id), isNull(tickets.deletedAt)));
     if (!ticket) return undefined;
 
     const [ticketType, createdByUser, assigneesList, watchersList, commentsList, attachmentsList, areasList] = await Promise.all([
@@ -618,7 +620,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTickets(params: { tenantId?: string; userId?: string; status?: string[]; priority?: string[]; limit?: number }): Promise<TicketWithRelations[]> {
-    const conditions = [];
+    const conditions = [isNull(tickets.deletedAt)];
     if (params.tenantId) {
       conditions.push(eq(tickets.tenantId, params.tenantId));
     }
@@ -626,9 +628,7 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(tickets.createdById, params.userId));
     }
 
-    const ticketList = conditions.length > 0
-      ? await db.select().from(tickets).where(and(...conditions)).orderBy(desc(tickets.createdAt)).limit(params.limit || 100)
-      : await db.select().from(tickets).orderBy(desc(tickets.createdAt)).limit(params.limit || 100);
+    const ticketList = await db.select().from(tickets).where(and(...conditions)).orderBy(desc(tickets.createdAt)).limit(params.limit || 100);
 
     const ticketsWithRelations = await Promise.all(
       ticketList.map(async (ticket) => {
@@ -679,13 +679,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTicket(id: string, tenantId?: string): Promise<void> {
-    // Include tenantId in the where clause for safety
+    // Soft-delete: set deletedAt timestamp, preserve audit trail
+    const whereClause = tenantId
+      ? and(eq(tickets.id, id), eq(tickets.tenantId, tenantId))
+      : eq(tickets.id, id);
+    await db.update(tickets).set({ deletedAt: new Date() }).where(whereClause);
+  }
+
+  async hardDeleteTicket(id: string, tenantId?: string): Promise<void> {
+    // Admin-only hard delete: permanently removes ticket and all related data
     const whereClause = tenantId
       ? and(eq(tickets.id, id), eq(tickets.tenantId, tenantId))
       : eq(tickets.id, id);
 
-    // Wrap all deletes in a transaction so the database is never left in a
-    // partially-deleted state if one of the intermediate statements fails.
     await db.transaction(async (tx) => {
       await tx.delete(ticketProjects).where(eq(ticketProjects.ticketId, id));
       await tx.delete(ticketAssignees).where(eq(ticketAssignees.ticketId, id));
@@ -1008,7 +1014,7 @@ export class DatabaseStorage implements IStorage {
 
   // Knowledge Base Articles
   async getKbArticles(tenantId: string, params?: { categoryId?: string; status?: string; search?: string; isPublic?: boolean }): Promise<KbArticleWithRelations[]> {
-    const conditions = [eq(kbArticles.tenantId, tenantId)];
+    const conditions = [eq(kbArticles.tenantId, tenantId), isNull(kbArticles.deletedAt)];
     
     if (params?.categoryId) {
       conditions.push(eq(kbArticles.categoryId, params.categoryId));
@@ -1043,7 +1049,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getKbArticle(id: string): Promise<KbArticleWithRelations | undefined> {
-    const [article] = await db.select().from(kbArticles).where(eq(kbArticles.id, id));
+    const [article] = await db.select().from(kbArticles).where(and(eq(kbArticles.id, id), isNull(kbArticles.deletedAt)));
     if (!article) return undefined;
 
     const [category, author, versions] = await Promise.all([
@@ -1081,6 +1087,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteKbArticle(id: string): Promise<void> {
+    // Soft-delete: set deletedAt timestamp, preserve audit trail
+    await db.update(kbArticles).set({ deletedAt: new Date() }).where(eq(kbArticles.id, id));
+  }
+
+  async hardDeleteKbArticle(id: string): Promise<void> {
+    // Admin-only hard delete: permanently removes article and all related data
     await db.delete(kbArticleVersions).where(eq(kbArticleVersions.articleId, id));
     await db.delete(ticketKbLinks).where(eq(ticketKbLinks.articleId, id));
     await db.delete(kbArticles).where(eq(kbArticles.id, id));

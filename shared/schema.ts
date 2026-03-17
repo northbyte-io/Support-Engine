@@ -111,6 +111,7 @@ export const tickets = pgTable("tickets", {
   closedAt: timestamp("closed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 }, (table) => [
   index("tickets_tenant_id_idx").on(table.tenantId),
   index("tickets_status_idx").on(table.status),
@@ -232,6 +233,7 @@ export const kbArticles = pgTable("kb_articles", {
   publishedAt: timestamp("published_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 }, (table) => [
   index("kb_articles_tenant_id_idx").on(table.tenantId),
   index("kb_articles_status_idx").on(table.status),

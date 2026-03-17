@@ -826,11 +826,29 @@ export async function registerRoutes(
 
   app.delete("/api/tickets/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      // Delete with tenant isolation enforced at storage level
+      // Soft-delete with tenant isolation enforced at storage level
       await storage.deleteTicket(req.params.id, req.tenantId);
       res.status(204).send();
     } catch (error) {
       logger.error("api", "Delete ticket error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Admin-only hard delete — permanently removes ticket and all related data
+  app.delete("/api/tickets/:id/hard", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const ticket = await storage.getTicket(req.params.id);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket nicht gefunden" });
+      }
+      if (ticket.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      await storage.hardDeleteTicket(req.params.id, req.tenantId);
+      res.status(204).send();
+    } catch (error) {
+      logger.error("api", "Hard delete ticket error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
       res.status(500).json({ message: "Interner Serverfehler" });
     }
   });
@@ -1717,10 +1735,29 @@ export async function registerRoutes(
       if (existing.tenantId !== req.tenantId) {
         return res.status(403).json({ message: "Zugriff verweigert" });
       }
+      // Soft-delete: preserves audit trail
       await storage.deleteKbArticle(req.params.id);
       res.status(204).send();
     } catch (error) {
       logger.error("api", "Delete KB article error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
+      res.status(500).json({ message: "Interner Serverfehler" });
+    }
+  });
+
+  // Admin-only hard delete — permanently removes KB article and all related data
+  app.delete("/api/kb/articles/:id/hard", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const existing = await storage.getKbArticle(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Artikel nicht gefunden" });
+      }
+      if (existing.tenantId !== req.tenantId) {
+        return res.status(403).json({ message: "Zugriff verweigert" });
+      }
+      await storage.hardDeleteKbArticle(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      logger.error("api", "Hard delete KB article error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
       res.status(500).json({ message: "Interner Serverfehler" });
     }
   });
