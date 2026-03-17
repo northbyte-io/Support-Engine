@@ -56,6 +56,13 @@ Support-Engine bietet Ticketverwaltung mit SLA-Tracking, CRM, Wissensdatenbank, 
    entwickler/api
 
 .. toctree::
+   :maxdepth: 2
+   :caption: Datenschutz & Sicherheit
+
+   compliance
+   compliance-issues
+
+.. toctree::
    :maxdepth: 1
    :caption: Weitere Informationen
 
