@@ -287,7 +287,7 @@ class Logger {
     // Mask secrets and credentials
     masked = masked.replaceAll(/(?:secret|credential|private[_-]?key|privateKey)['":\s]*['"]?[^'"}\s,]+['"]?/gi, 'secret: [MASKIERT]');
     // Mask email addresses partially
-    masked = masked.replaceAll(/([a-z0-9._-]+)@([a-z0-9-]+(?:\.[a-z0-9-]+)+)/gi, (_match, local, domain) => {
+    masked = masked.replaceAll(/([a-z0-9._-]+)@([a-z0-9._-]+)/gi, (_match, local, domain) => {
       if (local.length > 2) {
         return `${local.slice(0, 2)}***@${domain}`;
       }
