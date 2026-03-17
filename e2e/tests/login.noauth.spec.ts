@@ -73,8 +73,8 @@ test.describe("Login-Seite", () => {
     const password = process.env.E2E_ADMIN_PASSWORD;
     test.skip(!email || !password, "E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD nicht gesetzt");
 
-    await page.getByTestId("input-email").fill(email!);
-    await page.getByTestId("input-password").fill(password!);
+    await page.getByTestId("input-email").fill(email ?? "");
+    await page.getByTestId("input-password").fill(password ?? "");
     await page.getByTestId("button-login").click();
 
     await expect(page).toHaveURL("/", { timeout: 15_000 });
