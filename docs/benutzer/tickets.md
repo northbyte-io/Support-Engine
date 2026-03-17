@@ -1,83 +1,93 @@
-# Ticket-Management
+# Tickets
 
-Das Ticket-System ist das Herzstück von Support-Engine. Hier erfahren Sie, wie Sie Tickets effektiv erstellen und verwalten.
+Tickets sind das Kernstück von Support-Engine. Jede Supportanfrage, Aufgabe oder Störung wird als Ticket erfasst und verfolgt.
 
 ## Ticket erstellen
 
-### Über die Oberfläche
+**Navigation:** Tickets → Neues Ticket (oben rechts)
 
-1. Klicken Sie auf **"Neues Ticket"** in der Seitenleiste
-2. Füllen Sie die Pflichtfelder aus:
-   - **Titel**: Kurze, prägnante Beschreibung
-   - **Beschreibung**: Detaillierte Problembeschreibung
-   - **Priorität**: Niedrig, Mittel, Hoch oder Dringend
-   - **Tickettyp**: Auswahl des passenden Typs
+### Pflichtfelder
 
-3. Optionale Felder:
-   - **Kunde**: Verknüpfung mit CRM-Kontakt
-   - **Asset**: Betroffenes Gerät/Software
-   - **Anhänge**: Dateien hochladen
+| Feld | Beschreibung |
+|------|-------------|
+| Betreff | Kurze Zusammenfassung des Problems |
+| Beschreibung | Detaillierte Beschreibung (Rich-Text mit TipTap-Editor) |
+| Priorität | `niedrig`, `mittel`, `hoch`, `kritisch` |
 
-4. Klicken Sie auf **"Erstellen"**
+### Optionale Felder
 
-### Ticket-Status
+| Feld | Beschreibung |
+|------|-------------|
+| Typ | Tickettyp (z.B. Anfrage, Störung, Aufgabe) |
+| Bearbeiter | Zuständiger Agent |
+| Kunde | Verknüpfter Kunde aus dem CRM |
+| Kontakt | Ansprechpartner des Kunden |
+| Asset | Betroffenes Gerät/Asset |
+| Projekt | Zugehöriges Projekt / Kanban-Board |
+| Bereich | Abteilung / Organisationseinheit |
 
-Tickets durchlaufen einen definierten Workflow:
-
-```
-📥 Offen → 🔄 In Bearbeitung → ⏳ Wartend → ✅ Gelöst → 🔒 Geschlossen
-```
+## Ticket-Status
 
 | Status | Bedeutung |
-|--------|-----------|
-| **Offen** | Neues Ticket, noch nicht zugewiesen |
-| **In Bearbeitung** | Agent arbeitet aktiv am Ticket |
-| **Wartend** | Wartet auf Kundenrückmeldung |
-| **Gelöst** | Problem wurde behoben |
-| **Geschlossen** | Ticket ist abgeschlossen |
+|--------|----------|
+| `offen` | Neu eingegangen, noch nicht bearbeitet |
+| `in Bearbeitung` | Bearbeiter wurde zugewiesen |
+| `wartend` | Wartet auf externe Rückmeldung |
+| `gelöst` | Lösung wurde gefunden |
+| `geschlossen` | Abgeschlossen und archiviert |
 
-## Ticket-Details
-
-Auf der Ticket-Detailseite finden Sie:
-
-- **Übersicht**: Alle Ticket-Informationen
-- **Kommentare**: Kommunikationsverlauf
-- **Anhänge**: Hochgeladene Dateien
-- **Zeiterfassung**: Gebuchte Arbeitszeit
-- **Aktivitäten**: Änderungshistorie
+## Ticket-Ansicht
 
 ### Kommentare
 
-Es gibt zwei Arten von Kommentaren:
+Kommentare können intern (nur für Agenten sichtbar) oder öffentlich (für Kunden sichtbar) sein. Der Rich-Text-Editor unterstützt:
 
-| Typ | Sichtbarkeit |
-|-----|--------------|
-| **Öffentlich** | Für Kunden sichtbar |
-| **Intern** | Nur für Agents sichtbar |
+- Textformatierung (Fett, Kursiv, Listen)
+- Links
+- Bilder
+- @-Erwähnungen anderer Agenten
 
-## Ticketsuche und Filter
+Erwähnte Benutzer erhalten eine Benachrichtigung.
 
-### Schnellsuche
+### Anhänge
 
-Nutzen Sie die Suchleiste für:
-- Ticketnummer (z.B. "TKT-12345")
-- Schlüsselwörter im Titel
-- Kundennamen
+Dateien können per Drag-and-Drop oder über den Dateiauswahl-Dialog hochgeladen werden. Alle gängigen Dateiformate werden unterstützt.
 
-### Filter
+### Zeiterfassung
 
-Filtern Sie Tickets nach:
-- Status
-- Priorität
-- Zugewiesener Agent
-- Ersteller
-- Zeitraum
+Direkt im Ticket kann Zeit erfasst werden:
 
-## Prioritätsstufen
+- **Timer starten**: Automatische Zeitmessung
+- **Manueller Eintrag**: Zeit direkt eingeben
+- Alle Einträge erscheinen in der Zeiterfassungs-Übersicht
 
-| Priorität | SLA-Reaktionszeit | Beschreibung |
-|-----------|-------------------|--------------|
-| **Niedrig** | 24 Stunden | Geringe Auswirkung |
-| **Mittel** | 8 Stunden | Normale Anfragen |
-| **Hoch** | 4 Stunden | Wichtige Probleme |
-| **Dringend** | 1 Stunde | Kritische Ausfälle |
+## Ticket-Liste
+
+**Navigation:** Tickets
+
+Die Ticketliste bietet umfangreiche Filter- und Sortiermöglichkeiten:
+
+| Filter | Optionen |
+|--------|---------|
+| Status | Alle, offen, in Bearbeitung, wartend, gelöst, geschlossen |
+| Priorität | Alle, kritisch, hoch, mittel, niedrig |
+| Bearbeiter | Alle, nicht zugewiesen, bestimmter Agent |
+| Kunde | Nach Kunde filtern |
+| Projekt | Nach Projekt filtern |
+| Suche | Volltext in Betreff und Beschreibung |
+
+## Ticket löschen
+
+Tickets werden standardmäßig **soft-gelöscht** (DSGVO-konform): Sie bleiben in der Datenbank, sind aber nicht mehr sichtbar. Nur Admins können einen Hard-Delete durchführen.
+
+## SLA-Anzeige
+
+Wenn eine SLA-Definition für die Ticket-Priorität konfiguriert ist, zeigt das Ticket:
+
+- Verbleibende Zeit bis zur Reaktionsfrist
+- Verbleibende Zeit bis zur Lösungsfrist
+- Farblicher Status: grün (OK), gelb (Warnung), rot (überschritten)
+
+## Optimistische Updates
+
+Status- und Prioritätsänderungen werden optimistisch aktualisiert: Die Oberfläche reagiert sofort, ohne auf die Server-Bestätigung zu warten. Bei einem Fehler wird die vorherige Ansicht wiederhergestellt.

@@ -1,60 +1,61 @@
 # Wissensdatenbank
 
-Die Wissensdatenbank ermöglicht es, Lösungen und Anleitungen zentral zu dokumentieren.
+Die Wissensdatenbank (KB) dient als zentrale Sammlung von Lösungen, Anleitungen und häufig gestellten Fragen. Artikel können direkt mit Tickets verknüpft werden.
 
-## Übersicht
+## Kategorien
 
-Die Wissensdatenbank bietet:
+Artikel sind in Kategorien organisiert. Kategorien können hierarchisch aufgebaut werden (Unterkategorien).
 
-- **Artikel**: Ausführliche Anleitungen und Dokumentationen
-- **Kategorien**: Thematische Gliederung
-- **Suche**: Volltextsuche über alle Artikel
-- **Versionierung**: Änderungshistorie
+**Kategorie erstellen:**
+- Navigation: Wissensdatenbank → Neue Kategorie
+- Felder: Name, Beschreibung, übergeordnete Kategorie (optional)
+- Berechtigung: Agent und höher
 
 ## Artikel erstellen
 
-### Neuen Artikel anlegen
+**Navigation:** Wissensdatenbank → Neuer Artikel
 
-1. Navigieren Sie zu **Wissensdatenbank**
-2. Klicken Sie auf **"Neuer Artikel"**
-3. Füllen Sie die Felder aus:
-   - **Titel**: Aussagekräftiger Artikeltitel
-   - **Kategorie**: Auswahl oder neu erstellen
-   - **Inhalt**: Rich-Text-Formatierung
+| Feld | Pflicht | Beschreibung |
+|------|---------|-------------|
+| Titel | ✓ | Artikelüberschrift |
+| Inhalt | ✓ | Vollständiger Text (TipTap Rich-Text-Editor) |
+| Kategorie | ✓ | Zugehörige Kategorie |
+| Tags | – | Schlagworte für bessere Auffindbarkeit |
+| Status | ✓ | Entwurf oder Veröffentlicht |
 
 ### Rich-Text-Editor
 
 Der TipTap-Editor unterstützt:
+- Überschriften, Absätze, Listen
+- Code-Blöcke (mit Syntax-Highlighting)
+- Bilder (mit XSS-Schutz durch DOMPurify)
+- Links und Tabellen
 
-| Funktion | Beschreibung |
-|----------|--------------|
-| **Formatierung** | Fett, Kursiv, Unterstrichen |
-| **Überschriften** | H1, H2, H3 |
-| **Listen** | Nummeriert und Aufzählung |
-| **Links** | URL-Verlinkungen |
-| **Bilder** | Bildeinbettung |
-| **Code** | Codeblöcke mit Syntax-Highlighting |
+## Veröffentlichung
 
-## Kategorien verwalten
+Artikel mit Status **Entwurf** sind nur für Agenten sichtbar. Artikel mit Status **Veröffentlicht** sind auch für Kunden im Portal zugänglich.
 
-Kategorien strukturieren Ihre Wissensdatenbank:
+## Versionshistorie
 
-1. Gehen Sie zu **Wissensdatenbank > Kategorien**
-2. Klicken Sie auf **"Neue Kategorie"**
-3. Geben Sie Name und Beschreibung ein
-4. Speichern Sie die Kategorie
+Jede Bearbeitung eines Artikels erzeugt einen neuen Versionseintrag. Die Versionshistorie zeigt:
+- Datum und Uhrzeit der Änderung
+- Bearbeitender Benutzer
+- Vorherigen Inhalt (für Vergleiche)
 
 ## Artikel mit Tickets verknüpfen
 
-Bei der Ticketbearbeitung können Sie:
+Im Ticket-Detail können passende KB-Artikel gesucht und verknüpft werden:
 
-1. Passende Artikel suchen
-2. Artikel als Lösung verknüpfen
-3. Artikelinhalt als Antwort verwenden
+1. Im Ticket: **Wissensdatenbank** → Artikel suchen
+2. Artikel aus der Suche auswählen
+3. Verknüpfung wird im Ticket angezeigt
 
-## Best Practices
+Kunden im Portal sehen verknüpfte Artikel als Selbsthilfe-Ressourcen.
 
-- **Klare Titel**: Beschreibt das Problem oder die Lösung
-- **Strukturierter Inhalt**: Überschriften und Listen nutzen
-- **Screenshots**: Visuelle Anleitungen einfügen
-- **Aktuell halten**: Regelmäßige Überprüfung der Artikel
+## Suche
+
+Die globale Suche (`/api/search`) durchsucht auch KB-Artikel nach Titel, Inhalt und Tags.
+
+## Artikel löschen
+
+Soft-Delete: Artikel bleiben in der Datenbank, werden aber aus der Ansicht entfernt. Hard-Delete nur durch Admins.
