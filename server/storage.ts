@@ -1748,16 +1748,47 @@ export class DatabaseStorage implements IStorage {
 
     const assetList = await db.select().from(assets).where(and(...conditions)).orderBy(desc(assets.createdAt));
 
-    const result: AssetWithRelations[] = [];
-    for (const asset of assetList) {
-      const category = asset.categoryId ? await this.getAssetCategory(asset.categoryId, tenantId) : null;
-      const assignedTo = asset.assignedToId ? await this.getUser(asset.assignedToId) : null;
-      const license = asset.assetType === "software" || asset.assetType === "license" ? await this.getAssetLicense(asset.id, tenantId) : null;
-      const contract = asset.assetType === "contract" ? await this.getAssetContract(asset.id, tenantId) : null;
-      result.push({ ...asset, category, assignedTo, license, contract });
-    }
+    if (assetList.length === 0) return [];
 
-    return result;
+    // Collect unique IDs for batch queries
+    const categoryIds = [...new Set(assetList.flatMap(a => a.categoryId ? [a.categoryId] : []))];
+    const assignedToIds = [...new Set(assetList.flatMap(a => a.assignedToId ? [a.assignedToId] : []))];
+    const licenseAssetIds = assetList.filter(a => a.assetType === "software" || a.assetType === "license").map(a => a.id);
+    const contractAssetIds = assetList.filter(a => a.assetType === "contract").map(a => a.id);
+
+    // Four batch queries in parallel instead of up to N*4 sequential queries
+    const [categoryRows, assignedToRows, licenseRows, contractRows] = await Promise.all([
+      categoryIds.length > 0
+        ? db.select().from(assetCategories).where(inArray(assetCategories.id, categoryIds))
+        : Promise.resolve([]),
+      assignedToIds.length > 0
+        ? db.select().from(users).where(inArray(users.id, assignedToIds))
+        : Promise.resolve([]),
+      licenseAssetIds.length > 0
+        ? db.select().from(assetLicenses).where(inArray(assetLicenses.assetId, licenseAssetIds))
+        : Promise.resolve([]),
+      contractAssetIds.length > 0
+        ? db.select().from(assetContracts).where(inArray(assetContracts.assetId, contractAssetIds))
+        : Promise.resolve([]),
+    ]);
+
+    // Build lookup maps for O(1) access during mapping
+    const categoryMap = new Map(categoryRows.map(c => [c.id, c]));
+    const assignedToMap = new Map(assignedToRows.map(u => [u.id, u]));
+    const licenseMap = new Map(licenseRows.map(l => [l.assetId ?? "", l]));
+    const contractMap = new Map(contractRows.map(c => [c.assetId ?? "", c]));
+
+    return assetList.map(asset => ({
+      ...asset,
+      category: asset.categoryId ? (categoryMap.get(asset.categoryId) ?? null) : null,
+      assignedTo: asset.assignedToId ? (assignedToMap.get(asset.assignedToId) ?? null) : null,
+      license: (asset.assetType === "software" || asset.assetType === "license")
+        ? (licenseMap.get(asset.id) ?? null)
+        : null,
+      contract: asset.assetType === "contract"
+        ? (contractMap.get(asset.id) ?? null)
+        : null,
+    }));
   }
 
   async getAsset(id: string, tenantId: string): Promise<AssetWithRelations | undefined> {
