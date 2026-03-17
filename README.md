@@ -4,7 +4,7 @@
 
 **Enterprise-grade Helpdesk & Ticket Management Platform**
 
-[![Release](https://img.shields.io/badge/release-v0.2.0-blue?style=flat-square)](https://github.com/northbyte-io/Support-Engine/releases)
+[![Release](https://img.shields.io/badge/release-v0.1.2-blue?style=flat-square)](https://github.com/northbyte-io/Support-Engine/releases)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-purple?style=flat-square)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen?style=flat-square)](https://nodejs.org/)
 [![Build](https://img.shields.io/badge/build-passing-success?style=flat-square)]()
@@ -63,13 +63,13 @@ Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und H
 
 ### Kernfunktionen auf einen Blick:
 
-| Feature | Beschreibung |
-|---------|--------------|
-| 🏢 **Multi-Tenant** | Vollständige Datenisolierung zwischen Mandanten |
-| 🔐 **Rollenbasiert** | Admin, Agent und Kunden-Rollen mit feingranularen Berechtigungen |
-| 📱 **API-First** | REST-API für Web- und Mobile-Anwendungen (iOS) |
-| 🎨 **Modernes Design** | Linear-inspiriertes UI mit Dark/Light Mode |
-| 🇩🇪 **Deutschsprachig** | Alle UI-Texte und Systemmeldungen auf Deutsch |
+| Feature                | Beschreibung                                                     |
+| ---------------------- | ---------------------------------------------------------------- |
+| 🏢 **Multi-Tenant**    | Vollständige Datenisolierung zwischen Mandanten                  |
+| 🔐 **Rollenbasiert**   | Admin, Agent und Kunden-Rollen mit feingranularen Berechtigungen |
+| 📱 **API-First**       | REST-API für Web- und Mobile-Anwendungen (iOS)                   |
+| 🎨 **Modernes Design** | Linear-inspiriertes UI mit Dark/Light Mode                       |
+| 🇩🇪 **Deutschsprachig** | Alle UI-Texte und Systemmeldungen auf Deutsch                    |
 
 ---
 
@@ -413,7 +413,7 @@ Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und H
 - ✅ **Sicherheit**: AES-256-GCM verschlüsselte Client-Secrets
 
 > **Erforderliche Azure AD Berechtigungen**: Mail.Read, Mail.ReadWrite, Mail.Send
-> 
+>
 > **Siehe auch**: [EXCHANGE_EINRICHTUNG.md](./EXCHANGE_EINRICHTUNG.md) für eine vollständige Einrichtungsanleitung
 
 ```
@@ -493,18 +493,18 @@ Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und H
 
 ### 🚀 Roadmap
 
-| Feature | Status | Beschreibung |
-|---------|--------|--------------|
-| 📋 Projektmanagement | ✅ Fertig | Kanban-Board, Projekt-Tracking |
-| 🏢 CRM-Modul | ✅ Fertig | Organisationen, Kunden, Kontakte, Standorte |
-| 📊 System-Logging | ✅ Fertig | Umfassendes Logging mit Admin-UI |
-| 🎨 Mandanten-Branding | ✅ Fertig | Logos, Farben, Schriftarten, E-Mail-Templates, Custom CSS |
-| 🔐 TLS-Zertifikatsverwaltung | ✅ Fertig | Let's Encrypt Integration, ACME-Protokoll, Auto-Erneuerung |
-| 📧 Exchange Online Integration | ✅ Fertig | Microsoft Graph API, E-Mail-Import, Zuweisungsregeln |
-| 📈 Erweiterte Berichte | 🔜 Geplant | Report Builder, CSV/PDF Export |
-| ✅ Genehmigungsworkflows | 🔜 Geplant | Multi-Step-Approval |
-| 🔗 Microsoft-Integration | 🔄 Teilweise | Exchange Online fertig, Azure AD/Teams geplant |
-| 🤖 AI-Funktionen | 📅 Später | Auto-Kategorisierung, Vorschläge |
+| Feature                        | Status       | Beschreibung                                               |
+| ------------------------------ | ------------ | ---------------------------------------------------------- |
+| 📋 Projektmanagement           | ✅ Fertig    | Kanban-Board, Projekt-Tracking                             |
+| 🏢 CRM-Modul                   | ✅ Fertig    | Organisationen, Kunden, Kontakte, Standorte                |
+| 📊 System-Logging              | ✅ Fertig    | Umfassendes Logging mit Admin-UI                           |
+| 🎨 Mandanten-Branding          | ✅ Fertig    | Logos, Farben, Schriftarten, E-Mail-Templates, Custom CSS  |
+| 🔐 TLS-Zertifikatsverwaltung   | ✅ Fertig    | Let's Encrypt Integration, ACME-Protokoll, Auto-Erneuerung |
+| 📧 Exchange Online Integration | ✅ Fertig    | Microsoft Graph API, E-Mail-Import, Zuweisungsregeln       |
+| 📈 Erweiterte Berichte         | 🔜 Geplant   | Report Builder, CSV/PDF Export                             |
+| ✅ Genehmigungsworkflows       | 🔜 Geplant   | Multi-Step-Approval                                        |
+| 🔗 Microsoft-Integration       | 🔄 Teilweise | Exchange Online fertig, Azure AD/Teams geplant             |
+| 🤖 AI-Funktionen               | 📅 Später    | Auto-Kategorisierung, Vorschläge                           |
 
 ---
 
@@ -512,39 +512,39 @@ Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und H
 
 ### Frontend
 
-| Technologie | Beschreibung |
-|-------------|--------------|
-| ⚛️ React 18 | UI-Framework mit TypeScript |
-| ⚡ Vite 6 | Build-Tool mit HMR |
-| 🎨 TailwindCSS 4 | Utility-First CSS |
-| 🧩 Shadcn UI | Komponenten (Radix UI) |
-| 📝 React Hook Form | Formular-Verwaltung |
-| ✅ Zod | Schema-Validierung |
-| 🔄 TanStack Query 5 | Server State |
-| 🛤️ Wouter | Routing |
-| 🎯 Lucide React | Icons |
-| 🎬 Framer Motion | Animationen |
-| 🖱️ dnd-kit | Drag-and-Drop |
+| Technologie         | Beschreibung                |
+| ------------------- | --------------------------- |
+| ⚛️ React 18         | UI-Framework mit TypeScript |
+| ⚡ Vite 6           | Build-Tool mit HMR          |
+| 🎨 TailwindCSS 4    | Utility-First CSS           |
+| 🧩 Shadcn UI        | Komponenten (Radix UI)      |
+| 📝 React Hook Form  | Formular-Verwaltung         |
+| ✅ Zod              | Schema-Validierung          |
+| 🔄 TanStack Query 5 | Server State                |
+| 🛤️ Wouter           | Routing                     |
+| 🎯 Lucide React     | Icons                       |
+| 🎬 Framer Motion    | Animationen                 |
+| 🖱️ dnd-kit          | Drag-and-Drop               |
 
 ### Backend
 
-| Technologie | Beschreibung |
-|-------------|--------------|
-| 🟢 Node.js 20 | JavaScript Runtime |
-| 🚂 Express 4 | HTTP-Server |
-| 📘 TypeScript 5 | Type Safety |
-| 🔐 bcryptjs | Passwort-Hashing |
-| 🎫 jsonwebtoken | JWT-Auth |
-| 📊 Winston | Logging-Framework |
-| ✅ Zod | API-Validierung |
+| Technologie     | Beschreibung       |
+| --------------- | ------------------ |
+| 🟢 Node.js 20   | JavaScript Runtime |
+| 🚂 Express 4    | HTTP-Server        |
+| 📘 TypeScript 5 | Type Safety        |
+| 🔐 bcryptjs     | Passwort-Hashing   |
+| 🎫 jsonwebtoken | JWT-Auth           |
+| 📊 Winston      | Logging-Framework  |
+| ✅ Zod          | API-Validierung    |
 
 ### Datenbank
 
-| Technologie | Beschreibung |
-|-------------|--------------|
-| 🐘 PostgreSQL 16 | Relationale DB |
-| 🌿 Drizzle ORM | Type-safe ORM |
-| 🔧 Drizzle Kit | Schema-Management |
+| Technologie      | Beschreibung      |
+| ---------------- | ----------------- |
+| 🐘 PostgreSQL 16 | Relationale DB    |
+| 🌿 Drizzle ORM   | Type-safe ORM     |
+| 🔧 Drizzle Kit   | Schema-Management |
 
 ---
 
@@ -630,85 +630,86 @@ Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und H
 
 ### 🗄️ Kern-Tabellen
 
-| Tabelle | Beschreibung |
-|---------|--------------|
-| 🏢 `tenants` | Mandanten/Unternehmen |
-| 👤 `users` | Benutzerkonten |
-| 🎫 `tickets` | Tickets/Anfragen |
-| 📋 `ticketTypes` | Tickettypen |
-| 👥 `ticketAssignees` | Zuweisungen |
-| 💬 `ticketComments` | Kommentare |
-| 📎 `ticketAttachments` | Anhänge |
+| Tabelle                | Beschreibung          |
+| ---------------------- | --------------------- |
+| 🏢 `tenants`           | Mandanten/Unternehmen |
+| 👤 `users`             | Benutzerkonten        |
+| 🎫 `tickets`           | Tickets/Anfragen      |
+| 📋 `ticketTypes`       | Tickettypen           |
+| 👥 `ticketAssignees`   | Zuweisungen           |
+| 💬 `ticketComments`    | Kommentare            |
+| 📎 `ticketAttachments` | Anhänge               |
 
 ### ⏱️ SLA & Eskalation
 
-| Tabelle | Beschreibung |
-|---------|--------------|
-| ⏰ `slaDefinitions` | SLA-Definitionen |
+| Tabelle             | Beschreibung      |
+| ------------------- | ----------------- |
+| ⏰ `slaDefinitions` | SLA-Definitionen  |
 | 🚨 `slaEscalations` | Eskalationsregeln |
 
 ### 📚 Wissensmanagement
 
-| Tabelle | Beschreibung |
-|---------|--------------|
-| 📄 `kbArticles` | Artikel |
-| 📝 `kbArticleVersions` | Versionen |
-| 📁 `kbCategories` | Kategorien |
+| Tabelle                 | Beschreibung  |
+| ----------------------- | ------------- |
+| 📄 `kbArticles`         | Artikel       |
+| 📝 `kbArticleVersions`  | Versionen     |
+| 📁 `kbCategories`       | Kategorien    |
 | 🔗 `ticketArticleLinks` | Verknüpfungen |
 
 ### ⏰ Zeiterfassung
 
-| Tabelle | Beschreibung |
-|---------|--------------|
+| Tabelle          | Beschreibung |
+| ---------------- | ------------ |
 | ⏱️ `timeEntries` | Zeiteinträge |
 
 ### 📊 Umfragen
 
-| Tabelle | Beschreibung |
-|---------|--------------|
-| 📋 `surveys` | Umfragen |
-| ❓ `surveyQuestions` | Fragen |
-| 📧 `surveyInvitations` | Einladungen |
-| ✅ `surveyResponses` | Antworten |
+| Tabelle                | Beschreibung |
+| ---------------------- | ------------ |
+| 📋 `surveys`           | Umfragen     |
+| ❓ `surveyQuestions`   | Fragen       |
+| 📧 `surveyInvitations` | Einladungen  |
+| ✅ `surveyResponses`   | Antworten    |
 
 ### 🖥️ Asset-Management
 
-| Tabelle | Beschreibung |
-|---------|--------------|
-| 📁 `assetCategories` | Kategorien |
-| 💻 `assets` | Assets |
-| 🔑 `assetLicenses` | Lizenzen |
-| 📋 `assetContracts` | Verträge |
-| 🔗 `ticketAssets` | Verknüpfungen |
-| 📜 `assetHistory` | Historie |
+| Tabelle              | Beschreibung  |
+| -------------------- | ------------- |
+| 📁 `assetCategories` | Kategorien    |
+| 💻 `assets`          | Assets        |
+| 🔑 `assetLicenses`   | Lizenzen      |
+| 📋 `assetContracts`  | Verträge      |
+| 🔗 `ticketAssets`    | Verknüpfungen |
+| 📜 `assetHistory`    | Historie      |
 
 ### 📋 Projektmanagement
 
-| Tabelle | Beschreibung |
-|---------|--------------|
-| 📁 `projects` | Projekte |
-| 👥 `projectMembers` | Projektmitglieder |
-| 📊 `boardColumns` | Kanban-Spalten |
+| Tabelle             | Beschreibung               |
+| ------------------- | -------------------------- |
+| 📁 `projects`       | Projekte                   |
+| 👥 `projectMembers` | Projektmitglieder          |
+| 📊 `boardColumns`   | Kanban-Spalten             |
 | 🔗 `ticketProjects` | Ticket-Projekt-Zuordnungen |
 
 ### 🏢 CRM-Modul
 
 | Tabelle | Beschreibung |
 ├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐                │
-│  │ Einstellungen│ │ Zertifikate  │ │  Historie    │                │
-│  └──────────────┘ └──────────────┘ └──────────────┘                │
-│                                                                     │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │  Domain         │ Status    │ Ablauf      │ Aktionen        │   │
-│  ├─────────────────┼───────────┼─────────────┼─────────────────┤   │
-│  │  example.com    │ ✅ Aktiv  │ 2025-03-30  │ [🔄] [❌]       │   │
-│  │  api.example.de │ ⏳ Pending│ -           │ [🔄]            │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-│                                                                     │
-│                    [➕ Neues Zertifikat anfordern]                   │
+│ │
+│ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ │
+│ │ Einstellungen│ │ Zertifikate │ │ Historie │ │
+│ └──────────────┘ └──────────────┘ └──────────────┘ │
+│ │
+│ ┌─────────────────────────────────────────────────────────────┐ │
+│ │ Domain │ Status │ Ablauf │ Aktionen │ │
+│ ├─────────────────┼───────────┼─────────────┼─────────────────┤ │
+│ │ example.com │ ✅ Aktiv │ 2025-03-30 │ [🔄] [❌] │ │
+│ │ api.example.de │ ⏳ Pending│ - │ [🔄] │ │
+│ └─────────────────────────────────────────────────────────────┘ │
+│ │
+│ [➕ Neues Zertifikat anfordern] │
 └─────────────────────────────────────────────────────────────────────┘
+
 ```
 
 #### 🎨 Design & UX
@@ -787,70 +788,74 @@ Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und H
 ### 📁 Projektstruktur
 
 ```
+
 📦 german-ticket-system
-├── 📂 client/                 # Frontend
-│   ├── 📂 src/
-│   │   ├── 📂 components/     # UI-Komponenten
-│   │   │   └── 📂 ui/         # Shadcn UI
-│   │   ├── 📂 hooks/          # Custom Hooks
-│   │   ├── 📂 lib/            # Utilities
-│   │   ├── 📂 pages/          # Seiten
-│   │   └── 📄 App.tsx         # Haupt-App
-│   └── 📄 index.html
-├── 📂 server/                 # Backend
-│   ├── 📄 auth.ts             # Authentifizierung
-│   ├── 📄 logger.ts           # Logging-System
-│   ├── 📄 routes.ts           # API-Routen
-│   ├── 📄 storage.ts          # Datenbankzugriff
-│   └── 📄 index.ts            # Server-Start
-├── 📂 shared/                 # Geteilter Code
-│   └── 📄 schema.ts           # Drizzle-Schema
-├── 📂 logs/                   # Log-Dateien
-└── 📄 design_guidelines.md    # Design-System
+├── 📂 client/ # Frontend
+│ ├── 📂 src/
+│ │ ├── 📂 components/ # UI-Komponenten
+│ │ │ └── 📂 ui/ # Shadcn UI
+│ │ ├── 📂 hooks/ # Custom Hooks
+│ │ ├── 📂 lib/ # Utilities
+│ │ ├── 📂 pages/ # Seiten
+│ │ └── 📄 App.tsx # Haupt-App
+│ └── 📄 index.html
+├── 📂 server/ # Backend
+│ ├── 📄 auth.ts # Authentifizierung
+│ ├── 📄 logger.ts # Logging-System
+│ ├── 📄 routes.ts # API-Routen
+│ ├── 📄 storage.ts # Datenbankzugriff
+│ └── 📄 index.ts # Server-Start
+├── 📂 shared/ # Geteilter Code
+│ └── 📄 schema.ts # Drizzle-Schema
+├── 📂 logs/ # Log-Dateien
+└── 📄 design_guidelines.md # Design-System
+
 ```
 
 ### 🔄 Systemarchitektur
 
 ```
+
 ┌─────────────────────────────────────────────────────────────────────┐
-│                           🌐 Client                                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                 │
-│  │   React     │  │  TanStack   │  │   Shadcn    │                 │
-│  │   + Vite    │  │   Query     │  │     UI      │                 │
-│  └──────┬──────┘  └──────┬──────┘  └─────────────┘                 │
-│         │                │                                          │
-│         └────────┬───────┘                                          │
-│                  │                                                  │
-│                  ▼                                                  │
-│         ┌───────────────┐                                          │
-│         │  REST API     │                                          │
-│         │  (JSON)       │                                          │
-│         └───────┬───────┘                                          │
+│ 🌐 Client │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │
+│ │ React │ │ TanStack │ │ Shadcn │ │
+│ │ + Vite │ │ Query │ │ UI │ │
+│ └──────┬──────┘ └──────┬──────┘ └─────────────┘ │
+│ │ │ │
+│ └────────┬───────┘ │
+│ │ │
+│ ▼ │
+│ ┌───────────────┐ │
+│ │ REST API │ │
+│ │ (JSON) │ │
+│ └───────┬───────┘ │
 └─────────────────┼───────────────────────────────────────────────────┘
-                  │
-                  ▼
+│
+▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                           🖥️ Server                                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                 │
-│  │   Express   │  │    Auth     │  │   Winston   │                 │
-│  │   Router    │──│  Middleware │──│   Logger    │                 │
-│  └──────┬──────┘  └─────────────┘  └─────────────┘                 │
-│         │                                                          │
-│         ▼                                                          │
-│  ┌─────────────┐                                                   │
-│  │   Storage   │                                                   │
-│  │   Layer     │                                                   │
-│  └──────┬──────┘                                                   │
+│ 🖥️ Server │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │
+│ │ Express │ │ Auth │ │ Winston │ │
+│ │ Router │──│ Middleware │──│ Logger │ │
+│ └──────┬──────┘ └─────────────┘ └─────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌─────────────┐ │
+│ │ Storage │ │
+│ │ Layer │ │
+│ └──────┬──────┘ │
 └─────────┼───────────────────────────────────────────────────────────┘
-          │
-          ▼
+│
+▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        🗄️ PostgreSQL                                │
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐       │
-│  │  Tenants   │ │   Users    │ │  Tickets   │ │    CRM     │       │
-│  └────────────┘ └────────────┘ └────────────┘ └────────────┘       │
+│ 🗄️ PostgreSQL │
+│ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ │
+│ │ Tenants │ │ Users │ │ Tickets │ │ CRM │ │
+│ └────────────┘ └────────────┘ └────────────┘ └────────────┘ │
 └─────────────────────────────────────────────────────────────────────┘
-```
+
+````
 
 ---
 
@@ -952,24 +957,24 @@ GET    /api/[resource]/:id      # 🔍 Einzelnes Element
 POST   /api/[resource]          # ➕ Erstellen
 PATCH  /api/[resource]/:id      # ✏️ Aktualisieren
 DELETE /api/[resource]/:id      # 🗑️ Löschen
-```
+````
 
 ### 📚 Hauptressourcen
 
-| Endpunkt | Beschreibung |
-|----------|--------------|
-| `/api/auth` | 🔐 Authentifizierung (Login, Register, Me) |
-| `/api/tickets` | 🎫 Ticket-Management |
-| `/api/users` | 👥 Benutzerverwaltung |
-| `/api/organizations` | 🏢 Organisationen |
-| `/api/customers` | 👥 Kunden |
-| `/api/contacts` | 👤 Kontakte |
-| `/api/projects` | 📋 Projekte |
-| `/api/assets` | 💻 Asset-Management |
-| `/api/kb` | 📚 Wissensdatenbank |
-| `/api/surveys` | 📊 Umfragen |
-| `/api/logs` | 📊 System-Logs (Admin) |
-| `/api/exchange` | 📧 Exchange Online Integration (Admin) |
+| Endpunkt             | Beschreibung                               |
+| -------------------- | ------------------------------------------ |
+| `/api/auth`          | 🔐 Authentifizierung (Login, Register, Me) |
+| `/api/tickets`       | 🎫 Ticket-Management                       |
+| `/api/users`         | 👥 Benutzerverwaltung                      |
+| `/api/organizations` | 🏢 Organisationen                          |
+| `/api/customers`     | 👥 Kunden                                  |
+| `/api/contacts`      | 👤 Kontakte                                |
+| `/api/projects`      | 📋 Projekte                                |
+| `/api/assets`        | 💻 Asset-Management                        |
+| `/api/kb`            | 📚 Wissensdatenbank                        |
+| `/api/surveys`       | 📊 Umfragen                                |
+| `/api/logs`          | 📊 System-Logs (Admin)                     |
+| `/api/exchange`      | 📧 Exchange Online Integration (Admin)     |
 
 ### 🔐 Authentifizierung
 
@@ -1018,8 +1023,8 @@ Die Anwendung ist dann unter `http://localhost:5000` verfügbar.
 
 ### 🔑 Demo-Zugangsdaten
 
-| Rolle | E-Mail | Passwort |
-|-------|--------|----------|
+| Rolle    | E-Mail        | Passwort |
+| -------- | ------------- | -------- |
 | 👑 Admin | admin@demo.de | admin123 |
 | 👷 Agent | agent@demo.de | agent123 |
 | 👤 Kunde | kunde@demo.de | kunde123 |
@@ -1030,38 +1035,38 @@ Die Anwendung ist dann unter `http://localhost:5000` verfügbar.
 
 ### 👑 Admin
 
-| Berechtigung | Status |
-|--------------|--------|
-| Alle Funktionen | ✅ |
-| Benutzerverwaltung | ✅ |
-| Mandanten-Einstellungen | ✅ |
-| Asset-Management | ✅ |
-| Umfragen verwalten | ✅ |
-| SLA-Definitionen | ✅ |
-| System-Logs einsehen | ✅ |
-| CRM-Vollzugriff | ✅ |
+| Berechtigung            | Status |
+| ----------------------- | ------ |
+| Alle Funktionen         | ✅     |
+| Benutzerverwaltung      | ✅     |
+| Mandanten-Einstellungen | ✅     |
+| Asset-Management        | ✅     |
+| Umfragen verwalten      | ✅     |
+| SLA-Definitionen        | ✅     |
+| System-Logs einsehen    | ✅     |
+| CRM-Vollzugriff         | ✅     |
 
 ### 👷 Agent
 
-| Berechtigung | Status |
-|--------------|--------|
-| Tickets bearbeiten | ✅ |
-| Tickets zuweisen | ✅ |
-| KB-Artikel erstellen | ✅ |
-| Zeiteinträge erfassen | ✅ |
-| Assets verwalten | ✅ |
-| Interne Kommentare | ✅ |
-| CRM-Lesezugriff | ✅ |
+| Berechtigung          | Status |
+| --------------------- | ------ |
+| Tickets bearbeiten    | ✅     |
+| Tickets zuweisen      | ✅     |
+| KB-Artikel erstellen  | ✅     |
+| Zeiteinträge erfassen | ✅     |
+| Assets verwalten      | ✅     |
+| Interne Kommentare    | ✅     |
+| CRM-Lesezugriff       | ✅     |
 
 ### 👤 Kunde
 
-| Berechtigung | Status |
-|--------------|--------|
-| Eigene Tickets erstellen | ✅ |
-| Ticket-Status einsehen | ✅ |
-| Öffentliche Kommentare | ✅ |
-| Wissensbasis durchsuchen | ✅ |
-| Umfragen beantworten | ✅ |
+| Berechtigung             | Status |
+| ------------------------ | ------ |
+| Eigene Tickets erstellen | ✅     |
+| Ticket-Status einsehen   | ✅     |
+| Öffentliche Kommentare   | ✅     |
+| Wissensbasis durchsuchen | ✅     |
+| Umfragen beantworten     | ✅     |
 
 ---
 
@@ -1069,16 +1074,16 @@ Die Anwendung ist dann unter `http://localhost:5000` verfügbar.
 
 ### ✅ Implementierte Maßnahmen
 
-| Maßnahme | Beschreibung |
-|----------|--------------|
-| 🔐 JWT-Auth | Token-basierte Authentifizierung |
-| 🔑 bcrypt | Passwort-Hashing mit Salt |
-| 🏢 Tenant-Isolation | Vollständige Datentrennung |
-| ✅ Zod-Validierung | Input-Prüfung Frontend & Backend |
-| 🛡️ SQL-Injection | Schutz durch Drizzle ORM |
-| 🔒 XSS-Schutz | React's automatisches Escaping |
-| 🌐 CORS | Restriktive Origin-Policies |
-| 🔒 Log-Maskierung | Automatische Maskierung sensibler Daten |
+| Maßnahme            | Beschreibung                                     |
+| ------------------- | ------------------------------------------------ |
+| 🔐 JWT-Auth         | Token-basierte Authentifizierung                 |
+| 🔑 bcrypt           | Passwort-Hashing mit Salt                        |
+| 🏢 Tenant-Isolation | Vollständige Datentrennung                       |
+| ✅ Zod-Validierung  | Input-Prüfung Frontend & Backend                 |
+| 🛡️ SQL-Injection    | Schutz durch Drizzle ORM                         |
+| 🔒 XSS-Schutz       | React's automatisches Escaping                   |
+| 🌐 CORS             | Restriktive Origin-Policies                      |
+| 🔒 Log-Maskierung   | Automatische Maskierung sensibler Daten          |
 | 📊 Security-Logging | Protokollierung sicherheitsrelevanter Ereignisse |
 
 ### 🏢 Defense-in-Depth Tenant-Isolation
@@ -1104,25 +1109,26 @@ Dieses Projekt steht unter der **GNU Affero General Public License v3.0 (AGPL-3.
 
 ### Was bedeutet das?
 
-| Erlaubt | Bedingung |
-|---------|-----------|
-| ✅ Kommerzielle Nutzung | Quellcode muss verfügbar sein |
-| ✅ Modifikation | Änderungen unter gleicher Lizenz |
-| ✅ Verteilung | Copyright-Hinweis beibehalten |
-| ✅ Private Nutzung | Netzwerk-Nutzung = Verteilung |
+| Erlaubt                 | Bedingung                        |
+| ----------------------- | -------------------------------- |
+| ✅ Kommerzielle Nutzung | Quellcode muss verfügbar sein    |
+| ✅ Modifikation         | Änderungen unter gleicher Lizenz |
+| ✅ Verteilung           | Copyright-Hinweis beibehalten    |
+| ✅ Private Nutzung      | Netzwerk-Nutzung = Verteilung    |
 
 ### AGPL-Pflichten für Webdienste
 
 Da dies eine Webanwendung ist, gilt die **Network Copyleft**-Klausel:
+
 - Jeder, der diese Software als Webdienst betreibt, muss den Quellcode verfügbar machen
 - Links zu Quellcode und Lizenz sind in der Anwendung integriert
 
 ### Lizenz-Endpunkte
 
-| Endpunkt | Beschreibung |
-|----------|--------------|
+| Endpunkt       | Beschreibung       |
+| -------------- | ------------------ |
 | `/api/license` | Lizenztext abrufen |
-| `/api/source` | Link zum Quellcode |
+| `/api/source`  | Link zum Quellcode |
 
 Siehe [LICENSE](./LICENSE) für den vollständigen Lizenztext.
 Siehe [CONTRIBUTING.md](./CONTRIBUTING.md) für Beitragsrichtlinien.
@@ -1136,6 +1142,7 @@ Für Administratoren, Betreiber und technische Ansprechpartner steht eine ausfü
 **[📘 ANLEITUNG.md](./ANLEITUNG.md)**
 
 Die Anleitung enthält:
+
 - ⚙️ Betrieb und Administration (Mandanten, Benutzer, SLA)
 - 📧 E-Mail- und Integrationen (Exchange, Mailabruf)
 - 🏢 CRM-Nutzung im Ticketsystem
