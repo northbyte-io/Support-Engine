@@ -1,186 +1,164 @@
-# Datenbank-Schema
+# Datenbank
 
-Support-Engine verwendet PostgreSQL mit Drizzle ORM.
+Support-Engine verwendet PostgreSQL 16 mit Drizzle ORM. Das Schema ist vollständig in `shared/schema.ts` definiert — diese Datei ist die einzige Quelle für alle Tabellenstrukturen und Zod-Validierungsschemas.
 
-## Übersicht
+## Schema-Workflow
 
-Das Schema ist in `shared/schema.ts` definiert und umfasst:
+```bash
+# 1. Spalte/Tabelle in shared/schema.ts hinzufügen
+# 2. Schema anwenden
+npm run db:push
 
-- Benutzer und Authentifizierung
-- Mandanten (Tenants)
-- Tickets und Kommentare
-- CRM (Kunden, Kontakte, Assets)
-- Wissensdatenbank
-- Zeiterfassung
-
-## Haupttabellen
-
-### Tenants (Mandanten)
-
-```sql
-CREATE TABLE tenants (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  slug VARCHAR(100) UNIQUE NOT NULL,
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT NOW()
-);
+# 3. Zod-Schema wird automatisch abgeleitet
+# (drizzle-zod generiert Insert/Select-Typen)
 ```
 
-### Users (Benutzer)
+:::{warning}
+`npm run db:push` wendet Änderungen direkt an. Für Produktionsmigrationen sollten die generierten Migrationsdateien in `migrations/` verwendet werden.
+:::
 
-```sql
-CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  tenant_id INTEGER REFERENCES tenants(id),
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  first_name VARCHAR(100),
-  last_name VARCHAR(100),
-  role VARCHAR(20) DEFAULT 'customer',
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-```
+## Tabellen-Übersicht
 
-### Tickets
+### Mandanten & Benutzer
 
-```sql
-CREATE TABLE tickets (
-  id SERIAL PRIMARY KEY,
-  tenant_id INTEGER REFERENCES tenants(id),
-  ticket_number VARCHAR(20) UNIQUE NOT NULL,
-  title VARCHAR(255) NOT NULL,
-  description TEXT,
-  status VARCHAR(50) DEFAULT 'open',
-  priority VARCHAR(20) DEFAULT 'medium',
-  type_id INTEGER REFERENCES ticket_types(id),
-  creator_id INTEGER REFERENCES users(id),
-  customer_id INTEGER REFERENCES customers(id),
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-```
+| Tabelle | Beschreibung |
+|---------|-------------|
+| `tenants` | Mandanten: Slug, Name, Branding (Logo, Farben, Custom CSS) |
+| `users` | Benutzer mit Rolle (`admin`, `agent`, `customer`), bcrypt-Passwort |
 
-### Ticket Assignees (Zuweisungen)
+### Tickets & Kommentare
 
-```sql
-CREATE TABLE ticket_assignees (
-  id SERIAL PRIMARY KEY,
-  ticket_id INTEGER REFERENCES tickets(id),
-  user_id INTEGER REFERENCES users(id),
-  assigned_at TIMESTAMP DEFAULT NOW()
-);
-```
+| Tabelle | Beschreibung |
+|---------|-------------|
+| `tickets` | Kern-Tickettabelle: Titel, Beschreibung (HTML), Status, Priorität, SLA-Felder, Soft-Delete |
+| `ticket_types` | Anpassbare Tickettypen pro Mandant |
+| `custom_fields` | Benutzerdefinierte Felder für Tickets |
+| `ticket_assignees` | n:m-Relation Ticket ↔ Agent |
+| `ticket_watchers` | n:m-Relation Ticket ↔ Beobachter |
+| `comments` | Kommentare (intern/öffentlich), HTML-Inhalt, Soft-Delete |
+| `attachments` | Dateianhänge mit MIME-Typ, Dateipfad, Ticketreferenz |
+| `mentions` | @-Erwähnungen in Kommentaren |
 
-### Comments (Kommentare)
+### SLA
 
-```sql
-CREATE TABLE comments (
-  id SERIAL PRIMARY KEY,
-  ticket_id INTEGER REFERENCES tickets(id),
-  user_id INTEGER REFERENCES users(id),
-  content TEXT NOT NULL,
-  is_internal BOOLEAN DEFAULT false,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-```
+| Tabelle | Beschreibung |
+|---------|-------------|
+| `sla_definitions` | SLA-Regeln: Reaktionszeit, Lösungszeit, Priorität, Arbeitszeiten |
+| `sla_escalations` | Eskalationsstufen mit Schwellenwerten und Aktionen |
 
-## CRM-Tabellen
+### Wissensdatenbank
 
-### Customers (Kunden)
+| Tabelle | Beschreibung |
+|---------|-------------|
+| `kb_categories` | Kategorien (hierarchisch, optional) |
+| `kb_articles` | Artikel mit HTML-Inhalt, Tags, Veröffentlichungsstatus, Soft-Delete |
+| `kb_article_versions` | Versionsverlauf für Artikel |
+| `ticket_kb_links` | Verknüpfung Ticket ↔ KB-Artikel |
 
-```sql
-CREATE TABLE customers (
-  id SERIAL PRIMARY KEY,
-  tenant_id INTEGER REFERENCES tenants(id),
-  name VARCHAR(255) NOT NULL,
-  email VARCHAR(255),
-  phone VARCHAR(50),
-  organization_id INTEGER REFERENCES organizations(id),
-  created_at TIMESTAMP DEFAULT NOW()
-);
-```
+### Zeiterfassung
+
+| Tabelle | Beschreibung |
+|---------|-------------|
+| `time_entries` | Gebuchte Zeiteinträge (Ticket, Agent, Dauer, Beschreibung) |
+| `active_timers` | Laufende Timer pro Ticket und Benutzer |
+| `work_entries` | Detaillierte Arbeitsprotokoll-Einträge |
+
+### CRM
+
+| Tabelle | Beschreibung |
+|---------|-------------|
+| `organizations` | Organisationen/Firmen |
+| `customers` | Kunden mit Kontaktdaten, verknüpft mit Organisation |
+| `customer_locations` | Standorte pro Kunde |
+| `contacts` | Ansprechpartner für Kunden/Organisationen |
+| `ticket_contacts` | n:m-Relation Ticket ↔ Kontakt |
+| `customer_activities` | Aktivitätsprotokoll pro Kunde |
 
 ### Assets
 
-```sql
-CREATE TABLE assets (
-  id SERIAL PRIMARY KEY,
-  tenant_id INTEGER REFERENCES tenants(id),
-  name VARCHAR(255) NOT NULL,
-  type VARCHAR(50),
-  serial_number VARCHAR(100),
-  customer_id INTEGER REFERENCES customers(id),
-  created_at TIMESTAMP DEFAULT NOW()
-);
-```
+| Tabelle | Beschreibung |
+|---------|-------------|
+| `asset_categories` | Kategorien für Assets |
+| `assets` | Geräte/Assets: Typ, Seriennummer, Status, Standort, Besitzer |
+| `asset_licenses` | Softwarelizenzen, die Assets zugeordnet sind |
+| `asset_contracts` | Wartungsverträge pro Asset |
+| `ticket_assets` | n:m-Relation Ticket ↔ Asset |
+| `asset_history` | Änderungsverlauf pro Asset |
 
-## Beziehungen
+### Projekte & Kanban
 
-```
-┌──────────┐     ┌──────────┐     ┌──────────┐
-│  Tenant  │────<│   User   │────<│  Ticket  │
-└──────────┘     └──────────┘     └──────────┘
-                      │                 │
-                      │                 │
-                      ▼                 ▼
-                ┌──────────┐     ┌──────────┐
-                │ Customer │     │ Comment  │
-                └──────────┘     └──────────┘
-```
+| Tabelle | Beschreibung |
+|---------|-------------|
+| `projects` | Projekte mit Farbe, Kürzel, Status |
+| `project_members` | Projektmitglieder |
+| `board_columns` | Kanban-Spalten pro Projekt |
+| `ticket_projects` | n:m-Relation Ticket ↔ Projekt (mit Board-Position) |
 
-## Migrationen
+### Bereiche
 
-Drizzle ORM verwaltet Schemaänderungen:
+| Tabelle | Beschreibung |
+|---------|-------------|
+| `areas` | Organisationseinheiten/Abteilungen pro Mandant |
+| `ticket_areas` | n:m-Relation Ticket ↔ Bereich |
 
-```bash
-# Schema in Datenbank pushen
-npm run db:push
+### Benachrichtigungen & Umfragen
 
-# Migrationen generieren
-npx drizzle-kit generate
+| Tabelle | Beschreibung |
+|---------|-------------|
+| `notifications` | In-App-Benachrichtigungen pro Benutzer |
+| `surveys` | Kundenzufriedenheitsumfragen |
+| `survey_questions` | Fragen pro Umfrage |
+| `survey_invitations` | Einladungen an Kunden |
+| `survey_responses` | Antworten der Kunden |
 
-# Migrationen ausführen
-npx drizzle-kit migrate
-```
+### TLS-Zertifikate
 
-## Drizzle ORM Beispiele
+| Tabelle | Beschreibung |
+|---------|-------------|
+| `tls_settings` | ACME-Konfiguration (E-Mail, Staging-Flag) |
+| `tls_certificates` | Ausgestellte Zertifikate mit Ablaufdatum |
+| `tls_certificate_actions` | Aktionsprotokoll pro Zertifikat |
+| `tls_challenges` | ACME HTTP-01 Challenge-Token |
 
-### Abfrage
+### Exchange Online
+
+| Tabelle | Beschreibung |
+|---------|-------------|
+| `exchange_configurations` | OAuth2-Konfiguration (TenantId, ClientId, verschlüsseltes Secret) |
+| `exchange_mailboxes` | Konfigurierte Postfächer mit Sync-Status |
+| `exchange_assignment_rules` | Regeln: Bedingung → Aktion (Priorität, Agent, Ticket) |
+| `exchange_emails` | Abgerufene E-Mails mit Verarbeitungsstatus |
+| `email_processing_rules` | Erweiterte Verarbeitungsregeln (Absender, Betreff, Inhalt) |
+| `exchange_sync_logs` | Sync-Protokoll pro Postfach |
+
+## Multi-Tenancy
+
+Jede Tabelle hat ein `tenantId`-Feld (Ausnahmen: reine Join-Tabellen). Alle Abfragen in `server/storage.ts` filtern **immer** nach `tenantId`:
 
 ```typescript
-import { db } from './db';
-import { tickets, users } from '@shared/schema';
-import { eq } from 'drizzle-orm';
-
-// Tickets mit Creator abrufen
+// Richtig — tenantId immer filtern
 const result = await db
   .select()
   .from(tickets)
-  .leftJoin(users, eq(tickets.creatorId, users.id))
-  .where(eq(tickets.tenantId, tenantId));
+  .where(and(eq(tickets.tenantId, tenantId), eq(tickets.id, ticketId)));
 ```
 
-### Einfügen
+## Soft-Delete
+
+Tickets, Kommentare und KB-Artikel unterstützen Soft-Delete (DSGVO):
 
 ```typescript
-const newTicket = await db
-  .insert(tickets)
-  .values({
-    tenantId: user.tenantId,
-    title: 'Neues Ticket',
-    description: 'Beschreibung',
-    creatorId: user.id
-  })
-  .returning();
+// Felder in der Tabelle
+deletedAt: timestamp("deleted_at")  // null = aktiv
+deletedBy: text("deleted_by")       // userId
 ```
 
-### Aktualisieren
+Alle Abfragen für aktive Einträge schließen `deletedAt IS NULL` ein.
 
-```typescript
-await db
-  .update(tickets)
-  .set({ status: 'closed' })
-  .where(eq(tickets.id, ticketId));
+## Verbindungskonfiguration
+
+```ini
+DATABASE_URL=postgresql://user:password@host:5432/dbname
 ```
+
+Für Neon-Serverless wird `@neondatabase/serverless` als Drizzle-Adapter verwendet, was WebSocket-basierte Verbindungen ermöglicht.

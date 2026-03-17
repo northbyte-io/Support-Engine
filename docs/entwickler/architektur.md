@@ -1,39 +1,32 @@
 # Architektur
 
-## Systemübersicht
+Support-Engine ist ein Full-Stack-TypeScript-Monorepo. Frontend und Backend teilen sich eine gemeinsame Codebasis und werden aus einem einzigen `package.json` heraus gebaut.
 
-Support-Engine folgt einer modernen Webanwendungs-Architektur mit klarer Trennung von Frontend und Backend.
+## Überblick
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                         Client                               │
-│                   (Browser / Mobile)                         │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     Frontend (Vite)                          │
-│                                                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
-│  │  React   │  │ Tanstack │  │  Wouter  │  │  shadcn  │    │
-│  │    18    │  │  Query   │  │ Routing  │  │    UI    │    │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘    │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   Backend (Express.js)                       │
-│                                                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
-│  │   REST   │  │   JWT    │  │ Drizzle  │  │ Winston  │    │
-│  │   API    │  │   Auth   │  │   ORM    │  │ Logging  │    │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘    │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      PostgreSQL                              │
-│                    (Neon Database)                           │
+│                        Browser                              │
+│  React 18 · Vite · Wouter · TanStack Query · shadcn/ui      │
+└───────────────────────┬─────────────────────────────────────┘
+                        │ HTTP / REST
+┌───────────────────────▼─────────────────────────────────────┐
+│                    Express.js                               │
+│  server/index.ts → server/routes.ts (156 Endpunkte)         │
+│                                                             │
+│  Dienste:                                                   │
+│  ├─ JWT-Auth (authMiddleware / adminMiddleware)             │
+│  ├─ Rate-Limiting (express-rate-limit)                      │
+│  ├─ SLA-Engine (Hintergrund-Tasks)                          │
+│  ├─ Exchange-Sync (Microsoft Graph API)                     │
+│  ├─ TLS/ACME (Let's Encrypt)                               │
+│  ├─ KeyVault (AES-256-GCM)                                  │
+│  └─ Logger (Winston + DailyRotateFile)                      │
+└───────────────────────┬─────────────────────────────────────┘
+                        │ Drizzle ORM
+┌───────────────────────▼─────────────────────────────────────┐
+│              PostgreSQL 16 (Neon serverless)                │
+│  50+ Tabellen · Multi-Tenant (tenantId überall)             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -41,87 +34,106 @@ Support-Engine folgt einer modernen Webanwendungs-Architektur mit klarer Trennun
 
 ```
 Support-Engine/
-├── client/                 # Frontend
-│   ├── src/
-│   │   ├── components/     # React-Komponenten
-│   │   ├── hooks/          # Custom Hooks
-│   │   ├── lib/            # Hilfsfunktionen
-│   │   ├── pages/          # Seiten-Komponenten
-│   │   └── App.tsx         # Haupt-App
-│   └── index.html
-│
-├── server/                 # Backend
-│   ├── routes.ts           # API-Routen
-│   ├── storage.ts          # Datenbankzugriff
-│   └── index.ts            # Server-Entry
-│
-├── shared/                 # Gemeinsamer Code
-│   └── schema.ts           # Datenbankschema
-│
-└── docs/                   # Dokumentation
+├── client/
+│   └── src/
+│       ├── App.tsx              # Wouter-Routen (alle Seiten)
+│       ├── components/          # Wiederverwendbare UI-Komponenten
+│       │   └── ui/              # 47 shadcn/ui Basiskomponenten (nicht ändern)
+│       ├── lib/
+│       │   ├── auth.tsx         # AuthContext + useAuth()-Hook
+│       │   ├── branding.tsx     # BrandingProvider (Mandanten-Branding)
+│       │   └── queryClient.ts   # TanStack Query Client
+│       └── pages/               # Seitenkomponenten (1 Datei pro Seite)
+├── server/
+│   ├── index.ts                 # Express-Bootstrap, Vite-Integration
+│   ├── routes.ts                # Alle 156 API-Endpunkte
+│   ├── storage.ts               # Datenzugriffsschicht (~3000 Zeilen)
+│   ├── logger.ts                # Winston-Logger mit Strukturierung
+│   └── keyvault.ts              # AES-256-GCM Verschlüsselung
+├── shared/
+│   └── schema.ts                # Drizzle-Tabellen + Zod-Schemas (einzige Quelle)
+├── migrations/                  # Drizzle-generierte SQL-Migrations
+├── script/
+│   └── build.ts                 # esbuild-Skript für Server-Bundle
+└── docs/                        # Diese Dokumentation (Sphinx)
 ```
 
-## Frontend-Architektur
+## Frontend
 
-### Technologien
+**Stack:** React 18, Vite 5, TypeScript 5, Tailwind CSS 4, shadcn/ui
 
-| Technologie | Zweck |
-|-------------|-------|
-| **React 18** | UI-Framework |
-| **TypeScript** | Typsicherheit |
-| **Tanstack Query** | Server-State-Management |
-| **Wouter** | Routing |
-| **shadcn/ui** | UI-Komponenten |
-| **Tailwind CSS** | Styling |
+**Routing:** [Wouter](https://github.com/molefrog/wouter) — leichtgewichtiger React-Router. Alle Routen definiert in `client/src/App.tsx`.
 
-### State Management
+**Datenabruf:** [TanStack Query v5](https://tanstack.com/query) — alle Serverzustände sind in Queries verwaltet. `apiRequest()` in `@/lib/queryClient.ts` fügt automatisch den JWT-Bearer-Token hinzu.
 
-- **Server State**: Tanstack Query für API-Daten
-- **Local State**: React useState/useReducer
-- **Form State**: React Hook Form
+**Formulare:** React Hook Form + Zod-Resolver. Validierungsschemas kommen aus `shared/schema.ts`.
 
-## Backend-Architektur
+**Design-System:**
+- Primärfarbe: Amber (`--primary`)
+- Dunkles Theme: Navy (`#080C16`)
+- Schriften: Syne (Display), DM Sans (Sans), JetBrains Mono (Mono)
+- Semantische Tokens statt hardcodierter Farben
 
-### Schichten
+**Pfad-Aliase (Vite + tsconfig):**
+- `@/*` → `client/src/*`
+- `@shared/*` → `shared/*`
+
+## Backend
+
+**Stack:** Express.js, TypeScript, Drizzle ORM, PostgreSQL
+
+**Schichtenmodell:**
 
 ```
-┌─────────────────────────┐
-│        Routes           │  ← HTTP-Endpunkte
-├─────────────────────────┤
-│       Services          │  ← Geschäftslogik
-├─────────────────────────┤
-│       Storage           │  ← Datenbankzugriff
-├─────────────────────────┤
-│    Drizzle ORM          │  ← Query Builder
-├─────────────────────────┤
-│      PostgreSQL         │  ← Datenbank
-└─────────────────────────┘
+server/routes.ts      ← HTTP-Handler, Auth-Prüfung, Validierung
+       ↓
+server/storage.ts     ← Datenbankabfragen (IStorage-Interface)
+       ↓
+Drizzle ORM           ← SQL-Generierung, typsichere Queries
+       ↓
+PostgreSQL (Neon)     ← Persistenz
 ```
 
-### Authentifizierung
+**Middleware-Kette:**
+1. `helmet` — Security-Header
+2. `express-rate-limit` — Rate-Limiting (100 req/15 min, Proxy-Trust konfiguriert)
+3. `express.json()` — Body-Parsing
+4. `authMiddleware` — JWT-Verifizierung
+5. `agentMiddleware` / `adminMiddleware` — Rollenprüfung
 
-1. Benutzer sendet Login-Anfrage
-2. Server validiert Credentials (bcrypt)
-3. Server erstellt JWT-Token
-4. Client speichert Token
-5. Client sendet Token bei jeder Anfrage
-6. Server validiert Token
+## Hintergrunddienste
+
+| Dienst | Beschreibung |
+|--------|-------------|
+| SLA-Engine | Prüft alle 5 Minuten fällige Tickets, löst Eskalationen aus |
+| Exchange-Sync | Ruft E-Mails aus konfigurierten Postfächern ab (konfigurierbar) |
+| ACME-Renewal | Automatische TLS-Zertifikatsverlängerung (30 Tage vor Ablauf) |
 
 ## Multi-Tenancy
 
-Jede Datenbankabfrage wird durch `tenantId` gefiltert:
+Alle Datenbankabfragen werden durch `tenantId` gefiltert. Der Wert kommt aus dem JWT-Token und wird vom `authMiddleware` in die Anfrage injiziert. Kein Tenant kann auf die Daten eines anderen zugreifen.
 
 ```typescript
-// Beispiel: Tickets eines Mandanten abrufen
+// Beispiel-Abfrage in storage.ts
 const tickets = await db
   .select()
-  .from(tickets)
-  .where(eq(tickets.tenantId, user.tenantId));
+  .from(ticketsTable)
+  .where(eq(ticketsTable.tenantId, tenantId));  // immer gefiltert
 ```
 
-## Sicherheit
+## Authentifizierung
 
-- **Passwörter**: bcrypt mit Salt
-- **Token**: JWT mit Expiry
-- **XSS**: DOMPurify Sanitisierung
-- **SQL-Injection**: Drizzle ORM Prepared Statements
+- **JWT** mit 7-Tage-Ablauf, signiert mit `SESSION_SECRET`
+- **bcryptjs** mit 10 Runden für Passwort-Hashing
+- Token wird im `localStorage` oder `sessionStorage` gespeichert (je nach "Angemeldet bleiben")
+- Rollen: `admin`, `agent`, `customer`
+
+## Build-System
+
+```bash
+npm run dev    # Vite-Dev-Server + Express (Port 5000), HMR aktiv
+npm run build  # Vite → dist/public/ + esbuild → dist/index.cjs
+npm start      # Produktions-Build starten
+```
+
+`script/build.ts` bündelt den Server mit esbuild als CommonJS-Modul (`dist/index.cjs`). Das Frontend wird als statische Dateien aus `dist/public/` ausgeliefert.

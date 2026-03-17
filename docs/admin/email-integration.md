@@ -1,94 +1,92 @@
-# E-Mail-Integration
+# Microsoft Exchange Integration
 
-Support-Engine unterstützt die Integration mit Microsoft Exchange Online / Microsoft 365.
+Support-Engine kann E-Mails aus Microsoft Exchange Online-Postfächern automatisch abrufen und daraus Tickets erstellen.
 
-## Funktionen
+## Voraussetzungen
 
-- **E-Mail-Abruf**: Automatisches Abrufen von E-Mails
-- **Ticket-Erstellung**: E-Mails werden zu Tickets
-- **Anhänge**: Automatische Übernahme von Dateianhängen
-- **Verarbeitungsregeln**: Flexible Automatisierung
+- Microsoft 365 / Exchange Online Tenant
+- Azure Active Directory App-Registrierung mit folgenden Berechtigungen:
+  - `Mail.Read` — E-Mails lesen
+  - `Mail.ReadWrite` — E-Mails markieren/verschieben
+  - `Mail.Send` — E-Mails versenden (optional)
 
-## Exchange Online einrichten
+## App-Registrierung in Azure
 
-### Voraussetzungen
+1. Im Azure Portal: **Azure Active Directory → App-Registrierungen → Neu**
+2. App-Name und Unterstützte Kontotypen festlegen
+3. Unter **API-Berechtigungen**: Microsoft Graph → Anwendungsberechtigungen → oben genannte Scopes hinzufügen
+4. **Administratorzustimmung erteilen** (Admin Consent)
+5. Unter **Zertifikate & Geheimnisse**: Neues Client-Secret erstellen
 
-- Microsoft 365 / Azure AD Konto
-- Administratorzugang zu Azure Portal
-- Berechtigungen für App-Registrierung
+Notieren Sie:
+- **Verzeichnis-ID (TenantId)**
+- **Anwendungs-ID (ClientId)**
+- **Client-Secret-Wert**
 
-### 1. Azure App registrieren
+## Konfiguration in Support-Engine
 
-1. Öffnen Sie das [Azure Portal](https://portal.azure.com)
-2. Navigieren Sie zu **Azure Active Directory > App-Registrierungen**
-3. Klicken Sie auf **Neue Registrierung**
-4. Konfigurieren Sie:
-   - **Name**: Support-Engine Email Integration
-   - **Kontotypen**: Einzelner Mandant
-   - **Umleitungs-URI**: (leer lassen)
+**Navigation:** Administration → Exchange → Konfiguration
 
-### 2. API-Berechtigungen
+| Feld | Beschreibung |
+|------|-------------|
+| Azure Tenant-ID | Verzeichnis-ID aus dem Azure Portal |
+| Client-ID | Anwendungs-ID der App-Registrierung |
+| Client-Secret | Secret-Wert (wird verschlüsselt gespeichert) |
 
-Fügen Sie folgende Microsoft Graph Berechtigungen hinzu:
+:::{note}
+Das Client-Secret wird mit AES-256-GCM verschlüsselt in der Datenbank gespeichert und **niemals** im Klartext ausgegeben.
+:::
 
-| Berechtigung | Typ | Beschreibung |
-|--------------|-----|--------------|
-| `Mail.Read` | Delegiert | E-Mails lesen |
-| `Mail.ReadWrite` | Delegiert | E-Mails lesen und schreiben |
-| `Mail.Send` | Delegiert | E-Mails senden |
+Nach dem Speichern: **Verbindung testen** — bei Erfolg kann die Postfachkonfiguration beginnen.
 
-### 3. Client-Secret erstellen
+## Postfächer konfigurieren
 
-1. Gehen Sie zu **Zertifikate & Geheimnisse**
-2. Klicken Sie auf **Neues Clientgeheimnis**
-3. Kopieren Sie den Wert sofort!
+**Navigation:** Administration → Exchange → Postfächer → Postfach hinzufügen
 
-### 4. In Support-Engine konfigurieren
+| Feld | Beschreibung |
+|------|-------------|
+| E-Mail-Adresse | Adresse des Postfachs (z.B. `support@firma.de`) |
+| Anzeigename | Bezeichnung für die Oberfläche |
+| Ordner | Zu überwachender Ordner (Standard: Posteingang) |
+| Aktiv | Sync ein-/ausschalten |
 
-1. Navigieren Sie zu **Einstellungen > E-Mail-Integration**
-2. Geben Sie die Azure-Daten ein:
-   - **Client ID**: Aus Azure App
-   - **Client Secret**: Aus Schritt 3
-   - **Tenant ID**: Ihre Azure Tenant ID
+Shared Mailboxes werden vollständig unterstützt.
 
-## Postfächer hinzufügen
+## Sync-Verhalten
 
-1. Klicken Sie auf **Neues Postfach**
-2. Wählen Sie das E-Mail-Konto
-3. Konfigurieren Sie:
-   - **Ordner**: Zu überwachender Ordner
-   - **Intervall**: Abrufhäufigkeit
+Der Exchange-Sync läuft automatisch im Hintergrund. Intervall und Verhalten:
+
+- Neue E-Mails werden abgerufen und als Tickets angelegt
+- Bereits verarbeitete E-Mails werden markiert
+- Anhänge werden automatisch an das Ticket angehängt
+- Das Sync-Protokoll ist unter **Exchange → Sync-Protokoll** einsehbar
+
+Manueller Sync: **Exchange → Postfächer → Jetzt synchronisieren**
+
+## Zuweisungsregeln
+
+Regeln erlauben die automatische Weiterleitung eingehender E-Mails:
+
+**Bedingungen:**
+- Absender enthält / ist genau
+- Betreff enthält / beginnt mit
+- Inhalt enthält
+
+**Aktionen:**
+- Ticket-Priorität setzen
+- Agent zuweisen
+- Bereich zuweisen
+
+Regeln werden in der konfigurierten Reihenfolge ausgewertet. Die erste passende Regel wird angewendet.
 
 ## Verarbeitungsregeln
 
-### Regel erstellen
+Zusätzliche Regeln für komplexere Logik:
 
-1. Gehen Sie zu **E-Mail > Regeln**
-2. Klicken Sie auf **Neue Regel**
-3. Definieren Sie Bedingungen:
-   - **Absender enthält**: E-Mail-Domain/Adresse
-   - **Betreff enthält**: Schlüsselwörter
-   - **Inhalt enthält**: Textmuster
+- Kombination von UND/ODER-Bedingungen
+- Aktionen: Ticket erstellen, Ticket ignorieren, Kategorie setzen
+- Aktivierbar/deaktivierbar ohne Löschen
 
-4. Wählen Sie Aktionen:
-   - Ticket erstellen
-   - Priorität setzen
-   - Agent zuweisen
-   - Kategorie festlegen
+## Test-E-Mail senden
 
-### Logische Verknüpfung
-
-Mehrere Bedingungen können verknüpft werden:
-
-- **UND**: Alle Bedingungen müssen zutreffen
-- **ODER**: Eine Bedingung muss zutreffen
-
-## Fehlerbehebung
-
-| Problem | Lösung |
-|---------|--------|
-| Keine E-Mails | Berechtigungen in Azure prüfen |
-| Authentifizierungsfehler | Client Secret erneuern |
-| Ordner nicht gefunden | Ordnername überprüfen |
-
-Weitere Details finden Sie in der [Exchange-Einrichtungsanleitung](https://github.com/northbyte-io/Support-Engine/blob/main/EXCHANGE_EINRICHTUNG.md).
+Unter **Exchange → Test-E-Mail** kann eine Test-Nachricht an eine Adresse gesendet werden, um die Verbindung und SMTP-Funktionalität zu prüfen.

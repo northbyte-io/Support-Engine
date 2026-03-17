@@ -1,68 +1,44 @@
 # Benutzerverwaltung
 
-Die Benutzerverwaltung ermöglicht das Anlegen und Verwalten von Systemzugängen.
+Support-Engine unterstützt drei Benutzerrollen mit unterschiedlichen Rechten. Benutzer sind immer einem einzelnen Mandanten zugeordnet.
 
-## Benutzerrollen
+## Rollen
 
-Support-Engine kennt drei Benutzerrollen:
-
-| Rolle | Symbol | Berechtigungen |
-|-------|--------|----------------|
-| **Admin** | 👑 | Vollzugriff, Systemkonfiguration |
-| **Agent** | 👷 | Ticketbearbeitung, Zeiterfassung, KB-Artikel |
-| **Kunde** | 👤 | Eigene Tickets erstellen und einsehen |
+| Rolle | Beschreibung |
+|-------|-------------|
+| `admin` | Voller Zugriff. Kann Benutzer, SLAs, Exchange, TLS und alle Einstellungen verwalten |
+| `agent` | Operative Rolle. Kann Tickets, CRM-Daten, Assets und Projekte bearbeiten |
+| `customer` | Eingeschränkter Zugriff. Sieht nur das Kundenportal mit eigenen Tickets |
 
 ## Benutzer anlegen
 
-### Über die Oberfläche
+**Navigation:** Administration → Benutzer → Neuer Benutzer
 
-1. Navigieren Sie zu **Einstellungen > Benutzer**
-2. Klicken Sie auf **"Neuer Benutzer"**
-3. Füllen Sie die Felder aus:
-   - **E-Mail**: Eindeutige E-Mail-Adresse
-   - **Vorname / Nachname**: Anzeigename
-   - **Passwort**: Mindestens 8 Zeichen
-   - **Rolle**: Admin, Agent oder Kunde
+Nur Admins können neue Benutzer anlegen. Folgende Felder sind erforderlich:
 
-### Via API
+| Feld | Pflicht | Beschreibung |
+|------|---------|-------------|
+| Name | ✓ | Anzeigename |
+| E-Mail | ✓ | Eindeutige E-Mail-Adresse (Benutzername) |
+| Passwort | ✓ | Min. 8 Zeichen |
+| Rolle | ✓ | `admin`, `agent` oder `customer` |
 
-```http
-POST /api/auth/register
-Content-Type: application/json
+## Passwort-Sicherheit
 
-{
-  "email": "benutzer@firma.de",
-  "password": "sicheresPasswort",
-  "firstName": "Max",
-  "lastName": "Mustermann"
-}
-```
+Passwörter werden mit bcryptjs (10 Runden) gehasht und nie im Klartext gespeichert. Es ist nicht möglich, ein Passwort abzurufen — nur zurückzusetzen.
 
-## Rollen ändern
+Ein Admin kann das Passwort eines Benutzers direkt über die Benutzerverwaltung zurücksetzen.
 
-1. Öffnen Sie den Benutzer zur Bearbeitung
-2. Wählen Sie die neue Rolle
-3. Speichern Sie die Änderung
+## Sitzungsverwaltung
 
-:::{note}
-Neue Benutzer erhalten standardmäßig die Rolle "Kunde". Die Rollenänderung muss durch einen Administrator erfolgen.
-:::
+- JWT-Token mit 7-Tage-Gültigkeit
+- "Angemeldet bleiben": Token in `localStorage`, sonst `sessionStorage`
+- Abmelden invalidiert das Token clientseitig
 
 ## Benutzer deaktivieren
 
-Anstatt Benutzer zu löschen, können diese deaktiviert werden:
+Benutzer können über die Benutzerverwaltung deaktiviert werden (Feld `active`). Deaktivierte Benutzer können sich nicht mehr anmelden, werden aber in der Datenbank behalten, um Ticket-Historien zu erhalten.
 
-1. Öffnen Sie den Benutzer
-2. Setzen Sie "Aktiv" auf **Nein**
-3. Speichern
+## Erster Benutzer
 
-Der Benutzer kann sich nicht mehr anmelden, aber die Datenintegrität bleibt erhalten.
-
-## Passwort zurücksetzen
-
-Administratoren können Passwörter zurücksetzen:
-
-1. Öffnen Sie den Benutzer
-2. Klicken Sie auf **"Passwort zurücksetzen"**
-3. Geben Sie ein neues Passwort ein
-4. Teilen Sie das neue Passwort dem Benutzer mit
+Der erste Benutzer, der sich für einen neuen Mandanten registriert, erhält automatisch die Rolle `admin`. Danach ist eine Selbstregistrierung nicht mehr möglich — weitere Benutzer werden ausschließlich von Admins angelegt.

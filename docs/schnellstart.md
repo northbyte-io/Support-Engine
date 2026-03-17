@@ -1,62 +1,96 @@
 # Schnellstart
 
-Dieser Leitfaden hilft Ihnen, Support-Engine in wenigen Minuten einzurichten.
+Dieser Leitfaden führt Sie durch die erste Einrichtung nach einer erfolgreichen [Installation](installation.md).
 
-## Nach der Installation
+## 1. Ersten Administrator anlegen
 
-### 1. Ersten Benutzer anlegen
+Beim allerersten Start ist die Benutzerdatenbank leer.
 
-Nach dem Start der Anwendung:
+1. Öffnen Sie `http://localhost:5000/register`
+2. Füllen Sie das Formular aus (Name, E-Mail, Passwort)
+3. Der erste Benutzer erhält automatisch die Rolle **Admin**
 
-1. Öffnen Sie `http://localhost:5000`
-2. Klicken Sie auf "Registrieren"
-3. Füllen Sie das Registrierungsformular aus
-4. Der erste Benutzer wird automatisch als Administrator angelegt
+Alle weiteren Benutzer können Sie danach in der Benutzerverwaltung anlegen.
 
-### 2. Mandant konfigurieren
+## 2. Mandanten konfigurieren
 
-Als Administrator können Sie:
+Jede Support-Engine-Instanz arbeitet mit Mandanten. Der erste Administrator gehört automatisch einem Standard-Mandanten an.
 
-1. Navigieren Sie zu **Einstellungen > Mandanten**
-2. Bearbeiten Sie den Standardmandanten
-3. Passen Sie Name, Logo und Branding an
+1. Navigieren Sie zu **Einstellungen → Mandant**
+2. Passen Sie Name und Branding an:
+   - Logo (Light / Dark Mode)
+   - Favicon
+   - Kontaktdaten (Website, E-Mail, Telefon)
+3. Speichern Sie die Änderungen
 
-### 3. Erstes Ticket erstellen
+Weitere Informationen: [Mandantenverwaltung](admin/mandanten.md)
 
-1. Klicken Sie auf **"Neues Ticket"** in der Seitenleiste
-2. Füllen Sie die Ticketdetails aus:
-   - Titel
-   - Beschreibung
-   - Priorität
-   - Tickettyp
-3. Klicken Sie auf **"Erstellen"**
+## 3. Benutzer anlegen
 
-## Wichtige Bereiche
+1. Navigieren Sie zu **Administration → Benutzer**
+2. Klicken Sie auf **Neuer Benutzer**
+3. Vergeben Sie E-Mail, Name, Passwort und Rolle:
+   - **Admin** – Vollzugriff, Systemkonfiguration
+   - **Agent** – Ticketbearbeitung und Zeiterfassung
+   - **Kunde** – Zugriff nur auf eigene Tickets (Kundenportal)
 
-### Navigation
+## 4. SLA-Definitionen festlegen
 
-| Bereich | Funktion |
-|---------|----------|
-| **Dashboard** | Übersicht über aktuelle Tickets und Statistiken |
-| **Tickets** | Alle Tickets anzeigen und verwalten |
-| **Berichte** | Erweiterte Analysen, SLA-Performance, Zeitauswertungen und Export |
-| **Wissensdatenbank** | Artikel und FAQ-Beiträge |
-| **CRM** | Kunden, Kontakte und Organisationen |
-| **Projekte** | Kanban-Boards und Projektverwaltung |
-| **Zeiterfassung** | Arbeitszeitbuchungen |
-| **Einstellungen** | Systemkonfiguration |
+SLAs definieren maximale Reaktions- und Lösungszeiten je Priorität.
 
-### Benutzerrollen
+1. Navigieren Sie zu **Administration → SLA**
+2. Passen Sie die Werte je Prioritätsstufe an
+3. Richten Sie bei Bedarf Eskalationsregeln ein
 
-| Rolle | Berechtigungen |
-|-------|----------------|
-| **Admin** | Vollzugriff auf alle Funktionen |
-| **Agent** | Ticketbearbeitung, Zeiterfassung, KB-Artikel |
-| **Kunde** | Eigene Tickets erstellen und einsehen |
+Weitere Informationen: [SLA-Management](admin/sla.md)
+
+## 5. Erstes Ticket erstellen
+
+1. Klicken Sie in der Seitenleiste auf **Neues Ticket**
+2. Füllen Sie die Pflichtfelder aus:
+   - **Titel** – kurze, prägnante Beschreibung
+   - **Beschreibung** – Details zum Problem
+   - **Priorität** – Niedrig / Mittel / Hoch / Dringend
+3. Optional: Tickettyp, Kunde, Asset, Bearbeiter zuweisen
+4. Klicken Sie auf **Erstellen**
+
+## Navigationsübersicht
+
+| Bereich | Funktion | Zugang |
+|---------|----------|--------|
+| **Dashboard** | Übersicht, Statistiken, SLA-Status | Admin, Agent |
+| **Tickets** | Alle Tickets anzeigen und verwalten | Admin, Agent |
+| **Zeiterfassung** | Arbeitszeit erfassen und auswerten | Admin, Agent |
+| **Wissensdatenbank** | Artikel und Lösungen dokumentieren | Admin, Agent |
+| **Kunden** | Kundenverwaltung | Admin, Agent |
+| **Kontakte** | Ansprechpartner | Admin, Agent |
+| **Organisationen** | Unternehmensgruppen | Admin, Agent |
+| **Assets** | Hardware, Software, Lizenzen | Admin, Agent |
+| **Projekte** | Kanban-Board, Projektplanung | Admin, Agent |
+| **Berichte** | Analysen und Exportfunktionen | Admin, Agent |
+| **Benutzer** | Benutzerverwaltung | Admin |
+| **Exchange** | E-Mail-Integration | Admin |
+| **TLS-Zertifikate** | HTTPS-Zertifikate | Admin |
+| **Logs** | Systemprotokoll | Admin |
+| **Einstellungen** | Systemkonfiguration | Admin |
+
+## Demo-Zugangsdaten
+
+Für Testzwecke können folgende Daten verwendet werden (nur in einer frischen Testinstanz anlegen):
+
+| Rolle | E-Mail | Passwort |
+|-------|--------|----------|
+| Admin | admin@demo.de | admin123 |
+| Agent | agent@demo.de | agent123 |
+| Kunde | kunde@demo.de | kunde123 |
+
+:::{warning}
+Ändern Sie diese Passwörter sofort, wenn Sie die Anwendung produktiv betreiben.
+:::
 
 ## Nächste Schritte
 
-- [Ticket-Management kennenlernen](benutzer/tickets.md)
-- [Berichte & Analysen nutzen](benutzer/berichte.md)
+- [Tickets verwalten lernen](benutzer/tickets.md)
 - [E-Mail-Integration einrichten](admin/email-integration.md)
 - [SLA-Regeln konfigurieren](admin/sla.md)
+- [Berichte & Analysen nutzen](benutzer/berichte.md)

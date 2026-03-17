@@ -1,63 +1,59 @@
 # Zeiterfassung
 
-Das Zeiterfassungsmodul ermöglicht die Dokumentation der Arbeitszeit an Tickets.
+Support-Engine enthält ein integriertes Zeiterfassungssystem. Agenten können Zeit pro Ticket erfassen — entweder mit einem laufenden Timer oder manuell.
 
-## Funktionen
+## Zeiterfassung über Timer
 
-- **Timer**: Echtzeit-Erfassung der Arbeitszeit
-- **Manuelle Buchung**: Nachträgliche Zeiterfassung
-- **Übersichten**: Auswertungen und Berichte
+Im Ticket-Detail → Zeiterfassung:
 
-## Timer verwenden
+1. **Timer starten**: Klick auf „Timer starten" — die Uhr läuft im Hintergrund
+2. **Pausieren**: Klick auf „Pausieren" (z.B. bei Unterbrechungen)
+3. **Fortsetzen**: Klick auf „Fortsetzen"
+4. **Stoppen**: Klick auf „Stoppen" — ein Zeiteintrag wird angelegt
 
-### Timer starten
+Der aktive Timer bleibt sichtbar, auch wenn Sie zu anderen Tickets navigieren. In der Navigation oben rechts zeigt eine Anzeige laufende Timer an.
 
-1. Öffnen Sie ein Ticket
-2. Klicken Sie auf das **Timer-Symbol** (Stoppuhr)
-3. Der Timer beginnt zu laufen
+## Manueller Zeiteintrag
 
-### Timer stoppen
+Für bereits geleistete Arbeit ohne Timer:
 
-1. Klicken Sie erneut auf das **Timer-Symbol**
-2. Optional: Beschreibung der Tätigkeit eingeben
-3. Die Zeit wird automatisch gebucht
-
-## Manuelle Zeitbuchung
-
-Für nachträgliche Erfassung:
-
-1. Öffnen Sie das Ticket
-2. Gehen Sie zum Tab **"Zeiterfassung"**
-3. Klicken Sie auf **"Zeit buchen"**
-4. Geben Sie ein:
-   - **Dauer**: Zeit in Stunden/Minuten
-   - **Beschreibung**: Was wurde gemacht?
-   - **Datum**: Wann wurde gearbeitet?
-5. Speichern Sie den Eintrag
+1. Im Ticket-Detail → Zeiterfassung → **Zeit hinzufügen**
+2. Dauer in Stunden und Minuten eingeben
+3. Beschreibung der Tätigkeit (optional)
+4. Datum der Leistung
 
 ## Zeiterfassungs-Übersicht
 
-### Filteroptionen
+**Navigation:** Zeiterfassung
 
-| Filter | Beschreibung |
-|--------|--------------|
-| **Datum** | Zeitraum eingrenzen |
-| **Agent** | Nach Bearbeiter filtern |
-| **Ticket** | Bestimmtes Ticket anzeigen |
+Die Übersicht zeigt alle Zeiteinträge des Mandanten:
 
-### Statistiken
+| Filter | Optionen |
+|--------|---------|
+| Agent | Alle oder bestimmter Benutzer |
+| Ticket | Alle oder bestimmtes Ticket |
+| Zeitraum | Datumsbereich |
 
-Die Übersicht zeigt:
+### Spalten
 
-- Gesamtzeit pro Ticket
-- Zeit pro Agent
-- Tägliche/Wöchentliche Auswertung
+| Spalte | Beschreibung |
+|--------|-------------|
+| Datum | Datum des Eintrags |
+| Agent | Bearbeitender Benutzer |
+| Ticket | Verknüpftes Ticket (mit Link) |
+| Dauer | Erfasste Zeit |
+| Beschreibung | Tätigkeitsbeschreibung |
+| Abrechenbar | Ob die Zeit abrechenbar ist |
 
-## Export
+## Berichte
 
-Zeiterfassungsdaten können exportiert werden:
+Detaillierte Auswertungen sind unter **Berichte → Zeiterfassung** verfügbar:
 
-1. Gehen Sie zu **Zeiterfassung**
-2. Wählen Sie den gewünschten Zeitraum
-3. Klicken Sie auf **"Exportieren"**
-4. Wählen Sie das Format (CSV, Excel)
+- Gesamte erfasste Zeit pro Agent
+- Aufschlüsselung nach Ticket und Zeitraum
+- Abrechenbare vs. nicht abrechenbare Zeit
+- Export als CSV, XLSX, PDF oder HTML
+
+## Zeiteintrag bearbeiten / löschen
+
+Eigene Zeiteinträge können nachträglich bearbeitet oder gelöscht werden. Admins können alle Einträge bearbeiten.

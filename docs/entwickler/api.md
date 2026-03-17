@@ -1,271 +1,307 @@
 # API-Referenz
 
-Support-Engine bietet eine vollständige REST-API für alle Funktionen.
-
-## Übersicht
-
-- **Basis-URL**: `https://ihre-domain.de/api`
-- **Format**: JSON
-- **Authentifizierung**: JWT Bearer Token
+Support-Engine stellt eine REST-API mit über 150 Endpunkten bereit. Alle Endpunkte beginnen mit `/api/` und geben JSON zurück.
 
 ## Authentifizierung
 
-### Login
-
-```http
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "email": "benutzer@firma.de",
-  "password": "passwort"
-}
-```
-
-**Antwort:**
-
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": 1,
-    "email": "benutzer@firma.de",
-    "firstName": "Max",
-    "lastName": "Mustermann",
-    "role": "agent"
-  }
-}
-```
-
-### Token verwenden
+Alle geschützten Endpunkte erwarten einen JWT-Bearer-Token im `Authorization`-Header:
 
 ```http
 Authorization: Bearer <token>
 ```
 
-## Tickets
+Token werden über `/api/auth/login` bezogen und haben eine Gültigkeit von 7 Tagen.
 
-### Alle Tickets abrufen
+## Rollen
+
+| Rolle | Beschreibung |
+|-------|-------------|
+| `admin` | Voller Zugriff auf alle Endpunkte |
+| `agent` | Zugriff auf operative Endpunkte (Tickets, CRM, Assets, Projekte) |
+| `customer` | Nur Portal-Endpunkte (`/api/portal/*`) |
+
+## Öffentliche Endpunkte
 
 ```http
-GET /api/tickets
-Authorization: Bearer <token>
+GET  /api/license               # AGPL-3.0-Lizenztext
+GET  /api/source                # Quellcode-Download-Link (AGPL-Pflicht)
+GET  /api/tenant/public/:slug   # Mandanten-Branding für Login-Seite
+GET  /api/public/survey/:token  # Umfrageformular (öffentlicher Token)
+POST /api/public/survey/:token/submit  # Umfrageantwort einreichen
+GET  /.well-known/acme-challenge/:token  # ACME HTTP-01 Challenge
 ```
 
-**Query-Parameter:**
-
-| Parameter | Typ | Beschreibung |
-|-----------|-----|--------------|
-| `status` | string | Filtern nach Status |
-| `priority` | string | Filtern nach Priorität |
-| `assigneeId` | number | Filtern nach Agent |
-| `limit` | number | Anzahl Ergebnisse |
-| `offset` | number | Offset für Pagination |
-
-### Einzelnes Ticket
+## Authentifizierungs-Endpunkte
 
 ```http
-GET /api/tickets/:id
-Authorization: Bearer <token>
+POST /api/auth/register    # Benutzer registrieren (erster = Admin)
+POST /api/auth/login       # Anmelden → JWT-Token
+GET  /api/auth/me          # Eigenes Benutzerprofil abrufen
+POST /api/auth/logout      # Abmelden (clientseitig, Token ungültig)
 ```
 
-### Ticket erstellen
+## Dashboard
 
 ```http
-POST /api/tickets
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "title": "Problem mit Login",
-  "description": "Benutzer kann sich nicht anmelden",
-  "priority": "high",
-  "typeId": 1
-}
-```
-
-### Ticket aktualisieren
-
-```http
-PATCH /api/tickets/:id
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "status": "in_progress",
-  "assigneeIds": [1, 2]
-}
-```
-
-## Benutzer
-
-### Registrierung
-
-```http
-POST /api/auth/register
-Content-Type: application/json
-
-{
-  "email": "neu@firma.de",
-  "password": "sicheresPasswort",
-  "firstName": "Anna",
-  "lastName": "Beispiel"
-}
-```
-
-### Aktuellen Benutzer abrufen
-
-```http
-GET /api/auth/me
-Authorization: Bearer <token>
-```
-
-## Kunden & CRM
-
-### Kunden abrufen
-
-```http
-GET /api/customers
-Authorization: Bearer <token>
-```
-
-### Kunde erstellen
-
-```http
-POST /api/customers
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "name": "Beispiel GmbH",
-  "email": "kontakt@beispiel.de"
-}
-```
-
-## Wissensdatenbank
-
-### Artikel abrufen
-
-```http
-GET /api/knowledge-base/articles
-Authorization: Bearer <token>
-```
-
-### Artikel erstellen
-
-```http
-POST /api/knowledge-base/articles
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "title": "Wie erstelle ich ein Ticket?",
-  "content": "<p>Klicken Sie auf...</p>",
-  "categoryId": 1
-}
+GET /api/dashboard/stats     # Ticket-Statistiken (offen, in Bearbeitung etc.)
+GET /api/dashboard/workload  # Agent-Auslastung
+GET /api/search              # Globale Suche (Tickets, KB, Kunden)
 ```
 
 ## Berichte
 
-### Ticket-Analyse abrufen
+```http
+GET /api/reports/tickets   # Ticket-Analyse (Zeitraum, Status, Agent)
+GET /api/reports/sla       # SLA-Compliance-Bericht
+GET /api/reports/time      # Zeiterfassungs-Bericht
+GET /api/reports/export    # Bericht exportieren (csv, xlsx, pdf, html)
+```
+
+**Gemeinsame Query-Parameter:** `startDate`, `endDate` (ISO 8601)
+
+## Tickets
 
 ```http
-GET /api/reports/tickets?from=2026-01-01&to=2026-03-17
-Authorization: Bearer <token>
+GET    /api/tickets                       # Ticketliste (paginiert, filterbar)
+GET    /api/tickets/:id                   # Einzelnes Ticket
+POST   /api/tickets                       # Ticket erstellen
+PATCH  /api/tickets/:id                   # Ticket aktualisieren
+DELETE /api/tickets/:id                   # Soft-Delete (Agent)
+DELETE /api/tickets/:id/hard              # Hard-Delete (Admin)
+
+GET    /api/tickets/:id/attachments       # Anhänge eines Tickets
+GET    /api/attachments/:id/download      # Anhang herunterladen
+POST   /api/tickets/:id/comments          # Kommentar hinzufügen
+
+GET    /api/ticket-types                  # Verfügbare Tickettypen
 ```
 
-**Antwort:**
+**Filter für `GET /api/tickets`:** `status`, `priority`, `assigneeId`, `customerId`, `projectId`, `areaId`, `search`, `page`, `limit`
 
-```json
-{
-  "summary": { "total": 42, "open": 10, "inProgress": 5, "resolved": 20, "closed": 7 },
-  "byDay": [{ "date": "2026-01-01", "total": 3, "resolved": 1, "open": 2 }],
-  "byStatus": [{ "status": "open", "count": 10 }],
-  "byPriority": [{ "priority": "high", "count": 8 }],
-  "byAgent": [{ "agentName": "Max Mustermann", "assigned": 15, "resolved": 12 }]
-}
-```
-
-### SLA-Performance abrufen
+## Zeiterfassung
 
 ```http
-GET /api/reports/sla?from=2026-01-01&to=2026-03-17
-Authorization: Bearer <token>
+GET    /api/timers                          # Alle aktiven Timer
+GET    /api/tickets/:id/timer               # Timer eines Tickets
+POST   /api/tickets/:id/timer/start         # Timer starten
+POST   /api/tickets/:id/timer/pause         # Timer pausieren
+POST   /api/tickets/:id/timer/resume        # Timer fortsetzen
+POST   /api/tickets/:id/timer/stop          # Timer stoppen → Zeiteintrag anlegen
+DELETE /api/tickets/:id/timer               # Timer verwerfen
+
+GET    /api/tickets/:id/work-entries        # Arbeitsprotokolle eines Tickets
+POST   /api/tickets/:id/work-entries        # Manueller Zeiteintrag
+PATCH  /api/work-entries/:id                # Zeiteintrag bearbeiten
+DELETE /api/work-entries/:id                # Zeiteintrag löschen
 ```
 
-**Antwort:**
-
-```json
-{
-  "complianceRate": 87,
-  "avgResponseMinutes": 45,
-  "avgResolutionMinutes": 320,
-  "summary": { "total": 42, "breached": 5, "compliant": 37 },
-  "byDay": [{ "date": "2026-01-01", "total": 3, "breached": 0, "compliant": 3 }]
-}
-```
-
-### Zeiterfassung abrufen
+## Mandanten-Branding
 
 ```http
-GET /api/reports/time?from=2026-01-01&to=2026-03-17
-Authorization: Bearer <token>
+GET   /api/tenant/branding          # Branding des eigenen Mandanten
+PATCH /api/tenant/branding          # Branding aktualisieren (Admin)
 ```
 
-**Antwort:**
-
-```json
-{
-  "totalMinutes": 2400,
-  "billableMinutes": 1800,
-  "nonBillableMinutes": 600,
-  "summary": { "totalHours": "40h 0m", "billableHours": "30h 0m", "totalAmount": 450000 },
-  "byAgent": [{ "agentName": "Max Mustermann", "totalMinutes": 1200, "billableMinutes": 960 }],
-  "byDay": [{ "date": "2026-01-01", "minutes": 120, "billableMinutes": 90 }]
-}
-```
-
-### Bericht exportieren
+## Benutzer & Bereiche
 
 ```http
-GET /api/reports/export?type=tickets&format=xlsx&from=2026-01-01&to=2026-03-17
-Authorization: Bearer <token>
+GET  /api/users            # Benutzer des Mandanten
+POST /api/users            # Benutzer anlegen (Admin)
+
+GET    /api/areas          # Bereiche/Abteilungen
+POST   /api/areas          # Bereich anlegen (Agent+)
+PATCH  /api/areas/:id      # Bereich bearbeiten
+DELETE /api/areas/:id      # Bereich löschen
 ```
 
-**Query-Parameter:**
+## SLA-Definitionen
 
-| Parameter | Werte | Beschreibung |
-|-----------|-------|--------------|
-| `type` | `tickets`, `sla`, `time`, `agents` | Berichtstyp |
-| `format` | `csv`, `xlsx`, `pdf`, `html` | Ausgabeformat |
-| `from` | `YYYY-MM-DD` | Startdatum (Standard: heute − 30 Tage) |
-| `to` | `YYYY-MM-DD` | Enddatum (Standard: heute) |
+```http
+GET    /api/sla-definitions                      # SLA-Regeln
+GET    /api/sla-definitions/:id                  # Einzelne SLA-Regel
+POST   /api/sla-definitions                      # Erstellen (Admin)
+PATCH  /api/sla-definitions/:id                  # Bearbeiten (Admin)
+DELETE /api/sla-definitions/:id                  # Löschen (Admin)
+POST   /api/sla-definitions/:id/escalations      # Eskalation hinzufügen (Admin)
+DELETE /api/sla-escalations/:id                  # Eskalation löschen (Admin)
+```
 
-Die Antwort ist eine Datei mit dem entsprechenden Content-Type und `Content-Disposition: attachment`.
+## Wissensdatenbank
 
----
+```http
+GET    /api/kb/categories                # Kategorien
+POST   /api/kb/categories                # Kategorie erstellen (Agent+)
+PATCH  /api/kb/categories/:id            # Kategorie bearbeiten
+DELETE /api/kb/categories/:id            # Kategorie löschen (Admin)
+
+GET    /api/kb/articles                  # Artikel (filterbar, paginiert)
+GET    /api/kb/articles/:id              # Einzelner Artikel
+POST   /api/kb/articles                  # Artikel erstellen (Agent+)
+PATCH  /api/kb/articles/:id              # Artikel bearbeiten
+DELETE /api/kb/articles/:id              # Soft-Delete (Agent+)
+DELETE /api/kb/articles/:id/hard         # Hard-Delete (Admin)
+```
+
+## CRM
+
+```http
+# Organisationen
+GET    /api/organizations
+GET    /api/organizations/:id
+POST   /api/organizations
+PATCH  /api/organizations/:id
+DELETE /api/organizations/:id  # Admin
+
+# Kunden
+GET    /api/customers
+GET    /api/customers/:id
+POST   /api/customers
+PATCH  /api/customers/:id
+DELETE /api/customers/:id      # Admin
+GET    /api/customers/:id/locations
+POST   /api/customers/:id/locations
+
+# Kontakte
+GET    /api/contacts
+GET    /api/contacts/:id
+POST   /api/contacts
+PATCH  /api/contacts/:id
+DELETE /api/contacts/:id       # Admin
+
+# Aktivitäten
+GET    /api/customer-activities
+POST   /api/customer-activities
+```
+
+## Assets
+
+```http
+GET    /api/asset-categories           # Kategorien (Agent+)
+POST   /api/asset-categories           # Erstellen (Admin)
+PATCH  /api/asset-categories/:id       # Admin
+DELETE /api/asset-categories/:id       # Admin
+
+GET    /api/assets                     # Asset-Liste (filterbar)
+GET    /api/assets/next-number         # Nächste Asset-Nummer
+GET    /api/assets/:id                 # Einzelnes Asset
+POST   /api/assets                     # Asset anlegen
+PATCH  /api/assets/:id                 # Asset aktualisieren
+DELETE /api/assets/:id                 # Admin
+
+GET    /api/assets/:id/history         # Änderungsverlauf
+GET    /api/assets/:id/tickets         # Verknüpfte Tickets
+GET    /api/tickets/:id/assets         # Assets eines Tickets
+POST   /api/tickets/:id/assets         # Asset mit Ticket verknüpfen
+DELETE /api/ticket-assets/:id          # Verknüpfung entfernen
+```
+
+## Projekte & Kanban
+
+```http
+GET    /api/projects                              # Projektliste
+GET    /api/projects/:id                          # Einzelnes Projekt
+POST   /api/projects                              # Erstellen (Admin)
+PATCH  /api/projects/:id                          # Admin
+DELETE /api/projects/:id                          # Admin
+
+GET    /api/projects/:id/members                  # Mitglieder
+POST   /api/projects/:id/members                  # Hinzufügen (Admin)
+DELETE /api/projects/:id/members/:userId          # Entfernen (Admin)
+
+GET    /api/projects/:id/columns                  # Kanban-Spalten
+POST   /api/projects/:id/columns                  # Spalte erstellen (Admin)
+PATCH  /api/board-columns/:id                     # Spalte bearbeiten (Admin)
+DELETE /api/board-columns/:id                     # Admin
+POST   /api/projects/:id/columns/reorder          # Reihenfolge ändern (Admin)
+
+GET    /api/projects/:id/board                    # Board-Daten abrufen
+PATCH  /api/projects/:id/tickets/:ticketId/order  # Ticket-Position setzen
+GET    /api/tickets/:id/projects                  # Projekte eines Tickets
+POST   /api/tickets/:id/projects                  # Projekt zuweisen
+DELETE /api/tickets/:id/projects/:projectId       # Projektzuweisung entfernen
+```
+
+## Portal (Kunden)
+
+```http
+GET  /api/portal/tickets        # Eigene Tickets (Kunden-Sicht)
+GET  /api/portal/tickets/:id    # Einzelnes Ticket (Kunden-Sicht)
+POST /api/portal/tickets        # Ticket erstellen (als Kunde)
+```
+
+## Logging (Admin)
+
+```http
+GET  /api/logs                 # Logs aus dem In-Memory-Puffer
+GET  /api/logs/files           # Verfügbare Log-Dateien
+POST /api/logs/test            # Test-Log-Eintrag erstellen
+GET  /api/logs/export          # Logs exportieren
+```
+
+**Filter für `GET /api/logs`:** `level`, `source`, `tenantId`, `userId`, `entityType`, `entityId`, `search`, `startDate`, `endDate`, `limit`, `offset`
+
+## TLS-Zertifikate (Admin)
+
+```http
+GET   /api/tls/settings                   # ACME-Einstellungen
+PATCH /api/tls/settings                   # ACME-Einstellungen aktualisieren
+GET   /api/tls/certificates               # Zertifikate
+GET   /api/tls/certificates/:id           # Einzelnes Zertifikat
+POST  /api/tls/certificates               # Zertifikat beantragen
+POST  /api/tls/certificates/:id/renew     # Verlängern
+POST  /api/tls/certificates/:id/revoke    # Widerrufen
+POST  /api/tls/certificates/:id/activate  # Aktivieren
+DELETE /api/tls/certificates/:id          # Löschen
+GET   /api/tls/actions                    # Aktionsprotokoll
+POST  /api/tls/check-renewal              # Verlängerungsprüfung anstoßen
+```
+
+## Exchange Online (Admin)
+
+```http
+GET  /api/exchange/configuration              # OAuth2-Konfiguration
+POST /api/exchange/configuration              # Konfiguration speichern
+POST /api/exchange/test-connection            # Verbindung testen
+
+GET    /api/exchange/mailboxes                # Konfigurierte Postfächer
+POST   /api/exchange/mailboxes                # Postfach hinzufügen
+PATCH  /api/exchange/mailboxes/:id            # Bearbeiten
+DELETE /api/exchange/mailboxes/:id            # Entfernen
+
+GET    /api/exchange/mailboxes/:id/rules      # Zuweisungsregeln
+POST   /api/exchange/mailboxes/:id/rules      # Regel erstellen
+PATCH  /api/exchange/rules/:id                # Bearbeiten
+DELETE /api/exchange/rules/:id                # Löschen
+
+GET  /api/exchange/folders/:email             # Verfügbare Postfachordner
+GET  /api/exchange/sync-logs                  # Sync-Protokoll
+POST /api/exchange/sync                       # Sync manuell starten
+POST /api/exchange/send-test                  # Test-E-Mail senden
+
+GET    /api/exchange/processing-rules         # Verarbeitungsregeln
+GET    /api/exchange/processing-rules/:id     # Einzelne Regel
+POST   /api/exchange/processing-rules         # Erstellen
+PATCH  /api/exchange/processing-rules/:id     # Bearbeiten
+DELETE /api/exchange/processing-rules/:id     # Löschen
+```
 
 ## Fehlerbehandlung
 
-### HTTP-Statuscodes
-
-| Code | Bedeutung |
-|------|-----------|
-| `200` | Erfolg |
-| `201` | Erstellt |
-| `400` | Ungültige Anfrage |
-| `401` | Nicht authentifiziert |
-| `403` | Keine Berechtigung |
-| `404` | Nicht gefunden |
-| `500` | Serverfehler |
-
-### Fehlerformat
+Alle Fehlerantworten folgen diesem Format:
 
 ```json
 {
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "E-Mail-Adresse ist ungültig"
-  }
+  "message": "Fehlerbeschreibung"
 }
 ```
+
+| HTTP-Code | Bedeutung |
+|-----------|-----------|
+| 200 | Erfolg |
+| 201 | Erstellt |
+| 400 | Ungültige Anfrage (Validierungsfehler) |
+| 401 | Nicht authentifiziert |
+| 403 | Keine Berechtigung |
+| 404 | Nicht gefunden |
+| 429 | Rate-Limit überschritten |
+| 500 | Serverfehler |

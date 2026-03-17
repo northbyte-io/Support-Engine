@@ -1,81 +1,91 @@
-# CRM - Kundenverwaltung
+# CRM — Kundenverwaltung
 
-Das CRM-Modul verwaltet Kunden, Kontakte, Organisationen und Assets.
+Das CRM-Modul (Customer Relationship Management) verwaltet Organisationen, Kunden und Kontakte. CRM-Einträge können mit Tickets verknüpft werden, um den vollständigen Kontext einer Anfrage zu erfassen.
+
+## Struktur
+
+```
+Organisation (z.B. Firma GmbH)
+    └── Kunde (z.B. Max Mustermann)
+            └── Kontakt (z.B. Ansprechpartner Technik)
+            └── Standort (z.B. Hauptsitz München)
+```
 
 ## Organisationen
 
-Organisationen repräsentieren Unternehmen oder Abteilungen.
+**Navigation:** Ressourcen → Organisationen
 
-### Organisation anlegen
+Eine Organisation repräsentiert ein Unternehmen oder eine Institution.
 
-1. Navigieren Sie zu **CRM > Organisationen**
-2. Klicken Sie auf **"Neue Organisation"**
-3. Füllen Sie die Felder aus:
-   - **Name**: Firmenname
-   - **Adresse**: Standort
-   - **Branche**: Branchenzuordnung
-   - **Notizen**: Zusätzliche Informationen
+| Feld | Beschreibung |
+|------|-------------|
+| Name | Firmenname |
+| Branche | Industriesektor |
+| Website | URL |
+| Telefon | Haupttelefonnummer |
+| Adresse | Firmenadresse |
+| Notizen | Interne Anmerkungen |
 
 ## Kunden
 
-Kunden sind die Hauptkontakte einer Organisation.
+**Navigation:** Ressourcen → Kunden
 
-### Kunde anlegen
+Kunden sind individuelle Personen oder Accounts, die einer Organisation angehören können.
 
-1. Gehen Sie zu **CRM > Kunden**
-2. Klicken Sie auf **"Neuer Kunde"**
-3. Pflichtfelder:
-   - **Vor- und Nachname**
-   - **E-Mail-Adresse**
-   - **Organisation** (optional)
+| Feld | Beschreibung |
+|------|-------------|
+| Name | Anzeigename des Kunden |
+| E-Mail | Eindeutige Kontaktadresse |
+| Telefon | Telefonnummer |
+| Organisation | Zugehörige Organisation (optional) |
+| Typ | Privatperson / Unternehmen |
+| Status | Aktiv / Inaktiv |
+
+### Kunden-Detail
+
+Die Detailseite eines Kunden zeigt:
+- Alle verknüpften Tickets
+- Aktivitätsprotokoll
+- Kontakte und Standorte
+- Zeiterfassung für diesen Kunden
 
 ## Kontakte
 
-Kontakte sind zusätzliche Ansprechpartner.
+**Navigation:** Ressourcen → Kontakte
+
+Kontakte sind Ansprechpartner innerhalb einer Organisation oder bei einem Kunden.
 
 | Feld | Beschreibung |
-|------|--------------|
-| **Name** | Vor- und Nachname |
-| **E-Mail** | Kontakt-E-Mail |
-| **Telefon** | Telefonnummer |
-| **Position** | Rolle im Unternehmen |
-| **Organisation** | Zugehöriges Unternehmen |
+|------|-------------|
+| Name | Vor- und Nachname |
+| E-Mail | Geschäftliche E-Mail |
+| Telefon | Direkte Durchwahl |
+| Position | Jobbezeichnung |
+| Abteilung | Zugehörige Abteilung |
+| Kunde / Organisation | Zuordnung |
 
-## Assets
+## Tickets verknüpfen
 
-Assets sind Geräte, Software oder Verträge.
+Im Ticket-Formular können Kunde und Kontakt direkt zugewiesen werden. Die Verknüpfung ermöglicht:
 
-### Asset-Typen
+- Tickets eines Kunden auf einen Blick
+- Automatische Benachrichtigung des Kontakts bei Statusänderungen (sofern konfiguriert)
+- Vollständiger Kontext im Ticket
 
-| Typ | Beispiele |
-|-----|-----------|
-| **Hardware** | Computer, Drucker, Server |
-| **Software** | Lizenzen, Anwendungen |
-| **Lizenzen** | Softwarelizenzen |
-| **Verträge** | Wartungsverträge, SLAs |
+## Aktivitätsprotokoll
 
-### Asset anlegen
+Jeder Kundenkontakt kann protokolliert werden:
+- Anruf, E-Mail, Meeting
+- Datum und Dauer
+- Notizen zum Gespräch
 
-1. Navigieren Sie zu **CRM > Assets**
-2. Klicken Sie auf **"Neues Asset"**
-3. Geben Sie die Details ein:
-   - **Name**: Bezeichnung
-   - **Typ**: Hardware/Software/etc.
-   - **Seriennummer**: Bei Hardware
-   - **Kunde**: Zuordnung
+Das Protokoll ist im Kunden-Detail unter **Aktivitäten** einsehbar.
 
-## Verknüpfungen
+## Standorte
 
-### Ticket-Verknüpfung
+Kunden können mehrere Standorte haben (z.B. Haupt- und Zweigstellen):
 
-Beim Erstellen eines Tickets können Sie:
+- Adresse (Straße, PLZ, Ort, Land)
+- Standortbezeichnung (z.B. „Hauptsitz", „Filiale Nord")
 
-- **Kunde** zuordnen
-- **Kontakt** hinzufügen
-- **Asset** verknüpfen
-
-Diese Verknüpfungen ermöglichen:
-
-- Schnellen Zugriff auf Kundenhistorie
-- Übersicht betroffener Geräte
-- Reporting pro Kunde/Asset
+Standorte können bei der Ticket-Erstellung als Kontext angegeben werden.
