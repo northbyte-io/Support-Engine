@@ -3,8 +3,7 @@ import crypto from "node:crypto";
 import { storage } from "./storage";
 import { logger } from "./logger";
 import { encryptSecretToJson, getOrDecrypt } from "./keyVault";
-import type { TlsSettings, TlsCertificate, TlsCertificateAction } from "@shared/schema";
-import type { User } from "@shared/schema";
+import type { TlsSettings, TlsCertificate, TlsCertificateAction, User } from "@shared/schema";
 
 const LETS_ENCRYPT_STAGING = "https://acme-staging-v02.api.letsencrypt.org/directory";
 const LETS_ENCRYPT_PRODUCTION = "https://acme-v02.api.letsencrypt.org/directory";
