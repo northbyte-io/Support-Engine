@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
   Ticket, Clock, CheckCircle, AlertTriangle, TrendingUp, TrendingDown,
-  Minus, Plus, ArrowUpRight, ChevronRight, Filter, Bell, Search,
+  Minus, Plus, ArrowUpRight, ChevronRight, Filter, Bell,
   UserCheck, BarChart3, ShieldAlert, MessageCircle, FileText, ArrowUp,
 } from "lucide-react";
 import {
@@ -12,7 +12,6 @@ import { MainLayout } from "@/components/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PriorityDot } from "@/components/PriorityBadge";
 import { useAuth } from "@/lib/auth";
@@ -175,7 +174,6 @@ export default function DashboardPage() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const [ticketFilter, setTicketFilter] = useState<"all" | "open" | "mine">("all");
-  const [search, setSearch] = useState("");
 
   const today = new Date();
   const sevenDaysAgo = subDays(today, 7);
@@ -243,25 +241,6 @@ export default function DashboardPage() {
       title="Dashboard"
       actions={
         <div className="flex items-center gap-2">
-          <div className="relative hidden md:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Tickets, Kunden, Artikel such..."
-              className="pl-9 h-8 w-60 text-xs bg-muted/50 border-border/50"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Enter" && search.trim()) {
-                  setLocation(`/search?q=${encodeURIComponent(search.trim())}`);
-                }
-              }}
-              onClick={() => {
-                if (search.trim()) setLocation(`/search?q=${encodeURIComponent(search.trim())}`);
-                else setLocation("/search");
-              }}
-              data-testid="input-dashboard-search"
-            />
-          </div>
           <Button
             variant="outline"
             size="sm"
