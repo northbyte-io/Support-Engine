@@ -480,6 +480,35 @@ Three unit test files covering the highest-value targets from the review:
 
 ---
 
+### 11.2 — No ESLint Configuration
+
+**Severity:** Medium · **Commit:** `5f789bb`
+
+**Problem:** The project had no `.eslintrc` or `eslint.config.*` file. Code quality rules (`no-console`, `no-explicit-any`, `exhaustive-deps` for hooks) were not enforced automatically, allowing regressions to accumulate silently.
+
+**Fix:** Added `eslint.config.js` (ESLint v9 flat config format, compatible with `"type": "module"`):
+
+- **`@typescript-eslint/recommended`** — TypeScript-aware rules including `no-explicit-any`, `no-unused-vars`, `no-require-imports` across all TS/TSX files.
+- **`eslint-plugin-react-hooks`** — `rules-of-hooks` + `exhaustive-deps` + `set-state-in-effect` scoped to `client/src/**` only.
+- **`no-console: "error"`** scoped to `server/**` — enforces use of `server/logger.ts` (Winston) instead of raw console output.
+- **`_` prefix allowed** for intentionally unused vars/args/destructured elements (standard TypeScript convention).
+- **Ignored:** `dist/`, `node_modules/`, `migrations/`, `client/src/components/ui/` (shadcn/ui).
+- **`"lint": "eslint ."`** added to `package.json` scripts.
+
+All 100 pre-existing violations fixed to reach 0 errors:
+
+| Category | Count | Files |
+|----------|-------|-------|
+| `no-explicit-any` | ~60 | `exchange-integration.tsx` (local interfaces), `tls-service.ts`, `routes.ts`, `storage.ts`, `index.ts`, `exchange-service.ts` |
+| `no-unused-vars` | ~20 | `routes.ts` (destructured `tenantId`/`id` → `_`), `exchange-service.ts`, `use-toast.ts`, `storage.ts` |
+| `no-console` | 2 | `server/index.ts`, `server/routes.ts` → `logger.info(...)` |
+| `no-require-imports` | 2 | `tailwind.config.ts` → ESM `import` |
+| `set-state-in-effect` | 2 | `TicketTimerControl.tsx`, `branding.tsx` (disable-next-line — intentional sync) |
+
+**Result:** `npm run lint` → 0 errors, 8 warnings (all `react-hooks/incompatible-library` on `form.watch()` — expected, non-actionable React Compiler advisory about React Hook Form's watch API).
+
+---
+
 ## Deferred Issues
 
 The following issues from the code review require architectural decisions or
@@ -490,7 +519,6 @@ significant refactoring effort. They are logged here for future sprints.
 | 1.3 | JWT in localStorage (XSS) | Requires migrating the entire auth flow to httpOnly cookies; affects every API call and the auth context. High risk, plan as a dedicated feature. |
 | 6.7 | Hardcoded German strings bypassing i18n | Establish a convention that all UI strings longer than 3 characters go through `i18n.ts`. |
 | 7.2 | Custom selectors missing keyboard navigation | Refactor asset/area selectors in `ticket-form.tsx` to use `<Select>` or `<Command>`. |
-| 11.2 | No ESLint configuration | Add `@typescript-eslint/recommended` + `eslint-plugin-react-hooks` + `no-console` scoped to server. |
 
 ---
 
@@ -526,8 +554,8 @@ significant refactoring effort. They are logged here for future sprints.
 | 9.2 | `shared/schema.ts` | Data Integrity | **Medium** | **Fixed** |
 | 9.3 | `shared/schema.ts` | Data Integrity | **Medium** | **Fixed** |
 | 10.1 | Repository | Quality | **High** | **Fixed** |
-| 11.2 | Repository | Quality | **Medium** | Deferred |
+| 11.2 | Repository | Quality | **Medium** | **Fixed** |
 | 11.3 | `.gitignore` | Build | **Low** | **Fixed** |
 
-**Fixed: 27 issues** across 25 commits.
-**Deferred: 2 issues** (architectural / large scope).
+**Fixed: 28 issues** across 27 commits.
+**Deferred: 1 issue** (architectural / large scope).

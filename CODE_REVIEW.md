@@ -3,29 +3,17 @@
 > Generated: 2026-03-01
 > Scope: Full repository review (server, client, schema, build, docs)
 > Reviewer: Claude Code (claude-sonnet-4-6)
-> Last updated: 2026-03-17 — fixed issues removed (see CODE_REVIEW_RESOLUTION.md)
+> Last updated: 2026-03-17 — all fixable issues resolved (see CODE_REVIEW_RESOLUTION.md)
 
 ---
 
-## Table of Contents
+## All Issues Resolved
 
-1. [Build & DevOps](#1-build--devops)
-2. [Summary Table](#2-summary-table)
+All issues from the original review have been fixed or deferred.
+See [CODE_REVIEW_RESOLUTION.md](CODE_REVIEW_RESOLUTION.md) for the full record.
 
----
-
-## 1. Build & DevOps
-
-### 11.2 No ESLint Configuration
-
-The project has no `.eslintrc` or `eslint.config.*` file. Code quality rules (no-console, no explicit `any`, exhaustive-deps for hooks) are not enforced automatically.
-
-**Fix:** Add ESLint with `@typescript-eslint/recommended`, `eslint-plugin-react-hooks` (for exhaustive-deps), and a `no-console` rule scoped to `server/**`.
-
----
-
-## 2. Summary Table
+### Remaining Deferred Issue
 
 | # | File(s) | Category | Severity | Issue |
 |---|---------|----------|----------|-------|
-| 11.2 | Repository | Quality | **Medium** | No ESLint configuration |
+| 1.3 | `client/src/lib/auth.tsx` | Security | **Critical** | JWT stored in localStorage (XSS risk) — requires full auth-flow migration to httpOnly cookies |
