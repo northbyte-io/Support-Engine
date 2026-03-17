@@ -184,14 +184,8 @@ export default function LogsPage() {
       if (sourceFilter !== "all") params.set("source", sourceFilter);
       params.set("limit", limit.toString());
       params.set("offset", offset.toString());
-      const token = localStorage.getItem("token");
-      const headers: HeadersInit = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-      const res = await fetch(`/api/logs?${params.toString()}`, { 
-        headers,
-        credentials: "include" 
+      const res = await fetch(`/api/logs?${params.toString()}`, {
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch logs");
       return res.json();
@@ -218,14 +212,8 @@ export default function LogsPage() {
     if (levelFilter !== "all") params.set("level", levelFilter);
     if (sourceFilter !== "all") params.set("source", sourceFilter);
     
-    const token = localStorage.getItem("token");
-    const headers: HeadersInit = {};
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-    
     try {
-      const res = await fetch(`/api/logs/export?${params.toString()}`, { headers });
+      const res = await fetch(`/api/logs/export?${params.toString()}`, { credentials: "include" });
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
       const url = globalThis.URL.createObjectURL(blob);
@@ -242,13 +230,12 @@ export default function LogsPage() {
   };
 
   const handleGenerateTestLogs = async () => {
-    const token = localStorage.getItem("token");
-    const headers: HeadersInit = { "Content-Type": "application/json" };
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
     try {
-      const res = await fetch("/api/logs/test", { method: "POST", headers });
+      const res = await fetch("/api/logs/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
       if (res.ok) {
         refetch();
       }

@@ -121,7 +121,7 @@ export default function TimeTrackingPage() {
     queryFn: async () => {
       const queryStr = buildQueryParams();
       const response = await fetch(`/api/time-entries?${queryStr}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        credentials: "include",
       });
       if (!response.ok) throw new Error("Fehler beim Laden der Zeiteinträge");
       return response.json();
@@ -133,7 +133,7 @@ export default function TimeTrackingPage() {
     queryFn: async () => {
       const queryStr = buildQueryParams();
       const response = await fetch(`/api/time-entries/summary?${queryStr}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        credentials: "include",
       });
       if (!response.ok) throw new Error("Fehler beim Laden der Zusammenfassung");
       return response.json();
