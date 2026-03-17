@@ -29,6 +29,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
 import type { TicketWithRelations } from "@shared/schema";
+import { statusOptions, priorityOptions } from "@/lib/ticket-options";
 
 type SortField = "createdAt" | "updatedAt" | "priority" | "status";
 type SortOrder = "asc" | "desc";
@@ -94,20 +95,6 @@ export default function TicketsPage() {
     return true;
   });
 
-  const statusOptions = [
-    { value: "open", label: "Offen" },
-    { value: "in_progress", label: "In Bearbeitung" },
-    { value: "waiting", label: "Wartend" },
-    { value: "resolved", label: "Gelöst" },
-    { value: "closed", label: "Geschlossen" },
-  ];
-
-  const priorityOptions = [
-    { value: "low", label: "Niedrig" },
-    { value: "medium", label: "Mittel" },
-    { value: "high", label: "Hoch" },
-    { value: "urgent", label: "Dringend" },
-  ];
 
   return (
     <MainLayout

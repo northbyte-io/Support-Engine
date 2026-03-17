@@ -71,6 +71,7 @@ import { de } from "date-fns/locale";
 import type { TicketWithRelations, Project, CustomerWithRelations } from "@shared/schema";
 import { TicketTimerControl } from "@/components/TicketTimerControl";
 import { WorkEntriesList } from "@/components/WorkEntriesList";
+import { statusOptions, priorityOptions } from "@/lib/ticket-options";
 
 export default function TicketDetailPage() {
   const params = useParams<{ id: string }>();
@@ -332,20 +333,6 @@ export default function TicketDetailPage() {
     );
   }
 
-  const statusOptions = [
-    { value: "open", label: "Offen" },
-    { value: "in_progress", label: "In Bearbeitung" },
-    { value: "waiting", label: "Wartend" },
-    { value: "resolved", label: "Gelöst" },
-    { value: "closed", label: "Geschlossen" },
-  ];
-
-  const priorityOptions = [
-    { value: "low", label: "Niedrig" },
-    { value: "medium", label: "Mittel" },
-    { value: "high", label: "Hoch" },
-    { value: "urgent", label: "Dringend" },
-  ];
 
   return (
     <MainLayout
