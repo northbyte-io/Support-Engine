@@ -71,7 +71,7 @@ Support-Engine verwendet ab v0.1.3 Amber als globale Primärfarbe. Das vollstän
 
 Die Branding-Einstellungen werden auch auf der Login-Seite verwendet, bevor ein Benutzer angemeldet ist. Sie sind über einen öffentlichen Endpunkt abrufbar:
 
-```http
+```text
 GET /api/tenant/public/:slug
 ```
 

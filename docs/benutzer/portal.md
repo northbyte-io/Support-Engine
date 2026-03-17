@@ -63,7 +63,7 @@ Das Portal-Erscheinungsbild übernimmt das Mandanten-Branding (Logo, Farben). Ku
 
 Kunden greifen über dedizierte Endpunkte auf das Portal zu:
 
-```http
+```text
 GET  /api/portal/tickets         # Eigene Tickets
 GET  /api/portal/tickets/:id     # Einzelnes Ticket
 POST /api/portal/tickets         # Neues Ticket erstellen

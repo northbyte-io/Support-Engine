@@ -42,7 +42,7 @@ touch .env
 
 Fügen Sie die folgenden Variablen ein:
 
-```env
+```ini
 # Pflichtfelder
 DATABASE_URL=postgresql://user:password@localhost:5432/support_engine
 SESSION_SECRET=ihr-sicherer-geheimer-schluessel-mindestens-32-zeichen

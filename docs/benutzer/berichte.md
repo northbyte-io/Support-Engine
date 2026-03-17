@@ -117,7 +117,7 @@ bericht-tickets-2026-01-01_2026-03-17.xlsx
 
 Alle Berichtsdaten sind auch direkt per API abrufbar (Authentifizierung erforderlich):
 
-```http
+```text
 GET /api/reports/tickets?from=2026-01-01&to=2026-03-17
 GET /api/reports/sla?from=2026-01-01&to=2026-03-17
 GET /api/reports/time?from=2026-01-01&to=2026-03-17

@@ -6,7 +6,7 @@ Support-Engine stellt eine REST-API mit über 150 Endpunkten bereit. Alle Endpun
 
 Alle geschützten Endpunkte erwarten einen JWT-Bearer-Token im `Authorization`-Header:
 
-```http
+```text
 Authorization: Bearer <token>
 ```
 
@@ -22,7 +22,7 @@ Token werden über `/api/auth/login` bezogen und haben eine Gültigkeit von 7 Ta
 
 ## Öffentliche Endpunkte
 
-```http
+```text
 GET  /api/license               # AGPL-3.0-Lizenztext
 GET  /api/source                # Quellcode-Download-Link (AGPL-Pflicht)
 GET  /api/tenant/public/:slug   # Mandanten-Branding für Login-Seite
@@ -33,7 +33,7 @@ GET  /.well-known/acme-challenge/:token  # ACME HTTP-01 Challenge
 
 ## Authentifizierungs-Endpunkte
 
-```http
+```text
 POST /api/auth/register    # Benutzer registrieren (erster = Admin)
 POST /api/auth/login       # Anmelden → JWT-Token
 GET  /api/auth/me          # Eigenes Benutzerprofil abrufen
@@ -42,7 +42,7 @@ POST /api/auth/logout      # Abmelden (clientseitig, Token ungültig)
 
 ## Dashboard
 
-```http
+```text
 GET /api/dashboard/stats     # Ticket-Statistiken (offen, in Bearbeitung etc.)
 GET /api/dashboard/workload  # Agent-Auslastung
 GET /api/search              # Globale Suche (Tickets, KB, Kunden)
@@ -50,7 +50,7 @@ GET /api/search              # Globale Suche (Tickets, KB, Kunden)
 
 ## Berichte
 
-```http
+```text
 GET /api/reports/tickets   # Ticket-Analyse (Zeitraum, Status, Agent)
 GET /api/reports/sla       # SLA-Compliance-Bericht
 GET /api/reports/time      # Zeiterfassungs-Bericht
@@ -61,7 +61,7 @@ GET /api/reports/export    # Bericht exportieren (csv, xlsx, pdf, html)
 
 ## Tickets
 
-```http
+```text
 GET    /api/tickets                       # Ticketliste (paginiert, filterbar)
 GET    /api/tickets/:id                   # Einzelnes Ticket
 POST   /api/tickets                       # Ticket erstellen
@@ -80,7 +80,7 @@ GET    /api/ticket-types                  # Verfügbare Tickettypen
 
 ## Zeiterfassung
 
-```http
+```text
 GET    /api/timers                          # Alle aktiven Timer
 GET    /api/tickets/:id/timer               # Timer eines Tickets
 POST   /api/tickets/:id/timer/start         # Timer starten
@@ -97,14 +97,14 @@ DELETE /api/work-entries/:id                # Zeiteintrag löschen
 
 ## Mandanten-Branding
 
-```http
+```text
 GET   /api/tenant/branding          # Branding des eigenen Mandanten
 PATCH /api/tenant/branding          # Branding aktualisieren (Admin)
 ```
 
 ## Benutzer & Bereiche
 
-```http
+```text
 GET  /api/users            # Benutzer des Mandanten
 POST /api/users            # Benutzer anlegen (Admin)
 
@@ -116,7 +116,7 @@ DELETE /api/areas/:id      # Bereich löschen
 
 ## SLA-Definitionen
 
-```http
+```text
 GET    /api/sla-definitions                      # SLA-Regeln
 GET    /api/sla-definitions/:id                  # Einzelne SLA-Regel
 POST   /api/sla-definitions                      # Erstellen (Admin)
@@ -128,7 +128,7 @@ DELETE /api/sla-escalations/:id                  # Eskalation löschen (Admin)
 
 ## Wissensdatenbank
 
-```http
+```text
 GET    /api/kb/categories                # Kategorien
 POST   /api/kb/categories                # Kategorie erstellen (Agent+)
 PATCH  /api/kb/categories/:id            # Kategorie bearbeiten
@@ -144,7 +144,7 @@ DELETE /api/kb/articles/:id/hard         # Hard-Delete (Admin)
 
 ## CRM
 
-```http
+```text
 # Organisationen
 GET    /api/organizations
 GET    /api/organizations/:id
@@ -175,7 +175,7 @@ POST   /api/customer-activities
 
 ## Assets
 
-```http
+```text
 GET    /api/asset-categories           # Kategorien (Agent+)
 POST   /api/asset-categories           # Erstellen (Admin)
 PATCH  /api/asset-categories/:id       # Admin
@@ -197,7 +197,7 @@ DELETE /api/ticket-assets/:id          # Verknüpfung entfernen
 
 ## Projekte & Kanban
 
-```http
+```text
 GET    /api/projects                              # Projektliste
 GET    /api/projects/:id                          # Einzelnes Projekt
 POST   /api/projects                              # Erstellen (Admin)
@@ -223,7 +223,7 @@ DELETE /api/tickets/:id/projects/:projectId       # Projektzuweisung entfernen
 
 ## Portal (Kunden)
 
-```http
+```text
 GET  /api/portal/tickets        # Eigene Tickets (Kunden-Sicht)
 GET  /api/portal/tickets/:id    # Einzelnes Ticket (Kunden-Sicht)
 POST /api/portal/tickets        # Ticket erstellen (als Kunde)
@@ -231,7 +231,7 @@ POST /api/portal/tickets        # Ticket erstellen (als Kunde)
 
 ## Logging (Admin)
 
-```http
+```text
 GET  /api/logs                 # Logs aus dem In-Memory-Puffer
 GET  /api/logs/files           # Verfügbare Log-Dateien
 POST /api/logs/test            # Test-Log-Eintrag erstellen
@@ -242,7 +242,7 @@ GET  /api/logs/export          # Logs exportieren
 
 ## TLS-Zertifikate (Admin)
 
-```http
+```text
 GET   /api/tls/settings                   # ACME-Einstellungen
 PATCH /api/tls/settings                   # ACME-Einstellungen aktualisieren
 GET   /api/tls/certificates               # Zertifikate
@@ -258,7 +258,7 @@ POST  /api/tls/check-renewal              # Verlängerungsprüfung anstoßen
 
 ## Exchange Online (Admin)
 
-```http
+```text
 GET  /api/exchange/configuration              # OAuth2-Konfiguration
 POST /api/exchange/configuration              # Konfiguration speichern
 POST /api/exchange/test-connection            # Verbindung testen

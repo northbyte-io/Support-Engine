@@ -108,7 +108,7 @@ Verfügbare Dateien können direkt über die Oberfläche heruntergeladen werden.
 
 Gefilterte Logs können als Datei exportiert werden:
 
-```http
+```text
 GET /api/logs/export
 ```
 
