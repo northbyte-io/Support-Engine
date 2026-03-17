@@ -48,7 +48,7 @@ function buildUrl(queryKey: readonly unknown[]): string {
   if (queryParams) {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(queryParams)) {
-      if (value !== undefined && value !== null && typeof value !== "object") {
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
         params.append(key, String(value));
       }
     }
