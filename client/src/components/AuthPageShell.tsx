@@ -3,13 +3,13 @@ import { Ticket } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
-interface Props extends Readonly<{
+interface Props {
   title: string;
   description: string;
   children: ReactNode;
-}> {}
+}
 
-export function AuthPageShell({ title, description, children }: Props) {
+export function AuthPageShell({ title, description, children }: Readonly<Props>) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <header className="absolute top-0 right-0 p-4">
