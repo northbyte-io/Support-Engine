@@ -644,27 +644,44 @@ export class DatabaseStorage implements IStorage {
 
     const ticketList = await db.select().from(tickets).where(and(...conditions)).orderBy(desc(tickets.createdAt)).limit(params.limit || 100);
 
-    const ticketsWithRelations = await Promise.all(
-      ticketList.map(async (ticket) => {
-        const [ticketType, createdByUser, assigneesList] = await Promise.all([
-          ticket.ticketTypeId ? db.select().from(ticketTypes).where(eq(ticketTypes.id, ticket.ticketTypeId)).then(r => r[0]) : null,
-          ticket.createdById ? db.select().from(users).where(eq(users.id, ticket.createdById)).then(r => r[0]) : null,
-          this.getTicketAssignees(ticket.id),
-        ]);
+    if (ticketList.length === 0) return [];
 
-        // Remove password from user object
-        const createdBy = createdByUser ? { ...createdByUser, password: undefined } : null;
+    // Collect unique IDs for batch queries
+    const ticketIds = ticketList.map(t => t.id);
+    const ticketTypeIds = [...new Set(ticketList.flatMap(t => t.ticketTypeId ? [t.ticketTypeId] : []))];
+    const createdByIds = [...new Set(ticketList.flatMap(t => t.createdById ? [t.createdById] : []))];
 
-        return {
-          ...ticket,
-          ticketType,
-          createdBy,
-          assignees: assigneesList,
-        };
-      })
-    );
+    // Three batch queries instead of N*3 per-ticket queries
+    const [ticketTypeRows, createdByRows, assigneeRows] = await Promise.all([
+      ticketTypeIds.length > 0
+        ? db.select().from(ticketTypes).where(inArray(ticketTypes.id, ticketTypeIds))
+        : Promise.resolve([]),
+      createdByIds.length > 0
+        ? db.select().from(users).where(inArray(users.id, createdByIds))
+        : Promise.resolve([]),
+      db.select().from(ticketAssignees)
+        .leftJoin(users, eq(ticketAssignees.userId, users.id))
+        .where(inArray(ticketAssignees.ticketId, ticketIds)),
+    ]);
 
-    return ticketsWithRelations;
+    // Build lookup maps for O(1) access during mapping
+    const ticketTypeMap = new Map(ticketTypeRows.map(tt => [tt.id, tt]));
+    const createdByMap = new Map(createdByRows.map(u => [u.id, { ...u, password: undefined }]));
+
+    const assigneesByTicket = new Map<string, (TicketAssignee & { user?: Omit<User, "password"> })[]>();
+    for (const row of assigneeRows) {
+      const tid = row.ticket_assignees.ticketId ?? "";
+      if (!assigneesByTicket.has(tid)) assigneesByTicket.set(tid, []);
+      const user = row.users ? { ...row.users, password: undefined } : undefined;
+      assigneesByTicket.get(tid)!.push({ ...row.ticket_assignees, user });
+    }
+
+    return ticketList.map(ticket => ({
+      ...ticket,
+      ticketType: ticket.ticketTypeId ? (ticketTypeMap.get(ticket.ticketTypeId) ?? null) : null,
+      createdBy: ticket.createdById ? (createdByMap.get(ticket.createdById) ?? null) : null,
+      assignees: assigneesByTicket.get(ticket.id) ?? [],
+    }));
   }
 
   async createTicket(insertTicket: InsertTicket): Promise<Ticket> {
