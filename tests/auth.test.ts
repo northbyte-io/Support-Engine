@@ -20,7 +20,8 @@ const testUser: User = {
   email: "test@example.com",
   role: "admin",
   tenantId: "tenant-456",
-  password: "hashed",
+  // Kein Literal-Passwort — Wert kommt aus der Umgebung (S2068)
+  password: process.env["TEST_USER_PASSWORD_HASH"] ?? "",
   name: "Test User",
   createdAt: new Date(),
   updatedAt: new Date(),
