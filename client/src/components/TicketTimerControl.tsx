@@ -57,18 +57,19 @@ export function TicketTimerControl({ ticketId, ticketNumber, ticketTitle }: Tick
 
   useEffect(() => {
     if (!timer) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setElapsed(0);
       return;
     }
-    
+
     setElapsed(calculateElapsedTime(timer));
-    
+
     if (isPaused) return;
-    
+
     const interval = setInterval(() => {
       setElapsed(calculateElapsedTime(timer));
     }, 1000);
-    
+
     return () => clearInterval(interval);
   }, [timer, isPaused]);
 

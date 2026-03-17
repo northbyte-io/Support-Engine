@@ -171,7 +171,7 @@ import {
   type ActiveTimerWithTicket,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, sql, ilike, or, count, gt, lt, inArray, isNull } from "drizzle-orm";
+import { eq, and, desc, asc, sql, ilike, or, count, gt, lt, inArray, isNull, type SQL } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -448,7 +448,7 @@ export interface IStorage {
   createTlsCertificateAction(action: InsertTlsCertificateAction): Promise<TlsCertificateAction>;
   
   // TLS Challenges
-  createTlsChallenge(challenge: { tenantId?: string | null; token: string; keyAuthorization: string; domain: string; expiresAt: Date }): Promise<any>;
+  createTlsChallenge(challenge: { tenantId?: string | null; token: string; keyAuthorization: string; domain: string; expiresAt: Date }): Promise<{ id: string; token: string; keyAuthorization: string; domain: string; expiresAt: Date; tenantId?: string | null }>;
   getTlsChallengeByToken(token: string): Promise<{ keyAuthorization: string } | undefined>;
   completeTlsChallenge(token: string): Promise<void>;
   cleanupExpiredChallenges(): Promise<number>;
@@ -1723,13 +1723,13 @@ export class DatabaseStorage implements IStorage {
 
   // Assets
   async getAssets(tenantId: string, params?: { assetType?: string; status?: string; categoryId?: string; assignedToId?: string; customerId?: string; search?: string }): Promise<AssetWithRelations[]> {
-    const conditions: any[] = [eq(assets.tenantId, tenantId)];
+    const conditions: (SQL<unknown> | undefined)[] = [eq(assets.tenantId, tenantId)];
 
     if (params?.assetType) {
-      conditions.push(eq(assets.assetType, params.assetType as any));
+      conditions.push(eq(assets.assetType, params.assetType as "hardware" | "software" | "license" | "contract"));
     }
     if (params?.status) {
-      conditions.push(eq(assets.status, params.status as any));
+      conditions.push(eq(assets.status, params.status as "active" | "inactive" | "maintenance" | "disposed" | "expired"));
     }
     if (params?.categoryId) {
       conditions.push(eq(assets.categoryId, params.categoryId));
@@ -2073,7 +2073,7 @@ export class DatabaseStorage implements IStorage {
     if (!tenant) {
       throw new Error("Mandant nicht gefunden");
     }
-    const { tenantId: _, id: __, ...safeProject } = project as any;
+    const { tenantId: _, id: __, ...safeProject } = project as typeof project & { tenantId?: string | null; id?: string };
     const [result] = await db.insert(projects).values({ ...safeProject, tenantId }).returning();
     
     const defaultColumns = [
@@ -2095,7 +2095,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(projects.id, id), eq(projects.tenantId, tenantId)));
     if (!existing) return undefined;
     
-    const { tenantId: _, id: __, ...safeUpdates } = updates as any;
+    const { tenantId: _, id: __, ...safeUpdates } = updates as typeof updates & { tenantId?: string | null; id?: string };
     const [result] = await db.update(projects)
       .set({ ...safeUpdates, updatedAt: new Date() })
       .where(eq(projects.id, id))
@@ -2178,7 +2178,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(projects.id, existing.projectId ?? ""), eq(projects.tenantId, tenantId)));
     if (!project) return undefined;
 
-    const { projectId: _, id: __, ...safeUpdates } = updates as any;
+    const { projectId: _, id: __, ...safeUpdates } = updates as typeof updates & { projectId?: string | null; id?: string };
     const [result] = await db.update(boardColumns).set(safeUpdates).where(eq(boardColumns.id, id)).returning();
     return result;
   }
@@ -2385,7 +2385,7 @@ export class DatabaseStorage implements IStorage {
   // ============================================
 
   async getCustomers(tenantId: string, params?: { organizationId?: string; search?: string }): Promise<CustomerWithRelations[]> {
-    let conditions = [eq(customers.tenantId, tenantId)];
+    const conditions = [eq(customers.tenantId, tenantId)];
     if (params?.organizationId) {
       conditions.push(eq(customers.organizationId, params.organizationId));
     }
@@ -2701,7 +2701,7 @@ export class DatabaseStorage implements IStorage {
   // ============================================
 
   async getCustomerActivities(tenantId: string, params?: { customerId?: string; contactId?: string; ticketId?: string; limit?: number }): Promise<(CustomerActivity & { createdBy?: User })[]> {
-    let conditions = [eq(customerActivities.tenantId, tenantId)];
+    const conditions = [eq(customerActivities.tenantId, tenantId)];
     if (params?.customerId) {
       conditions.push(eq(customerActivities.customerId, params.customerId));
     }
@@ -2712,7 +2712,7 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(customerActivities.ticketId, params.ticketId));
     }
 
-    let query = db.select().from(customerActivities)
+    const query = db.select().from(customerActivities)
       .where(and(...conditions))
       .orderBy(desc(customerActivities.createdAt));
 
@@ -2822,7 +2822,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // TLS Challenges
-  async createTlsChallenge(challenge: { tenantId?: string | null; token: string; keyAuthorization: string; domain: string; expiresAt: Date }): Promise<any> {
+  async createTlsChallenge(challenge: { tenantId?: string | null; token: string; keyAuthorization: string; domain: string; expiresAt: Date }): Promise<{ id: string; token: string; keyAuthorization: string; domain: string; expiresAt: Date; tenantId?: string | null }> {
     const [result] = await db.insert(tlsChallenges).values(challenge).returning();
     return result;
   }
@@ -3145,7 +3145,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getWorkEntriesByUser(userId: string, tenantId: string, params?: { startDate?: Date; endDate?: Date }): Promise<(WorkEntry & { ticket?: Ticket })[]> {
-    let query = db.select().from(workEntries)
+    const query = db.select().from(workEntries)
       .where(and(eq(workEntries.userId, userId), eq(workEntries.tenantId, tenantId)));
     
     const entries = await query.orderBy(desc(workEntries.startTime));

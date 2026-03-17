@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 7
+    },
+    "auditLog": "/Users/max.furch/git/NorthByte/Support-Engine/logs/.f18f28c75c1490730c1ee81fedd1f5503c43c2c0-audit.json",
+    "files": [
+        {
+            "date": 1773742270377,
+            "name": "/Users/max.furch/git/NorthByte/Support-Engine/logs/support-engine-2026-03-17.log",
+            "hash": "6f84a48270deea48b8b19a2ad6c996ccee2ed8ff5604708c77f960d8faeadd3f"
+        }
+    ],
+    "hashType": "sha256"
+}

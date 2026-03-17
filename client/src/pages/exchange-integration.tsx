@@ -79,6 +79,12 @@ function ConnectionStatusBadge({ status }: Readonly<{ status: string }>) {
   }
 }
 
+// Lokale Typen für API-Daten
+type MailboxData = { id: string; emailAddress: string; displayName?: string; mailboxType?: "incoming" | "outgoing" | "shared"; isActive?: boolean; sourceFolderId?: string; sourceFolderName?: string; fetchUnreadOnly?: boolean };
+type RuleData = { id: string; name: string; description?: string; isActive?: boolean; conditions?: unknown; conditionType?: string; conditionValue?: string; actions?: string[]; actionType?: string; actionValue?: string; actionFolderId?: string; actionFolderName?: string; actionPriority?: "high" | "low" | "medium" | "urgent"; actionAutoReplyTemplate?: string; mailboxId?: string; priority?: number };
+type FolderData = { id: string; displayName: string };
+type ConfigData = { configured?: boolean; isEnabled?: boolean; clientId?: string; tenantAzureId?: string; authType?: string; connectionStatus?: string };
+
 // Einrichtungsassistent-Schritte (vereinfacht - Postfächer werden separat verwaltet)
 const setupSteps = [
   { id: 1, title: "Aktivierung", description: "Exchange-Integration aktivieren" },
@@ -111,11 +117,11 @@ export default function ExchangeIntegration() {
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [isTestingFetch, setIsTestingFetch] = useState(false);
   const [isTestingSend, setIsTestingSend] = useState(false);
-  const [testingMailboxId, setTestingMailboxId] = useState<number | null>(null);
+  const [testingMailboxId, setTestingMailboxId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showMailboxDialog, setShowMailboxDialog] = useState(false);
   const [isSavingMailbox, setIsSavingMailbox] = useState(false);
-  const [editingMailbox, setEditingMailbox] = useState<any>(null);
+  const [editingMailbox, setEditingMailbox] = useState<MailboxData | null>(null);
   
   // Test-E-Mail Dialog
   const [showTestEmailDialog, setShowTestEmailDialog] = useState(false);
@@ -124,7 +130,7 @@ export default function ExchangeIntegration() {
   
   // Verarbeitungsregeln Dialog
   const [showRuleDialog, setShowRuleDialog] = useState(false);
-  const [editingRule, setEditingRule] = useState<any>(null);
+  const [editingRule, setEditingRule] = useState<RuleData | null>(null);
   const [ruleName, setRuleName] = useState("");
   const [ruleDescription, setRuleDescription] = useState("");
   // Einzelne Bedingung vs. Mehrfachbedingungen
@@ -178,7 +184,7 @@ export default function ExchangeIntegration() {
   const [authType, setAuthType] = useState("client_secret");
 
   // Load configuration from API
-  const { data: configData } = useQuery<any>({
+  const { data: configData } = useQuery<ConfigData>({
     queryKey: ["/api/exchange/configuration"],
   });
 
@@ -197,7 +203,7 @@ export default function ExchangeIntegration() {
 
   // Save configuration mutation
   const saveConfigMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       const response = await apiRequest("POST", "/api/exchange/configuration", data);
       return response.json();
     },
@@ -208,7 +214,7 @@ export default function ExchangeIntegration() {
         description: "Die Exchange-Einstellungen wurden erfolgreich gespeichert.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Fehler beim Speichern",
         description: error.message || "Die Konfiguration konnte nicht gespeichert werden.",
@@ -230,7 +236,7 @@ export default function ExchangeIntegration() {
         : { title: "Verbindungstest fehlgeschlagen", description: data.message, variant: "destructive" }
       );
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Verbindungstest fehlgeschlagen",
         description: error.message || "Die Verbindung konnte nicht hergestellt werden.",
@@ -240,20 +246,20 @@ export default function ExchangeIntegration() {
   });
 
   // Query für Postfächer
-  const { data: mailboxesData, isLoading: isLoadingMailboxes } = useQuery<any[]>({
+  const { data: mailboxesData, isLoading: isLoadingMailboxes } = useQuery<MailboxData[]>({
     queryKey: ["/api/exchange/mailboxes"],
     enabled: configData?.configured === true,
   });
 
   // Query für Verarbeitungsregeln
-  const { data: processingRulesData, isLoading: isLoadingRules } = useQuery<any[]>({
+  const { data: processingRulesData, isLoading: isLoadingRules } = useQuery<RuleData[]>({
     queryKey: ["/api/exchange/processing-rules"],
     enabled: configData?.configured === true,
   });
 
   // Mutation zum Speichern eines Postfachs
   const saveMailboxMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       const response = await apiRequest("POST", "/api/exchange/mailboxes", data);
       return response.json();
     },
@@ -266,7 +272,7 @@ export default function ExchangeIntegration() {
         description: "Das Postfach wurde erfolgreich konfiguriert.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Fehler beim Speichern",
         description: error.message || "Das Postfach konnte nicht gespeichert werden.",
@@ -277,7 +283,7 @@ export default function ExchangeIntegration() {
 
   // Mutation zum Aktualisieren eines Postfachs
   const updateMailboxMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
       const response = await apiRequest("PATCH", `/api/exchange/mailboxes/${id}`, data);
       return response.json();
     },
@@ -290,7 +296,7 @@ export default function ExchangeIntegration() {
         description: "Die Postfach-Einstellungen wurden gespeichert.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Fehler beim Aktualisieren",
         description: error.message || "Das Postfach konnte nicht aktualisiert werden.",
@@ -312,7 +318,7 @@ export default function ExchangeIntegration() {
         description: "Das Postfach wurde erfolgreich entfernt.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Fehler beim Löschen",
         description: error.message || "Das Postfach konnte nicht gelöscht werden.",
@@ -323,7 +329,7 @@ export default function ExchangeIntegration() {
 
   // Mutation zum Speichern einer Verarbeitungsregel
   const saveRuleMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       const method = editingRule ? "PATCH" : "POST";
       const url = editingRule ? `/api/exchange/processing-rules/${editingRule.id}` : "/api/exchange/processing-rules";
       const response = await apiRequest(method, url, data);
@@ -335,7 +341,7 @@ export default function ExchangeIntegration() {
       resetRuleForm();
       toast(editingRule ? ruleToast.update : ruleToast.create);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Fehler beim Speichern",
         description: error.message || "Die Regel konnte nicht gespeichert werden.",
@@ -357,7 +363,7 @@ export default function ExchangeIntegration() {
         description: "Die Verarbeitungsregel wurde entfernt.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Fehler beim Löschen",
         description: error.message || "Die Regel konnte nicht gelöscht werden.",
@@ -381,7 +387,7 @@ export default function ExchangeIntegration() {
   };
 
   // Postfach-Bearbeitung öffnen
-  const openEditMailboxDialog = (mailbox: any) => {
+  const openEditMailboxDialog = (mailbox: MailboxData) => {
     setEditingMailbox(mailbox);
     setNewMailboxEmail(mailbox.emailAddress);
     setNewMailboxDisplayName(mailbox.displayName || "");
@@ -411,7 +417,7 @@ export default function ExchangeIntegration() {
   };
 
   // Regel zum Bearbeiten öffnen
-  const openEditRule = (rule: any) => {
+  const openEditRule = (rule: RuleData) => {
     setEditingRule(rule);
     setRuleName(rule.name);
     setRuleDescription(rule.description || "");
@@ -479,16 +485,17 @@ export default function ExchangeIntegration() {
       setAvailableFolders(folders);
       
       // Automatisch "Inbox" auswählen wenn vorhanden
-      const inbox = folders.find((f: any) => f.displayName.toLowerCase() === "inbox" || f.displayName === "Posteingang");
+      const inbox = (folders as FolderData[]).find((f) => f.displayName.toLowerCase() === "inbox" || f.displayName === "Posteingang");
       if (inbox) {
         setNewMailboxSourceFolderId(inbox.id);
         setNewMailboxSourceFolderName(inbox.displayName);
       }
-    } catch (error: any) {
-      setFoldersError(error.message || "Ordner konnten nicht geladen werden");
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : "Ordner konnten nicht geladen werden";
+      setFoldersError(errMsg);
       toast({
         title: "Fehler beim Laden der Ordner",
-        description: error.message || "Die Ordner konnten nicht abgerufen werden.",
+        description: errMsg,
         variant: "destructive",
       });
     } finally {
@@ -584,7 +591,7 @@ export default function ExchangeIntegration() {
 
   // Handler für Test-Mailabruf für ein bestimmtes Postfach
   const handleTestFetchForMailbox = async (mailboxEmail: string) => {
-    const mailbox = mailboxesData?.find((m: any) => m.emailAddress === mailboxEmail);
+    const mailbox = (mailboxesData as MailboxData[] | undefined)?.find((m) => m.emailAddress === mailboxEmail);
     if (mailbox) {
       setTestingMailboxId(mailbox.id);
     }
@@ -596,10 +603,10 @@ export default function ExchangeIntegration() {
         title: "Synchronisation abgeschlossen",
         description: `${data.emailsProcessed || 0} E-Mails verarbeitet, ${data.ticketsCreated || 0} Tickets erstellt.`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Fehler bei der Synchronisation",
-        description: error.message || "Die E-Mails konnten nicht abgerufen werden.",
+        description: error instanceof Error ? error.message : "Die E-Mails konnten nicht abgerufen werden.",
         variant: "destructive",
       });
     } finally {
@@ -617,7 +624,7 @@ export default function ExchangeIntegration() {
 
   // Handler für das tatsächliche Senden der Test-Mail
   const handleSendTestEmail = async () => {
-    const mailbox = mailboxesData?.find((m: any) => m.emailAddress === testEmailMailbox);
+    const mailbox = (mailboxesData as MailboxData[] | undefined)?.find((m) => m.emailAddress === testEmailMailbox);
     if (mailbox) {
       setTestingMailboxId(mailbox.id);
     }
@@ -633,10 +640,10 @@ export default function ExchangeIntegration() {
         description: data.message || "Die Test-E-Mail wurde erfolgreich gesendet.",
       });
       setShowTestEmailDialog(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Fehler beim Senden",
-        description: error.message || "Die Test-E-Mail konnte nicht gesendet werden.",
+        description: error instanceof Error ? error.message : "Die Test-E-Mail konnte nicht gesendet werden.",
         variant: "destructive",
       });
     } finally {
@@ -999,7 +1006,7 @@ export default function ExchangeIntegration() {
                 )}
                 {!isLoadingMailboxes && (mailboxesData?.length ?? 0) > 0 && (
                   <div className="space-y-4">
-                    {(mailboxesData ?? []).map((mailbox: any) => {
+                    {(mailboxesData as MailboxData[] ?? []).map((mailbox) => {
                       let mailboxTypeLabel = "Gemeinsam";
                       if (mailbox.mailboxType === "incoming") mailboxTypeLabel = "Eingehend";
                       else if (mailbox.mailboxType === "outgoing") mailboxTypeLabel = "Ausgehend";
@@ -1127,7 +1134,7 @@ export default function ExchangeIntegration() {
                 )}
                 {!isLoadingRules && (processingRulesData?.length ?? 0) > 0 && (
                   <div className="space-y-3">
-                    {(processingRulesData ?? []).map((rule: any) => (
+                    {(processingRulesData as RuleData[] ?? []).map((rule) => (
                       <div key={rule.id} className="p-4 border rounded-md">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -1183,7 +1190,7 @@ export default function ExchangeIntegration() {
                               } catch (err) { console.error(err); }
                               
                               if (!conditions || conditions.length === 0) {
-                                conditions = [{ type: rule.conditionType, value: rule.conditionValue, operator: 'AND' }];
+                                conditions = [{ type: rule.conditionType ?? "all_emails", value: rule.conditionValue ?? "", operator: 'AND' as const }];
                               }
 
                               const conditionLabels: Record<string, (v: string) => string> = {
@@ -1231,7 +1238,7 @@ export default function ExchangeIntegration() {
                               return actions.map((a: string) => actionLabels[a] || a).join(", ");
                             })()}
                           </span>
-                          {rule.priority > 0 && (
+                          {(rule.priority ?? 0) > 0 && (
                             <Badge variant="outline" className="text-xs">
                               Priorität: {rule.priority}
                             </Badge>
@@ -1649,7 +1656,7 @@ export default function ExchangeIntegration() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__all__">Alle Postfächer</SelectItem>
-                  {mailboxesData?.map((mailbox: any) => (
+                  {(mailboxesData as MailboxData[] | undefined)?.map((mailbox) => (
                     <SelectItem key={mailbox.id} value={mailbox.id}>
                       {mailbox.displayName || mailbox.emailAddress}
                     </SelectItem>

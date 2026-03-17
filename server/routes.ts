@@ -524,7 +524,7 @@ async function seedDefaultData() {
     const customers = await seedDemoCustomers(defaultTenant);
     await seedDemoContactsAndAssets(defaultTenant, customers);
 
-    console.log("Demo-Daten erfolgreich erstellt");
+    logger.info("api", "Demo-Daten erfolgreich erstellt", "");
   } catch (error) {
     logger.error("api", "Fehler beim Erstellen der Demo-Daten", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
   }
@@ -677,7 +677,8 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Konto ist deaktiviert" });
       }
 
-      await storage.updateUser(user.id, { lastLoginAt: new Date() } as any);
+      // lastLoginAt is excluded from InsertUser but valid in DB — cast required
+      await storage.updateUser(user.id, { lastLoginAt: new Date() } as Parameters<typeof storage.updateUser>[1]);
 
       logger.success("auth", "Erfolgreiche Anmeldung", `Benutzer ${user.firstName} ${user.lastName} hat sich erfolgreich angemeldet`, {
         entityType: "user",
@@ -1427,7 +1428,7 @@ export async function registerRoutes(
       );
       if (!existing) return;
       // Only allow safe fields to be updated (not tenantId)
-      const { tenantId, id, ...safeUpdates } = req.body;
+      const { tenantId: _tenantId, id: _id, ...safeUpdates } = req.body;
       const sla = await storage.updateSlaDefinition(req.params.id, safeUpdates);
       res.json(sla);
     } catch (error) {
@@ -1598,7 +1599,7 @@ export async function registerRoutes(
         req, res, "Kategorie nicht gefunden"
       );
       if (!existing) return;
-      const { tenantId, id, ...safeUpdates } = req.body;
+      const { tenantId: _tenantId, id: _id, ...safeUpdates } = req.body;
       const category = await storage.updateKbCategory(req.params.id, safeUpdates);
       res.json(category);
     } catch (error) {
@@ -1706,7 +1707,7 @@ export async function registerRoutes(
         });
       }
       
-      const { tenantId, id, ...safeUpdates } = req.body;
+      const { tenantId: _tenantId, id: _id, ...safeUpdates } = req.body;
       // Increment version if content changed
       if (req.body.content && req.body.content !== existing.content) {
         (safeUpdates as Record<string, unknown>).version = (existing.version || 1) + 1;
@@ -2154,7 +2155,7 @@ export async function registerRoutes(
         req, res, "Umfrage nicht gefunden"
       );
       if (!existing) return;
-      const { tenantId, id, ...safeUpdates } = req.body;
+      const { tenantId: _tenantId, id: _id, ...safeUpdates } = req.body;
       const survey = await storage.updateSurvey(req.params.id, safeUpdates);
       res.json(survey);
     } catch (error) {
@@ -2220,7 +2221,7 @@ export async function registerRoutes(
 
   app.patch("/api/survey-questions/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const { surveyId, id, ...safeUpdates } = req.body;
+      const { surveyId: _surveyId, id: _id, ...safeUpdates } = req.body;
       const question = await storage.updateSurveyQuestion(req.params.id, safeUpdates);
       if (!question) {
         return res.status(404).json({ message: "Frage nicht gefunden" });
@@ -3222,7 +3223,7 @@ export async function registerRoutes(
         limit: req.query.limit ? Math.min(Number.parseInt(req.query.limit as string, 10) || 100, 1000) : 100,
         offset: req.query.offset ? Math.max(Number.parseInt(req.query.offset as string, 10) || 0, 0) : 0,
       };
-      const result = logger.getLogs(filters as any);
+      const result = logger.getLogs(filters as Parameters<typeof logger.getLogs>[0]);
       res.json(result);
     } catch (error) {
       logger.error("api", "Get logs error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -3314,11 +3315,12 @@ export async function registerRoutes(
         limit: 10000,
         offset: 0,
       };
-      const result = logger.getLogs(filters as any);
-      
+      const result = logger.getLogs(filters as Parameters<typeof logger.getLogs>[0]);
+
+      type FormattedLog = { timestampFormatted: string; level: string; source: string; entityType?: string; title: string; description: string; tenantId?: string; userId?: string; error?: { description: string; cause: string; solution: string } };
       if (format === "csv") {
         const headers = ["Zeitstempel", "Level", "Quelle", "Entitätstyp", "Titel", "Beschreibung", "Mandant", "Benutzer"];
-        const rows = result.logs.map((log: any) => [
+        const rows = (result.logs as FormattedLog[]).map((log) => [
           log.timestampFormatted,
           log.level,
           log.source,
@@ -3333,7 +3335,7 @@ export async function registerRoutes(
         res.setHeader("Content-Disposition", `attachment; filename=logs-${new Date().toISOString().split("T")[0]}.csv`);
         res.send("\uFEFF" + csv); // BOM for Excel
       } else if (format === "txt") {
-        const txt = result.logs.map((log: any) => 
+        const txt = (result.logs as FormattedLog[]).map((log) =>
           `[${log.timestampFormatted}] [${log.level.toUpperCase()}] [${log.source}]\n` +
           `   Titel: ${log.title}\n` +
           `   Beschreibung: ${log.description}\n` +
@@ -3637,7 +3639,7 @@ export async function registerRoutes(
       const tenantId = req.user?.tenantId ?? "";
       const { clientId, tenantAzureId, authType, clientSecret, certificatePem, certificateThumbprint, isEnabled } = req.body;
       
-      let existingConfig = await storage.getExchangeConfiguration(tenantId);
+      const existingConfig = await storage.getExchangeConfiguration(tenantId);
       
       const configData: Partial<InsertExchangeConfiguration> = {
         tenantId,
@@ -3706,11 +3708,11 @@ export async function registerRoutes(
       res.json(result);
     } catch (error) {
       if (error instanceof Error && error.name === "ExchangeError") {
-        const exchangeError = error as any;
-        res.status(400).json({ 
-          success: false, 
+        const exchangeError = error as Error & { solution?: string };
+        res.status(400).json({
+          success: false,
           message: exchangeError.message,
-          solution: exchangeError.solution 
+          solution: exchangeError.solution
         });
       } else {
         logger.error("exchange", "Fehler beim Verbindungstest", { description: String(error), cause: "Verbindungsfehler", solution: "Überprüfen Sie die Azure-Konfiguration" });
@@ -3845,13 +3847,14 @@ export async function registerRoutes(
       const folders = await ExchangeService.listMailFolders(config, emailAddress);
       
       res.json(folders);
-    } catch (error: any) {
-      logger.error("exchange", "Fehler beim Abrufen der Ordner", { 
-        description: error.message || String(error), 
-        cause: "API-Fehler", 
-        solution: "Überprüfen Sie die Berechtigungen" 
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      logger.error("exchange", "Fehler beim Abrufen der Ordner", {
+        description: errMsg,
+        cause: "API-Fehler",
+        solution: "Überprüfen Sie die Berechtigungen"
       });
-      res.status(500).json({ message: error.message || "Fehler beim Abrufen der Ordner" });
+      res.status(500).json({ message: errMsg || "Fehler beim Abrufen der Ordner" });
     }
   });
 
@@ -3962,13 +3965,14 @@ export async function registerRoutes(
       res.json({ 
         message: `Test-E-Mail wurde erfolgreich an ${targetRecipient} gesendet`
       });
-    } catch (error: any) {
-      logger.error("exchange", "Fehler beim Test-Mailversand", { 
-        description: String(error), 
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      logger.error("exchange", "Fehler beim Test-Mailversand", {
+        description: errMsg,
         cause: "Senden fehlgeschlagen",
         solution: "Überprüfen Sie die Mail.Send-Berechtigung in Azure AD"
       });
-      res.status(500).json({ message: error.message || "Fehler beim Senden der Test-E-Mail" });
+      res.status(500).json({ message: errMsg || "Fehler beim Senden der Test-E-Mail" });
     }
   });
 
@@ -3983,9 +3987,10 @@ export async function registerRoutes(
       const mailboxId = req.query.mailboxId as string | undefined;
       const rules = await storage.getEmailProcessingRules(tenantId, mailboxId);
       res.json(rules);
-    } catch (error: any) {
-      logger.error("exchange", "Fehler beim Laden der Verarbeitungsregeln", { description: String(error), cause: "Datenbankfehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: error.message || "Fehler beim Laden der Regeln" });
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      logger.error("exchange", "Fehler beim Laden der Verarbeitungsregeln", { description: errMsg, cause: "Datenbankfehler", solution: "Fehlerursache prüfen" });
+      res.status(500).json({ message: errMsg || "Fehler beim Laden der Regeln" });
     }
   });
 
@@ -3998,9 +4003,10 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Regel nicht gefunden" });
       }
       res.json(rule);
-    } catch (error: any) {
-      logger.error("exchange", "Fehler beim Laden der Regel", { description: String(error), cause: "Datenbankfehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: error.message || "Fehler beim Laden der Regel" });
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      logger.error("exchange", "Fehler beim Laden der Regel", { description: errMsg, cause: "Datenbankfehler", solution: "Fehlerursache prüfen" });
+      res.status(500).json({ message: errMsg || "Fehler beim Laden der Regel" });
     }
   });
 
@@ -4014,9 +4020,10 @@ export async function registerRoutes(
       });
       logger.info("exchange", "Verarbeitungsregel erstellt", rule.name, { userId: req.user!.id });
       res.status(201).json(rule);
-    } catch (error: any) {
-      logger.error("exchange", "Fehler beim Erstellen der Regel", { description: String(error), cause: "Erstellungsfehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: error.message || "Fehler beim Erstellen der Regel" });
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      logger.error("exchange", "Fehler beim Erstellen der Regel", { description: errMsg, cause: "Erstellungsfehler", solution: "Fehlerursache prüfen" });
+      res.status(500).json({ message: errMsg || "Fehler beim Erstellen der Regel" });
     }
   });
 
@@ -4030,9 +4037,10 @@ export async function registerRoutes(
       }
       logger.info("exchange", "Verarbeitungsregel aktualisiert", rule.name, { userId: req.user!.id });
       res.json(rule);
-    } catch (error: any) {
-      logger.error("exchange", "Fehler beim Aktualisieren der Regel", { description: String(error), cause: "Aktualisierungsfehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: error.message || "Fehler beim Aktualisieren der Regel" });
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      logger.error("exchange", "Fehler beim Aktualisieren der Regel", { description: errMsg, cause: "Aktualisierungsfehler", solution: "Fehlerursache prüfen" });
+      res.status(500).json({ message: errMsg || "Fehler beim Aktualisieren der Regel" });
     }
   });
 
@@ -4043,9 +4051,10 @@ export async function registerRoutes(
       await storage.deleteEmailProcessingRule(req.params.id, tenantId);
       logger.info("exchange", "Verarbeitungsregel gelöscht", req.params.id, { userId: req.user!.id });
       res.status(204).send();
-    } catch (error: any) {
-      logger.error("exchange", "Fehler beim Löschen der Regel", { description: String(error), cause: "Löschfehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: error.message || "Fehler beim Löschen der Regel" });
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      logger.error("exchange", "Fehler beim Löschen der Regel", { description: errMsg, cause: "Löschfehler", solution: "Fehlerursache prüfen" });
+      res.status(500).json({ message: errMsg || "Fehler beim Löschen der Regel" });
     }
   });
 

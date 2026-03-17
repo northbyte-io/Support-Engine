@@ -21,9 +21,9 @@ function hexToHsl(hex: string): string {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   if (!result) return "210 100% 50%";
 
-  let r = Number.parseInt(result[1], 16) / 255;
-  let g = Number.parseInt(result[2], 16) / 255;
-  let b = Number.parseInt(result[3], 16) / 255;
+  const r = Number.parseInt(result[1], 16) / 255;
+  const g = Number.parseInt(result[2], 16) / 255;
+  const b = Number.parseInt(result[3], 16) / 255;
 
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
@@ -126,6 +126,7 @@ export function BrandingProvider({ children }: Readonly<{ children: React.ReactN
     if (branding && isAuthenticated) {
       removeBrandingStyles();
       applyBrandingStyles(branding);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAppliedBranding(branding);
     } else if (!isAuthenticated) {
       removeBrandingStyles();

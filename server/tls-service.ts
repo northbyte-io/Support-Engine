@@ -3,6 +3,8 @@ import crypto from "node:crypto";
 import { storage } from "./storage";
 import { logger } from "./logger";
 import { encryptSecretToJson, getOrDecrypt } from "./keyVault";
+import type { TlsSettings, TlsCertificate, TlsCertificateAction } from "@shared/schema";
+import type { User } from "@shared/schema";
 
 const LETS_ENCRYPT_STAGING = "https://acme-staging-v02.api.letsencrypt.org/directory";
 const LETS_ENCRYPT_PRODUCTION = "https://acme-v02.api.letsencrypt.org/directory";
@@ -74,9 +76,10 @@ export class TlsService {
       }
       
       logger.info("system", "ACME-Account registriert/verifiziert", `E-Mail: ${email}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
       logger.error("system", "ACME-Account-Registrierung fehlgeschlagen", {
-        description: error.message,
+        description: errMsg,
         cause: "Account konnte nicht bei Let's Encrypt registriert werden",
         solution: "Überprüfen Sie die E-Mail-Adresse und die Netzwerkverbindung"
       });
@@ -179,9 +182,10 @@ export class TlsService {
       logger.info("system", "Zertifikat erfolgreich ausgestellt", `Domain: ${domain}, ID: ${cert.id}`);
 
       return { success: true, certificateId: cert.id };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
       logger.error("system", "Fehler bei Zertifikatsanforderung", {
-        description: error.message,
+        description: errMsg,
         cause: `Anforderung für Domain ${domain} fehlgeschlagen`,
         solution: "Prüfen Sie die Domain-Einstellungen und DNS-Konfiguration"
       });
@@ -196,12 +200,12 @@ export class TlsService {
           action: "requested",
           status: "failed",
           performedById: userId,
-          message: error.message,
-          details: { domain, error: error.message }
+          message: errMsg,
+          details: { domain, error: errMsg }
         });
       }
 
-      return { success: false, error: error.message };
+      return { success: false, error: errMsg };
     }
   }
 
@@ -292,9 +296,10 @@ export class TlsService {
       logger.info("system", "Zertifikat erfolgreich erneuert", `Domain: ${cert.domain}, ID: ${cert.id}`);
 
       return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
       logger.error("system", "Fehler bei Zertifikatserneuerung", {
-        description: error.message,
+        description: errMsg,
         cause: `Erneuerung für Zertifikat ${certificateId} fehlgeschlagen`,
         solution: "Prüfen Sie die Domain-Einstellungen und DNS-Konfiguration"
       });
@@ -306,11 +311,11 @@ export class TlsService {
         action: "renewed",
         status: "failed",
         performedById: userId,
-        message: error.message,
-        details: { error: error.message }
+        message: errMsg,
+        details: { error: errMsg }
       });
 
-      return { success: false, error: error.message };
+      return { success: false, error: errMsg };
     }
   }
 
@@ -328,8 +333,8 @@ export class TlsService {
 
       try {
         await this.client!.revokeCertificate(cert.certificatePem);
-      } catch (revokeError: any) {
-        if (!revokeError.message?.includes("already revoked")) {
+      } catch (revokeError: unknown) {
+        if (!(revokeError instanceof Error) || !revokeError.message?.includes("already revoked")) {
           throw revokeError;
         }
       }
@@ -350,9 +355,10 @@ export class TlsService {
       logger.info("system", "Zertifikat widerrufen", `Domain: ${cert.domain}, ID: ${cert.id}`);
 
       return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
       logger.error("system", "Fehler beim Widerrufen des Zertifikats", {
-        description: error.message,
+        description: errMsg,
         cause: `Widerruf für Zertifikat ${certificateId} fehlgeschlagen`,
         solution: "Prüfen Sie, ob das Zertifikat noch gültig ist"
       });
@@ -362,11 +368,11 @@ export class TlsService {
         action: "revoked",
         status: "failed",
         performedById: userId,
-        message: error.message,
-        details: { error: error.message }
+        message: errMsg,
+        details: { error: errMsg }
       });
 
-      return { success: false, error: error.message };
+      return { success: false, error: errMsg };
     }
   }
 
@@ -405,19 +411,19 @@ export class TlsService {
     return { renewed, errors };
   }
 
-  getSettings(): Promise<any> {
+  getSettings(): Promise<TlsSettings | undefined> {
     return storage.getTlsSettings();
   }
 
-  getCertificates(): Promise<any[]> {
+  getCertificates(): Promise<TlsCertificate[]> {
     return storage.getTlsCertificates();
   }
 
-  getCertificate(id: string): Promise<any> {
+  getCertificate(id: string): Promise<TlsCertificate | undefined> {
     return storage.getTlsCertificate(id);
   }
 
-  getActions(certificateId?: string, limit?: number): Promise<any[]> {
+  getActions(certificateId?: string, limit?: number): Promise<(TlsCertificateAction & { performedBy?: User })[]> {
     return storage.getTlsCertificateActions(certificateId, limit);
   }
 }

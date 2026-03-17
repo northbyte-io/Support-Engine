@@ -16,3 +16,5 @@ AGENTS.md
 .github/instructions
 .firecrawl/
 tasks/
+.claude/
+memory/

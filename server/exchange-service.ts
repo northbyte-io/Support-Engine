@@ -20,10 +20,10 @@ import type {
 const GRAPH_API_BASE = "https://graph.microsoft.com/v1.0";
 const GRAPH_AUTH_URL = "https://login.microsoftonline.com";
 
-// Graph API Berechtigungen (minimal)
-const REQUIRED_SCOPES = [
+// Graph API Berechtigungen (minimal) — dokumentarisch, wird bei token-basierter Auth implizit gesetzt
+const _REQUIRED_SCOPES = [
   "Mail.Read",
-  "Mail.ReadWrite", 
+  "Mail.ReadWrite",
   "Mail.Send"
 ];
 
@@ -268,7 +268,7 @@ export class ExchangeService {
   static async testConnection(config: ExchangeConfiguration): Promise<{
     success: boolean;
     message: string;
-    details?: any;
+    details?: Record<string, unknown>;
   }> {
     logger.info(this.logSource, "Verbindungstest", "Starte Verbindungstest zu Microsoft Graph API");
 
@@ -493,7 +493,7 @@ export class ExchangeService {
     subject: string,
     body: string,
     cc?: string[],
-    replyToMessageId?: string
+    _replyToMessageId?: string
   ): Promise<boolean> {
     if (!this.isConfigurationValid(config)) {
       throw new ExchangeError("NOT_CONFIGURED");

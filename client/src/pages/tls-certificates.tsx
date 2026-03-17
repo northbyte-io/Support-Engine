@@ -179,7 +179,7 @@ export default function TlsCertificatesPage() {
       requestCertForm.reset();
       toast({ title: "Zertifikat wird angefordert..." });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: error.message || "Fehler bei der Anforderung", variant: "destructive" });
     },
   });
@@ -245,7 +245,7 @@ export default function TlsCertificatesPage() {
       const response = await apiRequest("POST", "/api/tls/check-renewal");
       return response.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { message: string }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tls/certificates"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tls/actions"] });
       toast({ title: data.message });
