@@ -2,6 +2,43 @@
 
 Alle wichtigen Änderungen an Support-Engine werden hier dokumentiert.
 
+## [0.1.2] - März 2026
+
+### Hinzugefügt
+
+- Playwright E2E-Testsuite für Authentifizierungsflows
+- Vitest Unit-Tests für Auth, KeyVault und Logger
+- ESLint mit TypeScript- und React-Hooks-Regeln
+- Soft-Delete für Tickets und Wissensdatenbank-Artikel (DSGVO)
+- Optimistische UI-Updates für Status, Kommentare und Kanban-Board
+- i18n vollständig in die Anwendung eingebunden
+
+### Verbessert
+
+- Performance: Batch-Loading für Tickets, Assets und CRM-Relationen
+- Paginierung für alle Listen-Endpunkte
+- Barrierefreiheit (aria-label, aria-pressed, fieldset/legend)
+- Code-Struktur durch Extraktion gemeinsamer Helfer und Komponenten
+- Über 30 SonarQube-Qualitätsprobleme behoben
+
+### Sicherheit
+
+- Exchange-Zugriffstoken nicht mehr in Datenbank gespeichert (nur In-Memory)
+- localStorage-Token-Nutzung auf Zeiterfassungs- und Log-Seiten entfernt
+- S2068 (BLOCKER): Hart kodiertes Passwort in Testdatei behoben
+- S5852: ReDoS-Anfälligkeit in zwei Regex-Ausdrücken behoben
+- S2245: `Math.random()` durch kryptografisch sichere Alternativen ersetzt
+- S7637: GitHub Actions auf Commit-SHA fixiert (Supply-Chain-Schutz)
+
+### Behoben
+
+- Überflüssige Non-Null-Assertions entfernt
+- `parseInt` → `Number.parseInt` in API-Routes
+- Doppelter Import in TLS-Service behoben
+- Verschachtelter Ternary-Ausdruck in Logger bereinigt
+
+---
+
 ## [0.1.1] - Januar 2025
 
 ### Hinzugefügt
