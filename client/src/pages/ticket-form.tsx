@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TipTapEditor } from "@/components/TipTapEditor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { LoadingPage } from "@/components/LoadingState";
 import {
   Form,
@@ -298,12 +297,12 @@ export default function TicketFormPage() {
                       )}
                     />
 
-                    <div>
-                      <Label className="text-sm flex items-center gap-2">
+                    <fieldset className="border-0 p-0 m-0">
+                      <legend className="text-sm flex items-center gap-2 font-medium leading-none mb-2">
                         <Package className="w-4 h-4" />
                         Assets des Kunden
-                      </Label>
-                      <div className="flex flex-wrap gap-2 mt-2" role="group" aria-label="Assets auswählen">
+                      </legend>
+                      <div className="flex flex-wrap gap-2">
                         {assets && assets.length > 0 ? (
                           assets.map((asset) => {
                             const isSelected = selectedAssetIds?.includes(asset.id);
@@ -334,7 +333,7 @@ export default function TicketFormPage() {
                           </p>
                         )}
                       </div>
-                    </div>
+                    </fieldset>
                   </>
                 )}
               </CardContent>
@@ -521,9 +520,9 @@ export default function TicketFormPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-sm">Bereiche</Label>
-                  <div className="flex flex-wrap gap-2 mt-2" role="group" aria-label="Bereiche auswählen">
+                <fieldset className="border-0 p-0 m-0">
+                  <legend className="text-sm font-medium leading-none mb-2">Bereiche</legend>
+                  <div className="flex flex-wrap gap-2">
                     {areas?.map((area) => {
                       const isSelected = selectedAreaIds?.includes(area.id);
                       return (
@@ -551,11 +550,11 @@ export default function TicketFormPage() {
                       <p className="text-sm text-muted-foreground">Keine Bereiche verfügbar</p>
                     )}
                   </div>
-                </div>
+                </fieldset>
 
-                <div>
-                  <Label className="text-sm">Bearbeiter</Label>
-                  <div className="flex flex-wrap gap-2 mt-2" role="group" aria-label="Bearbeiter auswählen">
+                <fieldset className="border-0 p-0 m-0">
+                  <legend className="text-sm font-medium leading-none mb-2">Bearbeiter</legend>
+                  <div className="flex flex-wrap gap-2">
                     {users?.filter((u) => u.role === "agent" || u.role === "admin").map((user) => {
                       const isSelected = selectedAssigneeIds?.includes(user.id);
                       return (
@@ -583,7 +582,7 @@ export default function TicketFormPage() {
                       <p className="text-sm text-muted-foreground">Keine Bearbeiter verfügbar</p>
                     )}
                   </div>
-                </div>
+                </fieldset>
               </CardContent>
             </Card>
 
