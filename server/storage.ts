@@ -261,6 +261,30 @@ export interface IStorage {
   }>;
   getAgentWorkload(tenantId?: string): Promise<{ user: User; ticketCount: number }[]>;
 
+  // Reports
+  getTicketReport(tenantId: string, from: Date, to: Date): Promise<{
+    byDay: { date: string; total: number; resolved: number; open: number }[];
+    byStatus: { status: string; count: number }[];
+    byPriority: { priority: string; count: number }[];
+    byAgent: { agentName: string; assigned: number; resolved: number }[];
+    summary: { total: number; open: number; inProgress: number; resolved: number; closed: number };
+  }>;
+  getSlaReport(tenantId: string, from: Date, to: Date): Promise<{
+    complianceRate: number;
+    avgResponseMinutes: number;
+    avgResolutionMinutes: number;
+    byDay: { date: string; total: number; breached: number; compliant: number }[];
+    summary: { total: number; breached: number; compliant: number };
+  }>;
+  getTimeReport(tenantId: string, from: Date, to: Date): Promise<{
+    totalMinutes: number;
+    billableMinutes: number;
+    nonBillableMinutes: number;
+    byAgent: { agentName: string; totalMinutes: number; billableMinutes: number }[];
+    byDay: { date: string; minutes: number; billableMinutes: number }[];
+    summary: { totalHours: string; billableHours: string; totalAmount: number };
+  }>;
+
   // Knowledge Base Categories
   getKbCategories(tenantId: string, params?: { limit?: number; offset?: number }): Promise<KbCategory[]>;
   getKbCategory(id: string): Promise<KbCategory | undefined>;
@@ -1067,6 +1091,218 @@ export class DatabaseStorage implements IStorage {
     );
 
     return workload.sort((a, b) => b.ticketCount - a.ticketCount);
+  }
+
+  // Reports
+  async getTicketReport(tenantId: string, from: Date, to: Date): Promise<{
+    byDay: { date: string; total: number; resolved: number; open: number }[];
+    byStatus: { status: string; count: number }[];
+    byPriority: { priority: string; count: number }[];
+    byAgent: { agentName: string; assigned: number; resolved: number }[];
+    summary: { total: number; open: number; inProgress: number; resolved: number; closed: number };
+  }> {
+    const cond = and(eq(tickets.tenantId, tenantId), sql`${tickets.createdAt} >= ${from}`, sql`${tickets.createdAt} <= ${to}`);
+
+    const allTickets = await db.select({
+      id: tickets.id,
+      status: tickets.status,
+      priority: tickets.priority,
+      createdAt: tickets.createdAt,
+    }).from(tickets).where(cond);
+
+    // byDay
+    const dayMap = new Map<string, { total: number; resolved: number; open: number }>();
+    const days = Math.ceil((to.getTime() - from.getTime()) / 86400000) + 1;
+    for (let i = 0; i < days; i++) {
+      const d = new Date(from);
+      d.setDate(d.getDate() + i);
+      dayMap.set(d.toISOString().split("T")[0], { total: 0, resolved: 0, open: 0 });
+    }
+    for (const t of allTickets) {
+      const day = new Date(t.createdAt!).toISOString().split("T")[0];
+      if (dayMap.has(day)) {
+        const entry = dayMap.get(day)!;
+        entry.total++;
+        if (t.status === "resolved" || t.status === "closed") entry.resolved++;
+        if (t.status === "open") entry.open++;
+      }
+    }
+    const byDay = Array.from(dayMap.entries()).map(([date, v]) => ({ date, ...v }));
+
+    // byStatus
+    const statusMap = new Map<string, number>();
+    for (const t of allTickets) {
+      statusMap.set(t.status, (statusMap.get(t.status) || 0) + 1);
+    }
+    const byStatus = Array.from(statusMap.entries()).map(([status, count]) => ({ status, count }));
+
+    // byPriority
+    const priorityMap = new Map<string, number>();
+    for (const t of allTickets) {
+      const p = t.priority || "none";
+      priorityMap.set(p, (priorityMap.get(p) || 0) + 1);
+    }
+    const byPriority = Array.from(priorityMap.entries()).map(([priority, count]) => ({ priority, count }));
+
+    // byAgent
+    const agentRows = await db.select({
+      userId: ticketAssignees.userId,
+      ticketId: ticketAssignees.ticketId,
+    }).from(ticketAssignees)
+      .innerJoin(tickets, and(eq(ticketAssignees.ticketId, tickets.id), eq(tickets.tenantId, tenantId)));
+
+    const agentUserIds = [...new Set(agentRows.map(r => r.userId))];
+    const agentUsers = agentUserIds.length > 0
+      ? await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName }).from(users).where(inArray(users.id, agentUserIds))
+      : [];
+    const userNameMap = new Map(agentUsers.map(u => [u.id, `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.id]));
+
+    const agentTicketMap = new Map<string, { assigned: number; resolved: number }>();
+    for (const row of agentRows) {
+      const name = userNameMap.get(row.userId) || row.userId;
+      if (!agentTicketMap.has(name)) agentTicketMap.set(name, { assigned: 0, resolved: 0 });
+      agentTicketMap.get(name)!.assigned++;
+    }
+    const resolvedTicketIds = new Set(allTickets.filter(t => t.status === "resolved" || t.status === "closed").map(t => t.id));
+    for (const row of agentRows) {
+      if (resolvedTicketIds.has(row.ticketId)) {
+        const name = userNameMap.get(row.userId) || row.userId;
+        if (agentTicketMap.has(name)) agentTicketMap.get(name)!.resolved++;
+      }
+    }
+    const byAgent = Array.from(agentTicketMap.entries())
+      .map(([agentName, v]) => ({ agentName, ...v }))
+      .sort((a, b) => b.assigned - a.assigned)
+      .slice(0, 10);
+
+    const summary = {
+      total: allTickets.length,
+      open: allTickets.filter(t => t.status === "open").length,
+      inProgress: allTickets.filter(t => t.status === "in_progress").length,
+      resolved: allTickets.filter(t => t.status === "resolved").length,
+      closed: allTickets.filter(t => t.status === "closed").length,
+    };
+
+    return { byDay, byStatus, byPriority, byAgent, summary };
+  }
+
+  async getSlaReport(tenantId: string, from: Date, to: Date): Promise<{
+    complianceRate: number;
+    avgResponseMinutes: number;
+    avgResolutionMinutes: number;
+    byDay: { date: string; total: number; breached: number; compliant: number }[];
+    summary: { total: number; breached: number; compliant: number };
+  }> {
+    const allTickets = await db.select({
+      id: tickets.id,
+      slaBreached: tickets.slaBreached,
+      firstResponseAt: tickets.firstResponseAt,
+      resolvedAt: tickets.resolvedAt,
+      createdAt: tickets.createdAt,
+    }).from(tickets).where(and(
+      eq(tickets.tenantId, tenantId),
+      sql`${tickets.createdAt} >= ${from}`,
+      sql`${tickets.createdAt} <= ${to}`
+    ));
+
+    const total = allTickets.length;
+    const breached = allTickets.filter(t => t.slaBreached).length;
+    const compliant = total - breached;
+    const complianceRate = total > 0 ? Math.round((compliant / total) * 100) : 100;
+
+    const responseTimes = allTickets
+      .filter(t => t.firstResponseAt && t.createdAt)
+      .map(t => (new Date(t.firstResponseAt!).getTime() - new Date(t.createdAt!).getTime()) / 60000);
+    const avgResponseMinutes = responseTimes.length > 0 ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length) : 0;
+
+    const resolutionTimes = allTickets
+      .filter(t => t.resolvedAt && t.createdAt)
+      .map(t => (new Date(t.resolvedAt!).getTime() - new Date(t.createdAt!).getTime()) / 60000);
+    const avgResolutionMinutes = resolutionTimes.length > 0 ? Math.round(resolutionTimes.reduce((a, b) => a + b, 0) / resolutionTimes.length) : 0;
+
+    const dayMap = new Map<string, { total: number; breached: number; compliant: number }>();
+    const days = Math.ceil((to.getTime() - from.getTime()) / 86400000) + 1;
+    for (let i = 0; i < days; i++) {
+      const d = new Date(from);
+      d.setDate(d.getDate() + i);
+      dayMap.set(d.toISOString().split("T")[0], { total: 0, breached: 0, compliant: 0 });
+    }
+    for (const t of allTickets) {
+      const day = new Date(t.createdAt!).toISOString().split("T")[0];
+      if (dayMap.has(day)) {
+        const entry = dayMap.get(day)!;
+        entry.total++;
+        if (t.slaBreached) entry.breached++;
+        else entry.compliant++;
+      }
+    }
+    const byDay = Array.from(dayMap.entries()).map(([date, v]) => ({ date, ...v }));
+
+    return { complianceRate, avgResponseMinutes, avgResolutionMinutes, byDay, summary: { total, breached, compliant } };
+  }
+
+  async getTimeReport(tenantId: string, from: Date, to: Date): Promise<{
+    totalMinutes: number;
+    billableMinutes: number;
+    nonBillableMinutes: number;
+    byAgent: { agentName: string; totalMinutes: number; billableMinutes: number }[];
+    byDay: { date: string; minutes: number; billableMinutes: number }[];
+    summary: { totalHours: string; billableHours: string; totalAmount: number };
+  }> {
+    const entries = await db.select({
+      userId: timeEntries.userId,
+      minutes: timeEntries.minutes,
+      isBillable: timeEntries.isBillable,
+      hourlyRate: timeEntries.hourlyRate,
+      date: timeEntries.date,
+    }).from(timeEntries).where(and(
+      eq(timeEntries.tenantId, tenantId),
+      sql`${timeEntries.date} >= ${from}`,
+      sql`${timeEntries.date} <= ${to}`
+    ));
+
+    const totalMinutes = entries.reduce((s, e) => s + e.minutes, 0);
+    const billableMinutes = entries.filter(e => e.isBillable).reduce((s, e) => s + e.minutes, 0);
+    const nonBillableMinutes = totalMinutes - billableMinutes;
+    const totalAmount = entries
+      .filter(e => e.isBillable && e.hourlyRate)
+      .reduce((s, e) => s + Math.round((e.minutes / 60) * (e.hourlyRate || 0)), 0);
+
+    const userIds = [...new Set(entries.map(e => e.userId).filter(Boolean) as string[])];
+    const entryUsers = userIds.length > 0
+      ? await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName }).from(users).where(inArray(users.id, userIds))
+      : [];
+    const userNameMap = new Map(entryUsers.map(u => [u.id, `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.id]));
+
+    const agentMap = new Map<string, { totalMinutes: number; billableMinutes: number }>();
+    for (const e of entries) {
+      const name = (e.userId && userNameMap.get(e.userId)) || "Unbekannt";
+      if (!agentMap.has(name)) agentMap.set(name, { totalMinutes: 0, billableMinutes: 0 });
+      agentMap.get(name)!.totalMinutes += e.minutes;
+      if (e.isBillable) agentMap.get(name)!.billableMinutes += e.minutes;
+    }
+    const byAgent = Array.from(agentMap.entries())
+      .map(([agentName, v]) => ({ agentName, ...v }))
+      .sort((a, b) => b.totalMinutes - a.totalMinutes);
+
+    const dayMap = new Map<string, { minutes: number; billableMinutes: number }>();
+    const days = Math.ceil((to.getTime() - from.getTime()) / 86400000) + 1;
+    for (let i = 0; i < days; i++) {
+      const d = new Date(from);
+      d.setDate(d.getDate() + i);
+      dayMap.set(d.toISOString().split("T")[0], { minutes: 0, billableMinutes: 0 });
+    }
+    for (const e of entries) {
+      const day = new Date(e.date).toISOString().split("T")[0];
+      if (dayMap.has(day)) {
+        dayMap.get(day)!.minutes += e.minutes;
+        if (e.isBillable) dayMap.get(day)!.billableMinutes += e.minutes;
+      }
+    }
+    const byDay = Array.from(dayMap.entries()).map(([date, v]) => ({ date, ...v }));
+
+    const fmt = (m: number) => `${Math.floor(m / 60)}h ${m % 60}m`;
+    return { totalMinutes, billableMinutes, nonBillableMinutes, byAgent, byDay, summary: { totalHours: fmt(totalMinutes), billableHours: fmt(billableMinutes), totalAmount } };
   }
 
   // Knowledge Base Categories

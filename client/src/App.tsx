@@ -35,6 +35,7 @@ import LogsPage from "@/pages/logs";
 import BrandingPage from "@/pages/branding";
 import TlsCertificatesPage from "@/pages/tls-certificates";
 import ExchangeIntegrationPage from "@/pages/exchange-integration";
+import ReportsPage from "@/pages/reports";
 
 function ProtectedRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -252,6 +253,12 @@ function Router() {
         <AdminRoute>
           <ExchangeIntegrationPage />
         </AdminRoute>
+      </Route>
+
+      <Route path="/reports">
+        <AgentRoute>
+          <ReportsPage />
+        </AgentRoute>
       </Route>
 
       <Route component={NotFound} />

@@ -1,5 +1,7 @@
 import type { Express, Response } from "express";
 import type { Server } from "node:http";
+import * as XLSX from "xlsx";
+import PDFDocument from "pdfkit";
 import { Client as ObjectStorageClient } from "@replit/object-storage";
 import { storage } from "./storage";
 import { logger } from "./logger";
@@ -748,6 +750,197 @@ export async function registerRoutes(
       handleApiError(res, error, "Workload error");
     }
   });
+
+  // ─── Report Routes ────────────────────────────────────────────────────────
+  function parseDateRange(from?: string, to?: string): { from: Date; to: Date } {
+    const now = new Date();
+    const toDate = to ? new Date(to) : new Date(now);
+    toDate.setHours(23, 59, 59, 999);
+    const fromDate = from ? new Date(from) : new Date(now);
+    if (!from) fromDate.setDate(fromDate.getDate() - 30);
+    fromDate.setHours(0, 0, 0, 0);
+    return { from: fromDate, to: toDate };
+  }
+
+  app.get("/api/reports/tickets", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { from, to } = parseDateRange(req.query.from as string, req.query.to as string);
+      const data = await storage.getTicketReport(req.tenantId!, from, to);
+      res.json(data);
+    } catch (error) { handleApiError(res, error, "Ticket report error"); }
+  });
+
+  app.get("/api/reports/sla", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { from, to } = parseDateRange(req.query.from as string, req.query.to as string);
+      const data = await storage.getSlaReport(req.tenantId!, from, to);
+      res.json(data);
+    } catch (error) { handleApiError(res, error, "SLA report error"); }
+  });
+
+  app.get("/api/reports/time", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { from, to } = parseDateRange(req.query.from as string, req.query.to as string);
+      const data = await storage.getTimeReport(req.tenantId!, from, to);
+      res.json(data);
+    } catch (error) { handleApiError(res, error, "Time report error"); }
+  });
+
+  app.get("/api/reports/export", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const type = (req.query.type as string) || "tickets";
+      const format = (req.query.format as string) || "csv";
+      const { from, to } = parseDateRange(req.query.from as string, req.query.to as string);
+      const dateLabel = `${from.toISOString().split("T")[0]}_${to.toISOString().split("T")[0]}`;
+      const filename = `bericht-${type}-${dateLabel}`;
+
+      type Row = Record<string, string | number | boolean | null>;
+      let rows: Row[] = [];
+      let sheetTitle = "";
+
+      if (type === "tickets") {
+        const data = await storage.getTicketReport(req.tenantId!, from, to);
+        sheetTitle = "Ticket-Analyse";
+        rows = data.byDay.map(r => ({
+          "Datum": r.date,
+          "Gesamt": r.total,
+          "Offen": r.open,
+          "Gelöst": r.resolved,
+        }));
+      } else if (type === "sla") {
+        const data = await storage.getSlaReport(req.tenantId!, from, to);
+        sheetTitle = "SLA-Performance";
+        rows = data.byDay.map(r => ({
+          "Datum": r.date,
+          "Gesamt": r.total,
+          "Eingehalten": r.compliant,
+          "Verletzt": r.breached,
+        }));
+      } else if (type === "time") {
+        const data = await storage.getTimeReport(req.tenantId!, from, to);
+        sheetTitle = "Zeiterfassung";
+        rows = data.byAgent.map(r => ({
+          "Agent": r.agentName,
+          "Gesamt (Min)": r.totalMinutes,
+          "Abrechenbar (Min)": r.billableMinutes,
+          "Gesamt (Std)": `${Math.floor(r.totalMinutes / 60)}h ${r.totalMinutes % 60}m`,
+          "Abrechenbar (Std)": `${Math.floor(r.billableMinutes / 60)}h ${r.billableMinutes % 60}m`,
+        }));
+      } else if (type === "agents") {
+        const data = await storage.getTicketReport(req.tenantId!, from, to);
+        sheetTitle = "Agenten-Performance";
+        rows = data.byAgent.map(r => ({
+          "Agent": r.agentName,
+          "Zugewiesen": r.assigned,
+          "Gelöst": r.resolved,
+          "Lösungsrate (%)": r.assigned > 0 ? Math.round((r.resolved / r.assigned) * 100) : 0,
+        }));
+      }
+
+      if (format === "csv") {
+        if (rows.length === 0) { res.setHeader("Content-Type", "text/csv; charset=utf-8"); res.send("\uFEFF"); return; }
+        const headers = Object.keys(rows[0]);
+        const csvRows = rows.map(r => headers.map(h => `"${String(r[h] ?? "").replace(/"/g, '""')}"`).join(";"));
+        const csv = [headers.join(";"), ...csvRows].join("\n");
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}.csv"`);
+        res.send("\uFEFF" + csv);
+
+      } else if (format === "xlsx") {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(rows);
+        XLSX.utils.book_append_sheet(wb, ws, sheetTitle);
+        const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}.xlsx"`);
+        res.send(buf);
+
+      } else if (format === "pdf") {
+        const doc = new PDFDocument({ margin: 40, size: "A4" });
+        const chunks: Buffer[] = [];
+        doc.on("data", (c: Buffer) => chunks.push(c));
+        doc.on("end", () => {
+          const buf = Buffer.concat(chunks);
+          res.setHeader("Content-Type", "application/pdf");
+          res.setHeader("Content-Disposition", `attachment; filename="${filename}.pdf"`);
+          res.send(buf);
+        });
+
+        doc.fontSize(18).font("Helvetica-Bold").text("Support-Engine Bericht", { align: "left" });
+        doc.fontSize(12).font("Helvetica").text(`${sheetTitle} · ${from.toLocaleDateString("de-DE")} – ${to.toLocaleDateString("de-DE")}`, { align: "left" });
+        doc.moveDown();
+
+        if (rows.length > 0) {
+          const headers = Object.keys(rows[0]);
+          const colWidth = Math.floor((doc.page.width - 80) / headers.length);
+          const rowH = 20;
+          let y = doc.y;
+
+          // Header row
+          doc.font("Helvetica-Bold").fontSize(9);
+          headers.forEach((h, i) => {
+            doc.rect(40 + i * colWidth, y, colWidth, rowH).fillAndStroke("#1e2a4a", "#1e2a4a");
+            doc.fillColor("white").text(h, 43 + i * colWidth, y + 5, { width: colWidth - 6, lineBreak: false });
+          });
+          doc.fillColor("black");
+          y += rowH;
+
+          // Data rows
+          doc.font("Helvetica").fontSize(8);
+          rows.forEach((row, ri) => {
+            if (y > doc.page.height - 60) { doc.addPage(); y = 40; }
+            const bg = ri % 2 === 0 ? "#f8f9fb" : "white";
+            headers.forEach((h, i) => {
+              doc.rect(40 + i * colWidth, y, colWidth, rowH).fillAndStroke(bg, "#e2e8f0");
+              doc.fillColor("black").text(String(row[h] ?? ""), 43 + i * colWidth, y + 5, { width: colWidth - 6, lineBreak: false });
+            });
+            y += rowH;
+          });
+        } else {
+          doc.text("Keine Daten für den gewählten Zeitraum.");
+        }
+        doc.end();
+
+      } else if (format === "html") {
+        const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+        const thHtml = headers.map(h => `<th>${h}</th>`).join("");
+        const tdHtml = rows.map(row =>
+          `<tr>${headers.map(h => `<td>${row[h] ?? ""}</td>`).join("")}</tr>`
+        ).join("\n");
+        const html = `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>${sheetTitle} – Support-Engine</title>
+<style>
+  body { font-family: system-ui, sans-serif; padding: 32px; color: #0f172a; background: #fff; }
+  h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+  p { color: #64748b; margin-bottom: 24px; font-size: .9rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+  thead tr { background: #1e2a4a; color: white; }
+  th, td { padding: 8px 12px; border: 1px solid #e2e8f0; text-align: left; }
+  tbody tr:nth-child(even) { background: #f8f9fb; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+<h1>Support-Engine Bericht – ${sheetTitle}</h1>
+<p>Zeitraum: ${from.toLocaleDateString("de-DE")} – ${to.toLocaleDateString("de-DE")} · Exportiert: ${new Date().toLocaleString("de-DE")}</p>
+<table>
+  <thead><tr>${thHtml}</tr></thead>
+  <tbody>${tdHtml}</tbody>
+</table>
+</body>
+</html>`;
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}.html"`);
+        res.send(html);
+      } else {
+        res.status(400).json({ error: "Ungültiges Format. Erlaubt: csv, xlsx, pdf, html" });
+      }
+    } catch (error) { handleApiError(res, error, "Report export error"); }
+  });
+  // ──────────────────────────────────────────────────────────────────────────
 
   // Ticket Routes
   app.get("/api/tickets", authMiddleware, async (req: AuthenticatedRequest, res) => {

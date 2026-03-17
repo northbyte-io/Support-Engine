@@ -19,6 +19,7 @@ import {
   Mail,
   ShieldCheck,
   FileText,
+  BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useBranding } from "@/lib/branding";
@@ -49,6 +50,7 @@ import {
 const coreNavItems = [
   { title: "Dashboard",        url: "/",               icon: LayoutDashboard },
   { title: "Tickets",          url: "/tickets",        icon: Ticket },
+  { title: "Berichte",         url: "/reports",        icon: BarChart3 },
   { title: "Zeiterfassung",    url: "/time-tracking",  icon: Timer },
   { title: "Wissensdatenbank", url: "/knowledge-base", icon: BookOpen },
 ];
