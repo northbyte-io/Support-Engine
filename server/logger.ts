@@ -289,11 +289,16 @@ class Logger {
     // Mask email addresses partially — split on @ to avoid unanchored quantifiers (S5852)
     masked = masked.split('@').reduce((acc: string, part: string, i: number) => {
       if (i === 0) return part;
-      const localMatch = acc.match(/[a-z0-9._-]+$/i);
+      const localMatch = /[a-z0-9._-]+$/i.exec(acc);
       const local = localMatch?.[0] ?? '';
       const prefix = local ? acc.slice(0, -local.length) : acc;
-      const maskedLocal = local.length > 2 ? `${local.slice(0, 2)}***` : (local ? '***' : '');
-      const domainMatch = part.match(/^[a-z0-9._-]+/i);
+      let maskedLocal: string;
+      if (local.length > 2) {
+        maskedLocal = `${local.slice(0, 2)}***`;
+      } else {
+        maskedLocal = local ? '***' : '';
+      }
+      const domainMatch = /^[a-z0-9._-]+/i.exec(part);
       const domain = domainMatch?.[0] ?? '';
       const suffix = part.slice(domain.length);
       return `${prefix}${maskedLocal}@${domain}${suffix}`;
