@@ -1,65 +1,64 @@
 # SLA-Management
 
-Service Level Agreements (SLAs) definieren Reaktions- und Lösungszeiten für Tickets.
-
-## Konzept
-
-SLAs werden pro **Prioritätsstufe** definiert und regeln:
-
-- **Reaktionszeit**: Maximale Zeit bis zur ersten Antwort
-- **Lösungszeit**: Maximale Zeit bis zur Problemlösung
+SLA (Service Level Agreement) definiert verbindliche Reaktions- und Lösungszeiten für Tickets. Support-Engine überwacht SLAs automatisch und eskaliert bei Verstößen.
 
 ## SLA-Definitionen
 
-### Standard-SLAs
+**Navigation:** Administration → SLA → Neue SLA-Definition
 
-| Priorität | Reaktionszeit | Lösungszeit |
-|-----------|---------------|-------------|
-| **Dringend** | 1 Stunde | 4 Stunden |
-| **Hoch** | 4 Stunden | 8 Stunden |
-| **Mittel** | 8 Stunden | 24 Stunden |
-| **Niedrig** | 24 Stunden | 72 Stunden |
+Eine SLA-Definition legt fest, innerhalb welcher Zeit ein Ticket bearbeitet werden muss:
 
-### SLA konfigurieren
+| Feld | Beschreibung |
+|------|-------------|
+| Name | Bezeichnung der SLA-Regel |
+| Priorität | Für welche Ticket-Priorität gilt diese Regel |
+| Reaktionszeit | Zeit bis zur ersten Antwort (in Stunden) |
+| Lösungszeit | Zeit bis zur Schließung des Tickets (in Stunden) |
+| Arbeitszeiten | Ob Zeiten nur innerhalb der Geschäftszeiten zählen |
 
-1. Navigieren Sie zu **Einstellungen > SLA**
-2. Wählen Sie die Prioritätsstufe
-3. Definieren Sie:
-   - Reaktionszeit (Stunden)
-   - Lösungszeit (Stunden)
-4. Speichern Sie die Einstellungen
+## Eskalationsstufen
 
-## SLA-Status
+Jede SLA-Definition kann mehrere Eskalationsstufen haben. Eine Eskalation wird ausgelöst, wenn ein Schwellenwert überschritten wird:
 
-Der SLA-Status wird visuell angezeigt:
+| Feld | Beschreibung |
+|------|-------------|
+| Schwellenwert | Prozentsatz der SLA-Zeit (z.B. 80 = bei 80% der Zeit) |
+| Aktion | `notify_agent`, `notify_admin`, `change_priority`, `reassign` |
+| Ziel | Betroffen: Agent, Admin oder Gruppe |
 
-| Status | Farbe | Bedeutung |
-|--------|-------|-----------|
-| **OK** | Grün | Innerhalb der Zeit |
-| **Warnung** | Gelb | 75% der Zeit verbraucht |
-| **Verletzt** | Rot | SLA überschritten |
+**Beispiel:** SLA für "Hoch"-Tickets: Reaktionszeit 4h, Lösungszeit 24h
+- Bei 75% (3h ohne Reaktion) → Agent benachrichtigen
+- Bei 90% (21,6h ohne Lösung) → Admin benachrichtigen + Priorität erhöhen
 
-## Eskalationsregeln
+## SLA-Tracking
 
-Bei SLA-Verletzung können automatische Aktionen ausgelöst werden:
+Das SLA-Tracking wird automatisch gestartet, wenn ein Ticket erstellt wird. Die SLA-Engine prüft alle 5 Minuten im Hintergrund:
 
-1. **Benachrichtigung**: E-Mail an Vorgesetzten
-2. **Priorität erhöhen**: Automatische Hochstufung
-3. **Neuzuweisung**: Ticket an anderen Agent
+- Welche Tickets haben ihre SLA-Zeit überschritten?
+- Welche Eskalationsschwellen wurden erreicht?
+- Wurden Reaktionszeiten eingehalten?
 
-### Eskalation einrichten
+### SLA-Status-Felder in Tickets
 
-1. Gehen Sie zu **Einstellungen > Eskalation**
-2. Erstellen Sie eine neue Regel:
-   - **Auslöser**: Reaktion/Lösung überschritten
-   - **Aktion**: Benachrichtigen/Eskalieren
-   - **Empfänger**: Agent/Gruppe/Admin
+| Feld | Bedeutung |
+|------|----------|
+| `slaFirstResponseAt` | Zeitpunkt der ersten Reaktion |
+| `slaResolvedAt` | Zeitpunkt der Lösung |
+| `slaBreached` | `true` wenn SLA verletzt wurde |
+| `slaBreachedAt` | Zeitpunkt der SLA-Verletzung |
 
-## Berichte
+## SLA-Compliance-Berichte
 
-SLA-Berichte zeigen:
+Unter **Berichte → SLA-Performance** sind folgende Metriken verfügbar:
 
-- Einhaltungsquote pro Priorität
-- Durchschnittliche Reaktions-/Lösungszeiten
-- Trends über Zeit
-- Verletzungen pro Agent/Kunde
+- SLA-Compliance-Rate (in %)
+- Durchschnittliche Reaktionszeit
+- Durchschnittliche Lösungszeit
+- Tagesgenaue Aufschlüsselung mit Farbkodierung (grün/gelb/rot)
+
+## Best Practices
+
+- Definieren Sie SLA-Regeln für jede Prioritätsstufe (kritisch, hoch, mittel, niedrig)
+- Setzen Sie Eskalationsschwellen bei 75% und 90% der Lösungszeit
+- Verwenden Sie Arbeitszeiten-Einschränkung für Teams ohne 24/7-Bereitschaft
+- Prüfen Sie die SLA-Berichte wöchentlich, um Trends frühzeitig zu erkennen

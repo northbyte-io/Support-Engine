@@ -1,74 +1,123 @@
-# Logging und Monitoring
+# System-Logging
 
-Support-Engine bietet umfangreiche Logging-Funktionen für Überwachung und Fehleranalyse.
+Support-Engine verwendet einen strukturierten Logger (Winston) mit automatischer Dateirotation. Logs sind über die Administrationsoberfläche und als Dateien zugänglich.
 
-## Log-Level
+## Log-Ebenen
 
-| Level | Beschreibung | Beispiel |
-|-------|--------------|----------|
-| **ERROR** | Kritische Fehler | Datenbankverbindung fehlgeschlagen |
-| **WARN** | Warnungen | SLA-Verletzung droht |
-| **INFO** | Informationen | Benutzer angemeldet |
-| **DEBUG** | Detaillierte Infos | API-Aufruf mit Parametern |
+| Ebene | Priorität | Beschreibung |
+|-------|-----------|-------------|
+| `error` | 0 (höchste) | Fehler, die Aktionen verhindern |
+| `security` | 1 | Sicherheitsrelevante Ereignisse |
+| `performance` | 2 | Performance-Metriken |
+| `warn` | 3 | Warnungen (keine Aktionsblockierung) |
+| `info` | 4 | Normale Betriebsereignisse |
+| `debug` | 5 (niedrigste) | Detaillierte Debugging-Infos |
 
-## Log-Oberfläche
-
-### Logs anzeigen
-
-1. Navigieren Sie zu **Einstellungen > Logs**
-2. Standardmäßig werden die letzten 100 Einträge angezeigt
-
-### Filter
-
-| Filter | Beschreibung |
-|--------|--------------|
-| **Level** | ERROR, WARN, INFO, DEBUG |
-| **Quelle** | System, API, Auth, Email |
-| **Zeitraum** | Von-Bis Datumsauswahl |
-| **Suche** | Volltextsuche in Meldungen |
+Standard-Ebene in Produktion: `info` (konfigurierbar über `LOG_LEVEL`-Umgebungsvariable)
 
 ## Log-Quellen
 
+Jeder Log-Eintrag enthält eine Quellenangabe:
+
 | Quelle | Beschreibung |
-|--------|--------------|
-| **system** | Systemereignisse |
-| **auth** | Authentifizierung |
-| **ticket** | Ticket-Operationen |
-| **email** | E-Mail-Integration |
-| **api** | API-Aufrufe |
+|--------|-------------|
+| `api` | HTTP-API-Anfragen |
+| `auth` | Authentifizierung / Anmeldung |
+| `authorization` | Berechtigungsprüfungen |
+| `ticket` | Ticketoperationen |
+| `sla` | SLA-Engine |
+| `crm` | CRM-Operationen |
+| `email` | E-Mail-Verarbeitung |
+| `exchange` | Microsoft Exchange Sync |
+| `database` | Datenbankoperationen |
+| `background` | Hintergrundaufgaben |
+| `system` | Systemereignisse |
+
+## Log-Struktur
+
+Jeder Eintrag enthält:
+
+```json
+{
+  "timestamp": "2026-03-17T10:00:00.000Z",
+  "level": "info",
+  "source": "ticket",
+  "entityType": "ticket",
+  "entityId": "abc123",
+  "tenantId": "tenant-id",
+  "userId": "user-id",
+  "title": "Ticket erstellt",
+  "description": "Ticket #1042 wurde erfolgreich angelegt",
+  "error": null,
+  "metadata": {}
+}
+```
+
+Fehler-Einträge enthalten zusätzlich:
+- `error.description` — Was ist passiert
+- `error.cause` — Warum ist es passiert
+- `error.solution` — Vorgeschlagene Lösung
+
+## Datenschutz
+
+Der Logger maskiert automatisch sensible Daten:
+- Passwörter → `[MASKIERT]`
+- API-Keys → `[MASKIERT]`
+- Bearer-Token → `[MASKIERT]`
+- E-Mail-Adressen → teilweise maskiert (z.B. `jo***@example.com`)
+
+## Administrationsoberfläche
+
+**Navigation:** Administration → System-Logs
+
+Die Log-Anzeige zeigt die letzten **1000 Einträge** aus dem In-Memory-Puffer. Filteroptionen:
+
+- Ebene (level)
+- Quelle (source)
+- Entity-Typ / Entity-ID
+- Benutzer-ID
+- Zeitraum (Start- / Enddatum)
+- Freitextsuche in Titel und Beschreibung
+
+## Log-Dateien
+
+Logs werden täglich rotiert und im Verzeichnis `logs/` gespeichert:
+
+| Datei | Inhalt |
+|-------|--------|
+| `support-engine-YYYY-MM-DD.log` | Alle Logs |
+| `security-YYYY-MM-DD.log` | Nur Security-Logs |
+| `performance-YYYY-MM-DD.log` | Nur Performance-Logs |
+
+### Aufbewahrung
+
+| Parameter | Wert |
+|-----------|------|
+| Maximale Dateigröße | 2 GB pro Datei |
+| Aufbewahrungsdauer | 7 Tage |
+| Komprimierung | Ältere Dateien werden als `.log.gz` komprimiert |
+| Security-/Performance-Dateien | 500 MB max, 7 Tage |
+
+### Log-Dateien herunterladen
+
+**Navigation:** Administration → System-Logs → Dateien
+
+Verfügbare Dateien können direkt über die Oberfläche heruntergeladen werden.
 
 ## Log-Export
 
-Logs können exportiert werden:
+Gefilterte Logs können als Datei exportiert werden:
 
-1. Wählen Sie den gewünschten Zeitraum
-2. Setzen Sie gewünschte Filter
-3. Klicken Sie auf **"Exportieren"**
-4. Wählen Sie das Format (CSV, JSON)
+```http
+GET /api/logs/export
+```
 
-## Fehleranalyse
+Mit denselben Filterparametern wie die Log-Anzeige.
 
-### Typische Fehler
+## Test-Log erstellen
 
-| Fehler | Mögliche Ursache | Lösung |
-|--------|------------------|--------|
-| `DB_CONNECTION_ERROR` | Datenbank nicht erreichbar | Verbindung prüfen |
-| `AUTH_TOKEN_EXPIRED` | JWT abgelaufen | Neu anmelden |
-| `MAIL_SYNC_FAILED` | E-Mail-Abruf fehlgeschlagen | Konfiguration prüfen |
+Für Diagnosezwecke kann ein Test-Log-Eintrag erstellt werden:
 
-### Fehler melden
+**Navigation:** Administration → System-Logs → Test-Eintrag erstellen
 
-Bei unbekannten Fehlern:
-
-1. Notieren Sie den Zeitstempel
-2. Kopieren Sie die Fehlermeldung
-3. Prüfen Sie die Logs auf Details
-4. Erstellen Sie ggf. ein GitHub Issue
-
-## Log-Rotation
-
-Logs werden automatisch rotiert:
-
-- **Aufbewahrung**: 30 Tage
-- **Maximale Größe**: 100 MB pro Datei
-- **Archivierung**: Ältere Logs werden komprimiert
+Dieser Eintrag erscheint sofort in der Log-Anzeige und in der Log-Datei.

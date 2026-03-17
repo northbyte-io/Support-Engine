@@ -1,60 +1,62 @@
 # Mandantenverwaltung
 
-Support-Engine ist mandantenfähig - jeder Mandant hat vollständig isolierte Daten.
+Support-Engine ist eine mandantenfähige Anwendung. Jeder Mandant hat eine vollständig isolierte Umgebung mit eigenen Benutzern, Tickets, Einstellungen und Branding.
 
 ## Konzept
 
-Ein Mandant (Tenant) repräsentiert eine eigenständige Organisation mit:
+Jeder Datensatz in der Datenbank enthält ein `tenantId`-Feld. Der Server filtert alle Abfragen automatisch nach dem `tenantId` des angemeldeten Benutzers — Mandanten können niemals auf Daten anderer Mandanten zugreifen.
 
-- Eigenen Benutzern
-- Eigenen Tickets
-- Eigenen Kunden und Assets
-- Eigenem Branding
+## Mandanten anlegen
 
-## Mandant konfigurieren
+Ein neuer Mandant entsteht automatisch bei der ersten Registrierung über `/register`. Der registrierende Benutzer wird automatisch zum `admin` des neuen Mandanten.
 
-### Grundeinstellungen
+| Feld | Beschreibung |
+|------|-------------|
+| Name | Anzeigename des Mandanten |
+| Slug | URL-freundlicher Bezeichner (eindeutig, z.B. `acme-corp`) |
 
-1. Navigieren Sie zu **Einstellungen > Mandant**
-2. Konfigurieren Sie:
-   - **Name**: Anzeigename des Mandanten
-   - **Slug**: URL-freundlicher Bezeichner
-   - **Aktiv**: Aktivierungsstatus
+Der Slug wird für die öffentliche Branding-API verwendet: `GET /api/tenant/public/:slug`
 
-### Branding
+## Mandanten-Konfiguration
 
-Passen Sie das Erscheinungsbild an:
+Admins können ihren Mandanten über **Einstellungen** konfigurieren. Die folgenden Felder sind verfügbar:
 
-| Einstellung | Beschreibung |
-|-------------|--------------|
-| **Logo** | Firmenlogo für Header |
-| **Favicon** | Browser-Tab-Icon |
-| **Primärfarbe** | Hauptfarbe der Oberfläche |
-| **E-Mail-Footer** | Signatur für ausgehende E-Mails |
+| Feld | Typ | Beschreibung |
+|------|-----|-------------|
+| `name` | Text | Anzeigename |
+| `slug` | Text | URL-Bezeichner |
+| `logoUrl` | URL | Logo (erscheint in Seitenleiste) |
+| `faviconUrl` | URL | Browser-Favicon |
+| `customCss` | CSS | Eigene Stilanpassungen |
+| `primaryColor` | Farbe | Primärfarbe (überschreibt Amber) |
+
+:::{note}
+Ab v0.1.3 ist Amber die globale Primärfarbe ohne Mandanten-Override. Individuelle Anpassungen sind weiterhin über `customCss` möglich.
+:::
+
+## Mandanten-Daten
+
+Alle folgenden Daten gehören zum Mandanten und sind vollständig isoliert:
+
+- Benutzer und Rollen
+- Tickets, Kommentare, Anhänge
+- SLA-Definitionen und Eskalationen
+- Wissensdatenbank-Kategorien und Artikel
+- CRM: Organisationen, Kunden, Kontakte
+- Assets und Lizenzen
+- Projekte und Kanban-Boards
+- Bereiche/Abteilungen
+- Exchange-Konfiguration und Postfächer
+- TLS-Zertifikate
+- Systemlogs
 
 ## Datenisolierung
 
-```
-┌─────────────────────────────────────────────────────┐
-│                   Support-Engine                     │
-├─────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │
-│  │  Mandant A  │  │  Mandant B  │  │  Mandant C  │  │
-│  │  - Benutzer │  │  - Benutzer │  │  - Benutzer │  │
-│  │  - Tickets  │  │  - Tickets  │  │  - Tickets  │  │
-│  │  - Kunden   │  │  - Kunden   │  │  - Kunden   │  │
-│  │  - Assets   │  │  - Assets   │  │  - Assets   │  │
-│  └─────────────┘  └─────────────┘  └─────────────┘  │
-└─────────────────────────────────────────────────────┘
+Die Isolation wird auf Datenbankebene erzwungen — nicht nur auf API-Ebene. Alle Storage-Methoden in `server/storage.ts` akzeptieren `tenantId` als ersten Parameter und filtern alle Queries:
+
+```typescript
+// Alle Queries folgen diesem Muster
+.where(eq(tickets.tenantId, tenantId))
 ```
 
-Jeder Mandant:
-- Sieht nur eigene Daten
-- Hat eigene Administratoren
-- Kann eigene Einstellungen vornehmen
-
-## Best Practices
-
-- **Eindeutige Slugs**: Verwenden Sie aussagekräftige, eindeutige Bezeichner
-- **Regelmäßige Überprüfung**: Inaktive Mandanten deaktivieren
-- **Branding nutzen**: Individuelle Gestaltung erhöht die Akzeptanz
+Selbst wenn ein API-Fehler vorliegt, kann ein Mandant niemals Daten eines anderen Mandanten lesen oder schreiben.
