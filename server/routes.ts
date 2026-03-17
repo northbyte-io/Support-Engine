@@ -571,6 +571,20 @@ async function requireOwnedResource<T extends { tenantId?: string | null }>(
   return resource;
 }
 
+// Helper: Einheitliche API-Fehlerbehandlung für alle Endpunkte
+function handleApiError(res: Response, error: unknown, context: string): void {
+  if (error instanceof z.ZodError) {
+    res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
+    return;
+  }
+  logger.error("api", `${context}`, {
+    description: error instanceof Error ? error.message : String(error),
+    cause: "Unbekannter Fehler",
+    solution: "Fehlerursache prüfen"
+  });
+  res.status(500).json({ message: "Interner Serverfehler" });
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -636,11 +650,7 @@ export async function registerRoutes(
       res.cookie(TOKEN_COOKIE_NAME, token, TOKEN_COOKIE_OPTIONS);
       res.status(201).json({ user: { ...user, password: undefined } });
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Register error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Register error");
     }
   });
 
@@ -711,8 +721,7 @@ export async function registerRoutes(
       }
       res.json({ user: { ...user, password: undefined } });
     } catch (error) {
-      logger.error("api", "Get me error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get me error");
     }
   });
 
@@ -727,8 +736,7 @@ export async function registerRoutes(
       const stats = await storage.getDashboardStats(req.tenantId);
       res.json(stats);
     } catch (error) {
-      logger.error("api", "Dashboard stats error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Dashboard stats error");
     }
   });
 
@@ -737,8 +745,7 @@ export async function registerRoutes(
       const workload = await storage.getAgentWorkload(req.tenantId);
       res.json(workload);
     } catch (error) {
-      logger.error("api", "Workload error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Workload error");
     }
   });
 
@@ -756,8 +763,7 @@ export async function registerRoutes(
       });
       res.json(tickets);
     } catch (error) {
-      logger.error("api", "Get tickets error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get tickets error");
     }
   });
 
@@ -770,8 +776,7 @@ export async function registerRoutes(
       if (!ticket) return;
       res.json(ticket);
     } catch (error) {
-      logger.error("api", "Get ticket error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get ticket error");
     }
   });
 
@@ -844,8 +849,7 @@ export async function registerRoutes(
 
       res.json(ticket);
     } catch (error) {
-      logger.error("api", "Update ticket error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update ticket error");
     }
   });
 
@@ -855,8 +859,7 @@ export async function registerRoutes(
       await storage.deleteTicket(req.params.id, req.tenantId);
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete ticket error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete ticket error");
     }
   });
 
@@ -871,8 +874,7 @@ export async function registerRoutes(
       await storage.hardDeleteTicket(req.params.id, req.tenantId);
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Hard delete ticket error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Hard delete ticket error");
     }
   });
 
@@ -887,8 +889,7 @@ export async function registerRoutes(
       const ticketAttachments = await storage.getAttachments(req.params.id);
       res.json(ticketAttachments);
     } catch (error) {
-      logger.error("api", "Get attachments error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get attachments error");
     }
   });
 
@@ -942,8 +943,7 @@ export async function registerRoutes(
       res.setHeader("Content-Length", buffer.length);
       res.send(buffer);
     } catch (error) {
-      logger.error("api", "Download attachment error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Download attachment error");
     }
   });
 
@@ -1004,11 +1004,7 @@ export async function registerRoutes(
 
       res.status(201).json(comment);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create comment error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create comment error");
     }
   });
 
@@ -1018,8 +1014,7 @@ export async function registerRoutes(
       const timers = await storage.getActiveTimers(req.user!.id, req.tenantId!);
       res.json(timers);
     } catch (error) {
-      logger.error("api", "Get timers error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get timers error");
     }
   });
 
@@ -1028,8 +1023,7 @@ export async function registerRoutes(
       const timer = await storage.getActiveTimer(req.params.id, req.user!.id, req.tenantId!);
       res.json(timer || null);
     } catch (error) {
-      logger.error("api", "Get timer error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get timer error");
     }
   });
 
@@ -1050,8 +1044,7 @@ export async function registerRoutes(
       if (error instanceof Error && error.message.includes("läuft bereits")) {
         return res.status(400).json({ message: error.message });
       }
-      logger.error("api", "Start timer error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Start timer error");
     }
   });
 
@@ -1063,8 +1056,7 @@ export async function registerRoutes(
       }
       res.json(timer);
     } catch (error) {
-      logger.error("api", "Pause timer error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Pause timer error");
     }
   });
 
@@ -1076,8 +1068,7 @@ export async function registerRoutes(
       }
       res.json(timer);
     } catch (error) {
-      logger.error("api", "Resume timer error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Resume timer error");
     }
   });
 
@@ -1100,8 +1091,7 @@ export async function registerRoutes(
         stoppedAt: stoppedAt.toISOString(),
       });
     } catch (error) {
-      logger.error("api", "Stop timer error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Stop timer error");
     }
   });
 
@@ -1110,8 +1100,7 @@ export async function registerRoutes(
       await storage.deleteTimer(req.params.id, req.user!.id, req.tenantId!);
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete timer error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete timer error");
     }
   });
 
@@ -1126,8 +1115,7 @@ export async function registerRoutes(
       const entries = await storage.getWorkEntries(req.params.id, req.tenantId ?? "");
       res.json(entries);
     } catch (error) {
-      logger.error("api", "Get work entries error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get work entries error");
     }
   });
 
@@ -1160,8 +1148,7 @@ export async function registerRoutes(
       
       res.status(201).json(entry);
     } catch (error) {
-      logger.error("api", "Create work entry error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create work entry error");
     }
   });
 
@@ -1174,8 +1161,7 @@ export async function registerRoutes(
       }
       res.json(entry);
     } catch (error) {
-      logger.error("api", "Update work entry error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update work entry error");
     }
   });
 
@@ -1184,8 +1170,7 @@ export async function registerRoutes(
       await storage.deleteWorkEntry(req.params.id, req.tenantId!);
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete work entry error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete work entry error");
     }
   });
 
@@ -1195,8 +1180,7 @@ export async function registerRoutes(
       const types = await storage.getTicketTypes(req.tenantId);
       res.json(types);
     } catch (error) {
-      logger.error("api", "Get ticket types error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get ticket types error");
     }
   });
 
@@ -1278,8 +1262,7 @@ export async function registerRoutes(
         supportPhone: tenant.supportPhone,
       });
     } catch (error) {
-      logger.error("api", "Get public tenant error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get public tenant error");
     }
   });
 
@@ -1291,8 +1274,7 @@ export async function registerRoutes(
       const users = await storage.getUsers(req.tenantId, { limit, offset });
       res.json(users.map(u => ({ ...u, password: undefined })));
     } catch (error) {
-      logger.error("api", "Get users error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get users error");
     }
   });
 
@@ -1316,11 +1298,7 @@ export async function registerRoutes(
 
       res.status(201).json({ ...user, password: undefined });
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create user error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create user error");
     }
   });
 
@@ -1330,8 +1308,7 @@ export async function registerRoutes(
       const areasList = await storage.getAreas(req.tenantId);
       res.json(areasList);
     } catch (error) {
-      logger.error("api", "Get areas error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get areas error");
     }
   });
 
@@ -1345,11 +1322,7 @@ export async function registerRoutes(
       const area = await storage.createArea(data);
       res.status(201).json(area);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create area error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create area error");
     }
   });
 
@@ -1361,8 +1334,7 @@ export async function registerRoutes(
       }
       res.json(area);
     } catch (error) {
-      logger.error("api", "Update area error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update area error");
     }
   });
 
@@ -1371,8 +1343,7 @@ export async function registerRoutes(
       await storage.deleteArea(req.params.id);
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete area error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete area error");
     }
   });
 
@@ -1382,8 +1353,7 @@ export async function registerRoutes(
       const slaDefinitions = await storage.getSlaDefinitions(req.tenantId);
       res.json(slaDefinitions);
     } catch (error) {
-      logger.error("api", "Get SLA definitions error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get SLA definitions error");
     }
   });
 
@@ -1396,8 +1366,7 @@ export async function registerRoutes(
       if (!sla) return;
       res.json(sla);
     } catch (error) {
-      logger.error("api", "Get SLA definition error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get SLA definition error");
     }
   });
 
@@ -1411,11 +1380,7 @@ export async function registerRoutes(
       const sla = await storage.createSlaDefinition(data);
       res.status(201).json(sla);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create SLA definition error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create SLA definition error");
     }
   });
 
@@ -1432,8 +1397,7 @@ export async function registerRoutes(
       const sla = await storage.updateSlaDefinition(req.params.id, safeUpdates);
       res.json(sla);
     } catch (error) {
-      logger.error("api", "Update SLA definition error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update SLA definition error");
     }
   });
 
@@ -1448,8 +1412,7 @@ export async function registerRoutes(
       await storage.deleteSlaDefinition(req.params.id);
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete SLA definition error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete SLA definition error");
     }
   });
 
@@ -1471,11 +1434,7 @@ export async function registerRoutes(
       const escalation = await storage.createSlaEscalation(data);
       res.status(201).json(escalation);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create SLA escalation error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create SLA escalation error");
     }
   });
 
@@ -1484,8 +1443,7 @@ export async function registerRoutes(
       await storage.deleteSlaEscalation(req.params.id);
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete SLA escalation error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete SLA escalation error");
     }
   });
 
@@ -1498,8 +1456,7 @@ export async function registerRoutes(
       });
       res.json(tickets);
     } catch (error) {
-      logger.error("api", "Portal get tickets error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Portal get tickets error");
     }
   });
 
@@ -1523,8 +1480,7 @@ export async function registerRoutes(
 
       res.json(ticket);
     } catch (error) {
-      logger.error("api", "Portal get ticket error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Portal get ticket error");
     }
   });
 
@@ -1540,11 +1496,7 @@ export async function registerRoutes(
       const ticket = await storage.createTicket(data);
       res.status(201).json(ticket);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Portal create ticket error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Portal create ticket error");
     }
   });
 
@@ -1556,8 +1508,7 @@ export async function registerRoutes(
       const categories = await storage.getKbCategories(req.tenantId!, { limit, offset });
       res.json(categories);
     } catch (error) {
-      logger.error("api", "Get KB categories error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get KB categories error");
     }
   });
 
@@ -1570,8 +1521,7 @@ export async function registerRoutes(
       if (!category) return;
       res.json(category);
     } catch (error) {
-      logger.error("api", "Get KB category error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get KB category error");
     }
   });
 
@@ -1584,11 +1534,7 @@ export async function registerRoutes(
       const category = await storage.createKbCategory(data);
       res.status(201).json(category);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create KB category error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create KB category error");
     }
   });
 
@@ -1603,8 +1549,7 @@ export async function registerRoutes(
       const category = await storage.updateKbCategory(req.params.id, safeUpdates);
       res.json(category);
     } catch (error) {
-      logger.error("api", "Update KB category error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update KB category error");
     }
   });
 
@@ -1618,8 +1563,7 @@ export async function registerRoutes(
       await storage.deleteKbCategory(req.params.id);
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete KB category error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete KB category error");
     }
   });
 
@@ -1642,8 +1586,7 @@ export async function registerRoutes(
       const articles = await storage.getKbArticles(req.tenantId!, params);
       res.json(articles);
     } catch (error) {
-      logger.error("api", "Get KB articles error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get KB articles error");
     }
   });
 
@@ -1662,8 +1605,7 @@ export async function registerRoutes(
       await storage.incrementKbArticleViewCount(req.params.id);
       res.json(article);
     } catch (error) {
-      logger.error("api", "Get KB article error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get KB article error");
     }
   });
 
@@ -1679,11 +1621,7 @@ export async function registerRoutes(
       const article = await storage.createKbArticle(data);
       res.status(201).json(article);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create KB article error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create KB article error");
     }
   });
 
@@ -1715,8 +1653,7 @@ export async function registerRoutes(
       const article = await storage.updateKbArticle(req.params.id, safeUpdates);
       res.json(article);
     } catch (error) {
-      logger.error("api", "Update KB article error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update KB article error");
     }
   });
 
@@ -1731,8 +1668,7 @@ export async function registerRoutes(
       await storage.deleteKbArticle(req.params.id);
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete KB article error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete KB article error");
     }
   });
 
@@ -1747,8 +1683,7 @@ export async function registerRoutes(
       await storage.hardDeleteKbArticle(req.params.id);
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Hard delete KB article error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Hard delete KB article error");
     }
   });
 
@@ -1763,8 +1698,7 @@ export async function registerRoutes(
       const versions = await storage.getKbArticleVersions(req.params.id);
       res.json(versions);
     } catch (error) {
-      logger.error("api", "Get KB article versions error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get KB article versions error");
     }
   });
 
@@ -1779,8 +1713,7 @@ export async function registerRoutes(
       const links = await storage.getTicketKbLinks(req.params.ticketId);
       res.json(links);
     } catch (error) {
-      logger.error("api", "Get ticket KB links error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get ticket KB links error");
     }
   });
 
@@ -1800,11 +1733,7 @@ export async function registerRoutes(
       const link = await storage.createTicketKbLink(data);
       res.status(201).json(link);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create ticket KB link error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create ticket KB link error");
     }
   });
 
@@ -1813,8 +1742,7 @@ export async function registerRoutes(
       await storage.deleteTicketKbLink(req.params.id);
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete ticket KB link error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete ticket KB link error");
     }
   });
 
@@ -1832,8 +1760,7 @@ export async function registerRoutes(
       const articles = await storage.getKbArticles(req.tenantId!, params);
       res.json(articles);
     } catch (error) {
-      logger.error("api", "Portal get KB articles error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Portal get KB articles error");
     }
   });
 
@@ -1851,8 +1778,7 @@ export async function registerRoutes(
       const entries = await storage.getTimeEntries(req.tenantId!, params);
       res.json(entries);
     } catch (error) {
-      logger.error("api", "Get time entries error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get time entries error");
     }
   });
 
@@ -1869,8 +1795,7 @@ export async function registerRoutes(
       const summary = await storage.getTimeEntrySummary(req.tenantId!, params);
       res.json(summary);
     } catch (error) {
-      logger.error("api", "Get time entry summary error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get time entry summary error");
     }
   });
 
@@ -1883,8 +1808,7 @@ export async function registerRoutes(
       if (!entry) return;
       res.json(entry);
     } catch (error) {
-      logger.error("api", "Get time entry error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get time entry error");
     }
   });
 
@@ -1900,11 +1824,7 @@ export async function registerRoutes(
       const entry = await storage.createTimeEntry(data);
       res.status(201).json(entry);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create time entry error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create time entry error");
     }
   });
 
@@ -1927,11 +1847,7 @@ export async function registerRoutes(
       const updatedEntry = await storage.updateTimeEntry(req.params.id, updates);
       res.json(updatedEntry);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Update time entry error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update time entry error");
     }
   });
 
@@ -1945,8 +1861,7 @@ export async function registerRoutes(
       await storage.deleteTimeEntry(req.params.id);
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete time entry error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete time entry error");
     }
   });
 
@@ -1967,8 +1882,7 @@ export async function registerRoutes(
       const entries = await storage.getTimeEntries(req.tenantId ?? "", { ticketId: req.params.ticketId });
       res.json(entries);
     } catch (error) {
-      logger.error("api", "Get ticket time entries error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get ticket time entries error");
     }
   });
 
@@ -1992,11 +1906,7 @@ export async function registerRoutes(
       const entry = await storage.createTimeEntry(data);
       res.status(201).json(entry);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create ticket time entry error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create ticket time entry error");
     }
   });
 
@@ -2012,8 +1922,7 @@ export async function registerRoutes(
       const summary = await storage.getTimeEntrySummary(req.tenantId ?? "", { ticketId: req.params.ticketId });
       res.json(summary);
     } catch (error) {
-      logger.error("api", "Get ticket time summary error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get ticket time summary error");
     }
   });
 
@@ -2036,8 +1945,7 @@ export async function registerRoutes(
       );
       res.json(notificationsList);
     } catch (error) {
-      logger.error("api", "Get notifications error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get notifications error");
     }
   });
 
@@ -2047,8 +1955,7 @@ export async function registerRoutes(
       const count = await storage.getUnreadNotificationCount(req.tenantId!, req.user!.id);
       res.json({ count });
     } catch (error) {
-      logger.error("api", "Get unread count error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get unread count error");
     }
   });
 
@@ -2066,8 +1973,7 @@ export async function registerRoutes(
       const updated = await storage.markNotificationAsRead(req.params.id);
       res.json(updated);
     } catch (error) {
-      logger.error("api", "Mark notification read error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Mark notification read error");
     }
   });
 
@@ -2077,8 +1983,7 @@ export async function registerRoutes(
       await storage.markAllNotificationsAsRead(req.tenantId!, req.user!.id);
       res.json({ message: "Alle Benachrichtigungen als gelesen markiert" });
     } catch (error) {
-      logger.error("api", "Mark all read error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Mark all read error");
     }
   });
 
@@ -2096,8 +2001,7 @@ export async function registerRoutes(
       await storage.deleteNotification(req.params.id);
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete notification error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete notification error");
     }
   });
 
@@ -2109,8 +2013,7 @@ export async function registerRoutes(
       const surveyList = await storage.getSurveys(req.tenantId!);
       res.json(surveyList);
     } catch (error) {
-      logger.error("api", "Get surveys error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get surveys error");
     }
   });
 
@@ -2124,8 +2027,7 @@ export async function registerRoutes(
       if (!survey) return;
       res.json(survey);
     } catch (error) {
-      logger.error("api", "Get survey error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get survey error");
     }
   });
 
@@ -2139,11 +2041,7 @@ export async function registerRoutes(
       const survey = await storage.createSurvey(data);
       res.status(201).json(survey);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create survey error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create survey error");
     }
   });
 
@@ -2159,8 +2057,7 @@ export async function registerRoutes(
       const survey = await storage.updateSurvey(req.params.id, safeUpdates);
       res.json(survey);
     } catch (error) {
-      logger.error("api", "Update survey error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update survey error");
     }
   });
 
@@ -2175,8 +2072,7 @@ export async function registerRoutes(
       await storage.deleteSurvey(req.params.id);
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete survey error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete survey error");
     }
   });
 
@@ -2191,8 +2087,7 @@ export async function registerRoutes(
       const questions = await storage.getSurveyQuestions(req.params.surveyId);
       res.json(questions);
     } catch (error) {
-      logger.error("api", "Get survey questions error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get survey questions error");
     }
   });
 
@@ -2211,11 +2106,7 @@ export async function registerRoutes(
       const question = await storage.createSurveyQuestion(data);
       res.status(201).json(question);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create survey question error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create survey question error");
     }
   });
 
@@ -2228,8 +2119,7 @@ export async function registerRoutes(
       }
       res.json(question);
     } catch (error) {
-      logger.error("api", "Update survey question error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update survey question error");
     }
   });
 
@@ -2238,8 +2128,7 @@ export async function registerRoutes(
       await storage.deleteSurveyQuestion(req.params.id);
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete survey question error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete survey question error");
     }
   });
 
@@ -2254,8 +2143,7 @@ export async function registerRoutes(
       const invitations = await storage.getSurveyInvitations(req.tenantId ?? "", req.params.surveyId);
       res.json(invitations);
     } catch (error) {
-      logger.error("api", "Get survey invitations error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get survey invitations error");
     }
   });
 
@@ -2270,8 +2158,7 @@ export async function registerRoutes(
       const summary = await storage.getSurveyResultSummary(req.tenantId ?? "", req.params.surveyId);
       res.json(summary);
     } catch (error) {
-      logger.error("api", "Get survey results error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get survey results error");
     }
   });
 
@@ -2290,8 +2177,7 @@ export async function registerRoutes(
       }
       res.json(invitation);
     } catch (error) {
-      logger.error("api", "Get public survey error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get public survey error");
     }
   });
 
@@ -2332,11 +2218,7 @@ export async function registerRoutes(
 
       res.json({ message: "Vielen Dank für Ihr Feedback!" });
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Submit survey error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Submit survey error");
     }
   });
 
@@ -2353,8 +2235,7 @@ export async function registerRoutes(
       const categories = await storage.getAssetCategories(req.user?.tenantId ?? "");
       res.json(categories);
     } catch (error) {
-      logger.error("api", "Get asset categories error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get asset categories error");
     }
   });
 
@@ -2367,11 +2248,7 @@ export async function registerRoutes(
       const category = await storage.createAssetCategory(data, req.user?.tenantId ?? "");
       res.status(201).json(category);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create asset category error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create asset category error");
     }
   });
 
@@ -2384,8 +2261,7 @@ export async function registerRoutes(
       const updated = await storage.updateAssetCategory(req.params.id, req.body, req.user?.tenantId ?? "");
       res.json(updated);
     } catch (error) {
-      logger.error("api", "Update asset category error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update asset category error");
     }
   });
 
@@ -2398,8 +2274,7 @@ export async function registerRoutes(
       await storage.deleteAssetCategory(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete asset category error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete asset category error");
     }
   });
 
@@ -2417,8 +2292,7 @@ export async function registerRoutes(
       });
       res.json(assets);
     } catch (error) {
-      logger.error("api", "Get assets error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get assets error");
     }
   });
 
@@ -2427,8 +2301,7 @@ export async function registerRoutes(
       const assetNumber = await storage.getNextAssetNumber(req.user?.tenantId ?? "");
       res.json({ assetNumber });
     } catch (error) {
-      logger.error("api", "Get next asset number error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get next asset number error");
     }
   });
 
@@ -2440,8 +2313,7 @@ export async function registerRoutes(
       }
       res.json(asset);
     } catch (error) {
-      logger.error("api", "Get asset error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get asset error");
     }
   });
 
@@ -2482,11 +2354,7 @@ export async function registerRoutes(
       const fullAsset = await storage.getAsset(asset.id, req.user?.tenantId ?? "");
       res.status(201).json(fullAsset);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create asset error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create asset error");
     }
   });
 
@@ -2532,8 +2400,7 @@ export async function registerRoutes(
       const fullAsset = await storage.getAsset(req.params.id, req.user?.tenantId ?? "");
       res.json(fullAsset);
     } catch (error) {
-      logger.error("api", "Update asset error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update asset error");
     }
   });
 
@@ -2546,8 +2413,7 @@ export async function registerRoutes(
       await storage.deleteAsset(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete asset error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete asset error");
     }
   });
 
@@ -2557,8 +2423,7 @@ export async function registerRoutes(
       const ticketAssets = await storage.getTicketAssets(req.params.ticketId, req.user?.tenantId ?? "");
       res.json(ticketAssets);
     } catch (error) {
-      logger.error("api", "Get ticket assets error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get ticket assets error");
     }
   });
 
@@ -2577,8 +2442,7 @@ export async function registerRoutes(
       if (error instanceof Error && error.message.includes("gehört nicht zum Mandanten")) {
         return res.status(404).json({ message: "Ticket oder Asset nicht gefunden" });
       }
-      logger.error("api", "Create ticket asset link error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create ticket asset link error");
     }
   });
 
@@ -2587,8 +2451,7 @@ export async function registerRoutes(
       await storage.deleteTicketAsset(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete ticket asset link error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete ticket asset link error");
     }
   });
 
@@ -2598,8 +2461,7 @@ export async function registerRoutes(
       const assetTickets = await storage.getAssetTickets(req.params.assetId, req.user?.tenantId ?? "");
       res.json(assetTickets);
     } catch (error) {
-      logger.error("api", "Get asset tickets error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get asset tickets error");
     }
   });
 
@@ -2609,8 +2471,7 @@ export async function registerRoutes(
       const history = await storage.getAssetHistory(req.params.assetId, req.user?.tenantId ?? "");
       res.json(history);
     } catch (error) {
-      logger.error("api", "Get asset history error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get asset history error");
     }
   });
 
@@ -2622,8 +2483,7 @@ export async function registerRoutes(
       const projects = await storage.getProjects(req.user?.tenantId ?? "");
       res.json(projects);
     } catch (error) {
-      logger.error("api", "Get projects error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get projects error");
     }
   });
 
@@ -2636,8 +2496,7 @@ export async function registerRoutes(
       }
       res.json(project);
     } catch (error) {
-      logger.error("api", "Get project error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get project error");
     }
   });
 
@@ -2648,11 +2507,7 @@ export async function registerRoutes(
       const project = await storage.createProject(data, req.user?.tenantId ?? "");
       res.status(201).json(project);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create project error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create project error");
     }
   });
 
@@ -2666,8 +2521,7 @@ export async function registerRoutes(
       const updated = await storage.updateProject(req.params.id, req.body, req.user?.tenantId ?? "");
       res.json(updated);
     } catch (error) {
-      logger.error("api", "Update project error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update project error");
     }
   });
 
@@ -2681,8 +2535,7 @@ export async function registerRoutes(
       await storage.deleteProject(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete project error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete project error");
     }
   });
 
@@ -2692,8 +2545,7 @@ export async function registerRoutes(
       const members = await storage.getProjectMembers(req.params.projectId, req.user?.tenantId ?? "");
       res.json(members);
     } catch (error) {
-      logger.error("api", "Get project members error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get project members error");
     }
   });
 
@@ -2713,8 +2565,7 @@ export async function registerRoutes(
       if (error instanceof Error && error.message.includes("gehört nicht zum Mandanten")) {
         return res.status(404).json({ message: "Projekt nicht gefunden" });
       }
-      logger.error("api", "Add project member error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Add project member error");
     }
   });
 
@@ -2723,8 +2574,7 @@ export async function registerRoutes(
       await storage.removeProjectMember(req.params.projectId, req.params.userId, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Remove project member error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Remove project member error");
     }
   });
 
@@ -2734,8 +2584,7 @@ export async function registerRoutes(
       const columns = await storage.getBoardColumns(req.params.projectId, req.user?.tenantId ?? "");
       res.json(columns);
     } catch (error) {
-      logger.error("api", "Get board columns error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get board columns error");
     }
   });
 
@@ -2748,11 +2597,7 @@ export async function registerRoutes(
       const column = await storage.createBoardColumn(data, req.user?.tenantId ?? "");
       res.status(201).json(column);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create board column error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create board column error");
     }
   });
 
@@ -2764,8 +2609,7 @@ export async function registerRoutes(
       }
       res.json(column);
     } catch (error) {
-      logger.error("api", "Update board column error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update board column error");
     }
   });
 
@@ -2774,8 +2618,7 @@ export async function registerRoutes(
       await storage.deleteBoardColumn(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete board column error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete board column error");
     }
   });
 
@@ -2784,8 +2627,7 @@ export async function registerRoutes(
       await storage.reorderBoardColumns(req.params.projectId, req.body.columnIds, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Reorder board columns error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Reorder board columns error");
     }
   });
 
@@ -2795,8 +2637,7 @@ export async function registerRoutes(
       const ticketProjects = await storage.getTicketProjects(req.params.ticketId, req.user?.tenantId ?? "");
       res.json(ticketProjects);
     } catch (error) {
-      logger.error("api", "Get ticket projects error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get ticket projects error");
     }
   });
 
@@ -2816,8 +2657,7 @@ export async function registerRoutes(
       if (error instanceof Error && error.message.includes("gehört nicht zum Mandanten")) {
         return res.status(404).json({ message: "Ticket oder Projekt nicht gefunden" });
       }
-      logger.error("api", "Add ticket to project error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Add ticket to project error");
     }
   });
 
@@ -2826,8 +2666,7 @@ export async function registerRoutes(
       await storage.removeTicketFromProject(req.params.ticketId, req.params.projectId, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Remove ticket from project error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Remove ticket from project error");
     }
   });
 
@@ -2841,8 +2680,7 @@ export async function registerRoutes(
       const board = await storage.getProjectTickets(req.params.projectId, req.user?.tenantId ?? "");
       res.json({ project, board });
     } catch (error) {
-      logger.error("api", "Get project board error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get project board error");
     }
   });
 
@@ -2852,8 +2690,7 @@ export async function registerRoutes(
       await storage.updateTicketBoardOrder(req.params.ticketId, req.params.projectId, req.body.boardOrder, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Update ticket board order error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update ticket board order error");
     }
   });
 
@@ -2869,8 +2706,7 @@ export async function registerRoutes(
       const orgs = await storage.getOrganizations(req.user?.tenantId ?? "", { search, limit, offset });
       res.json(orgs);
     } catch (error) {
-      logger.error("api", "Get organizations error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get organizations error");
     }
   });
 
@@ -2882,8 +2718,7 @@ export async function registerRoutes(
       }
       res.json(org);
     } catch (error) {
-      logger.error("api", "Get organization error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get organization error");
     }
   });
 
@@ -2893,11 +2728,7 @@ export async function registerRoutes(
       const org = await storage.createOrganization(data, req.user?.tenantId ?? "");
       res.status(201).json(org);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create organization error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create organization error");
     }
   });
 
@@ -2909,8 +2740,7 @@ export async function registerRoutes(
       }
       res.json(org);
     } catch (error) {
-      logger.error("api", "Update organization error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update organization error");
     }
   });
 
@@ -2919,8 +2749,7 @@ export async function registerRoutes(
       await storage.deleteOrganization(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete organization error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete organization error");
     }
   });
 
@@ -2935,8 +2764,7 @@ export async function registerRoutes(
       const customers = await storage.getCustomers(req.user?.tenantId ?? "", { search, organizationId });
       res.json(customers);
     } catch (error) {
-      logger.error("api", "Get customers error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get customers error");
     }
   });
 
@@ -2948,8 +2776,7 @@ export async function registerRoutes(
       }
       res.json(customer);
     } catch (error) {
-      logger.error("api", "Get customer error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get customer error");
     }
   });
 
@@ -2965,11 +2792,7 @@ export async function registerRoutes(
       const customer = await storage.createCustomer(data, req.user?.tenantId ?? "");
       res.status(201).json(customer);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create customer error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create customer error");
     }
   });
 
@@ -2981,8 +2804,7 @@ export async function registerRoutes(
       }
       res.json(customer);
     } catch (error) {
-      logger.error("api", "Update customer error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update customer error");
     }
   });
 
@@ -2991,8 +2813,7 @@ export async function registerRoutes(
       await storage.deleteCustomer(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete customer error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete customer error");
     }
   });
 
@@ -3002,8 +2823,7 @@ export async function registerRoutes(
       const locations = await storage.getCustomerLocations(req.params.customerId, req.user?.tenantId ?? "");
       res.json(locations);
     } catch (error) {
-      logger.error("api", "Get customer locations error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get customer locations error");
     }
   });
 
@@ -3022,8 +2842,7 @@ export async function registerRoutes(
       if (error instanceof Error && error.message.includes("gehört nicht zum Mandanten")) {
         return res.status(404).json({ message: "Kunde nicht gefunden" });
       }
-      logger.error("api", "Create customer location error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create customer location error");
     }
   });
 
@@ -3035,8 +2854,7 @@ export async function registerRoutes(
       }
       res.json(location);
     } catch (error) {
-      logger.error("api", "Update customer location error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update customer location error");
     }
   });
 
@@ -3045,8 +2863,7 @@ export async function registerRoutes(
       await storage.deleteCustomerLocation(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete customer location error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete customer location error");
     }
   });
 
@@ -3064,8 +2881,7 @@ export async function registerRoutes(
       const contacts = await storage.getContacts(req.user?.tenantId ?? "", { search, customerId, organizationId, limit, offset });
       res.json(contacts);
     } catch (error) {
-      logger.error("api", "Get contacts error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get contacts error");
     }
   });
 
@@ -3077,8 +2893,7 @@ export async function registerRoutes(
       }
       res.json(contact);
     } catch (error) {
-      logger.error("api", "Get contact error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get contact error");
     }
   });
 
@@ -3088,11 +2903,7 @@ export async function registerRoutes(
       const contact = await storage.createContact(data, req.user?.tenantId ?? "");
       res.status(201).json(contact);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create contact error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create contact error");
     }
   });
 
@@ -3104,8 +2915,7 @@ export async function registerRoutes(
       }
       res.json(contact);
     } catch (error) {
-      logger.error("api", "Update contact error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Update contact error");
     }
   });
 
@@ -3114,8 +2924,7 @@ export async function registerRoutes(
       await storage.deleteContact(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Delete contact error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Delete contact error");
     }
   });
 
@@ -3128,8 +2937,7 @@ export async function registerRoutes(
       const ticketContacts = await storage.getTicketContacts(req.params.ticketId, req.user?.tenantId ?? "");
       res.json(ticketContacts);
     } catch (error) {
-      logger.error("api", "Get ticket contacts error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get ticket contacts error");
     }
   });
 
@@ -3149,8 +2957,7 @@ export async function registerRoutes(
       if (error instanceof Error && error.message.includes("gehört nicht zum Mandanten")) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
-      logger.error("api", "Add ticket contact error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Add ticket contact error");
     }
   });
 
@@ -3159,8 +2966,7 @@ export async function registerRoutes(
       await storage.removeTicketContact(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "Remove ticket contact error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Remove ticket contact error");
     }
   });
 
@@ -3181,8 +2987,7 @@ export async function registerRoutes(
       const activities = await storage.getCustomerActivities(req.user?.tenantId ?? "", { customerId, contactId, ticketId, limit });
       res.json(activities);
     } catch (error) {
-      logger.error("api", "Get customer activities error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get customer activities error");
     }
   });
 
@@ -3195,11 +3000,7 @@ export async function registerRoutes(
       const activity = await storage.createCustomerActivity(data, req.user?.tenantId ?? "");
       res.status(201).json(activity);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Ungültige Eingabedaten", errors: error.errors });
-      }
-      logger.error("api", "Create customer activity error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Create customer activity error");
     }
   });
 
@@ -3226,8 +3027,7 @@ export async function registerRoutes(
       const result = logger.getLogs(filters as Parameters<typeof logger.getLogs>[0]);
       res.json(result);
     } catch (error) {
-      logger.error("api", "Get logs error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get logs error");
     }
   });
 
@@ -3237,8 +3037,7 @@ export async function registerRoutes(
       const files = logger.getLogFiles();
       res.json({ files });
     } catch (error) {
-      logger.error("api", "Get log files error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Get log files error");
     }
   });
 
@@ -3296,8 +3095,7 @@ export async function registerRoutes(
 
       res.json({ message: "Test-Logs wurden erfolgreich erstellt", count: 6 });
     } catch (error) {
-      logger.error("api", "Test logs error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Fehler beim Erstellen der Test-Logs" });
+      handleApiError(res, error, "Test logs error");
     }
   });
 
@@ -3351,8 +3149,7 @@ export async function registerRoutes(
         res.json(result.logs);
       }
     } catch (error) {
-      logger.error("api", "Export logs error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "Export logs error");
     }
   });
 
@@ -3372,8 +3169,7 @@ export async function registerRoutes(
         caType: "staging"
       });
     } catch (error) {
-      logger.error("api", "TLS settings error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "TLS settings error");
     }
   });
 
@@ -3383,8 +3179,7 @@ export async function registerRoutes(
       const settings = await storage.updateTlsSettings(req.body);
       res.json(settings);
     } catch (error) {
-      logger.error("api", "TLS settings update error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "TLS settings update error");
     }
   });
 
@@ -3400,8 +3195,7 @@ export async function registerRoutes(
       }));
       res.json(safeCertificates);
     } catch (error) {
-      logger.error("api", "TLS certificates error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "TLS certificates error");
     }
   });
 
@@ -3417,8 +3211,7 @@ export async function registerRoutes(
       const safeCertificate = { ...certificate, privateKeyPem: undefined };
       res.json(safeCertificate);
     } catch (error) {
-      logger.error("api", "TLS certificate error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "TLS certificate error");
     }
   });
 
@@ -3455,8 +3248,7 @@ export async function registerRoutes(
         res.status(400).json({ message: result.error });
       }
     } catch (error) {
-      logger.error("api", "TLS certificate request error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "TLS certificate request error");
     }
   });
 
@@ -3487,8 +3279,7 @@ export async function registerRoutes(
         res.status(400).json({ message: result.error });
       }
     } catch (error) {
-      logger.error("api", "TLS certificate renew error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "TLS certificate renew error");
     }
   });
 
@@ -3507,8 +3298,7 @@ export async function registerRoutes(
         res.status(400).json({ message: result.error });
       }
     } catch (error) {
-      logger.error("api", "TLS certificate revoke error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "TLS certificate revoke error");
     }
   });
 
@@ -3539,8 +3329,7 @@ export async function registerRoutes(
       
       res.json({ message: "Zertifikat aktiviert" });
     } catch (error) {
-      logger.error("api", "TLS certificate activate error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "TLS certificate activate error");
     }
   });
 
@@ -3550,8 +3339,7 @@ export async function registerRoutes(
       await storage.deleteTlsCertificate(req.params.id, req.user?.tenantId ?? "");
       res.status(204).send();
     } catch (error) {
-      logger.error("api", "TLS certificate delete error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "TLS certificate delete error");
     }
   });
 
@@ -3564,8 +3352,7 @@ export async function registerRoutes(
       const actions = await tlsService.getActions(certificateId, limit);
       res.json(actions);
     } catch (error) {
-      logger.error("api", "TLS actions error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "TLS actions error");
     }
   });
 
@@ -3593,8 +3380,7 @@ export async function registerRoutes(
         errors: result.errors
       });
     } catch (error) {
-      logger.error("api", "TLS renewal check error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
-      res.status(500).json({ message: "Interner Serverfehler" });
+      handleApiError(res, error, "TLS renewal check error");
     }
   });
 
