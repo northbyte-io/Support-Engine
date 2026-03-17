@@ -682,11 +682,11 @@ export default function ExchangeIntegration() {
           </Link>
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                <Mail className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Mail className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl font-semibold" data-testid="text-page-title">Exchange Online Integration</h1>
+                <h1 className="text-2xl font-semibold font-display" data-testid="text-page-title">Exchange Online Integration</h1>
                 <p className="text-sm text-muted-foreground">
                   E-Mail-Integration mit Microsoft Exchange Online über Graph API
                 </p>

@@ -68,8 +68,8 @@ export default function DashboardPage() {
       title: "Offene Tickets",
       value: stats?.openTickets ?? 0,
       icon: Ticket,
-      color: "text-blue-600 dark:text-blue-400",
-      bgColor: "bg-blue-100 dark:bg-blue-900/30",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
     },
     {
       title: "In Bearbeitung",
@@ -116,7 +116,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">{stat.title}</p>
-                    <p className="text-2xl font-semibold mt-1">{stat.value}</p>
+                    <p className="text-2xl font-semibold font-mono tabular-nums mt-1">{stat.value}</p>
                   </div>
                   <div className={`p-3 rounded-lg ${stat.bgColor}`}>
                     <stat.icon className={`w-5 h-5 ${stat.color}`} />

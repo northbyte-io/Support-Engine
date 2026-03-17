@@ -54,8 +54,8 @@ interface LogsResponse {
 }
 
 const levelConfig: Record<string, { icon: typeof Info; color: string; bgColor: string; label: string }> = {
-  debug: { icon: Bug, color: "text-gray-500", bgColor: "bg-gray-500/10", label: "Debug" },
-  info: { icon: Info, color: "text-blue-500", bgColor: "bg-blue-500/10", label: "Info" },
+  debug: { icon: Bug, color: "text-muted-foreground", bgColor: "bg-muted", label: "Debug" },
+  info: { icon: Info, color: "text-primary", bgColor: "bg-primary/10", label: "Info" },
   warn: { icon: AlertTriangle, color: "text-yellow-500", bgColor: "bg-yellow-500/10", label: "Warnung" },
   error: { icon: AlertCircle, color: "text-red-500", bgColor: "bg-red-500/10", label: "Fehler" },
   security: { icon: Shield, color: "text-purple-500", bgColor: "bg-purple-500/10", label: "Sicherheit" },
