@@ -1061,12 +1061,11 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(kbArticles.isPublic, params.isPublic));
     }
     if (params?.search) {
-      conditions.push(
-        or(
-          ilike(kbArticles.title, `%${params.search}%`),
-          ilike(kbArticles.content, `%${params.search}%`)
-        )!
+      const searchCondition = or(
+        ilike(kbArticles.title, `%${params.search}%`),
+        ilike(kbArticles.content, `%${params.search}%`)
       );
+      if (searchCondition) conditions.push(searchCondition);
     }
 
     const articles = await db.select().from(kbArticles)
@@ -2564,11 +2563,12 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(contacts.organizationId, params.organizationId));
     }
     if (params?.search) {
-      conditions.push(or(
+      const searchCondition = or(
         ilike(contacts.firstName, `%${params.search}%`),
         ilike(contacts.lastName, `%${params.search}%`),
         ilike(contacts.email, `%${params.search}%`)
-      )!);
+      );
+      if (searchCondition) conditions.push(searchCondition);
     }
 
     const contactsList = await db.select().from(contacts)
@@ -2799,12 +2799,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTlsCertificateActions(certificateId?: string, limit?: number): Promise<(TlsCertificateAction & { performedBy?: User })[]> {
-    let query = db.select().from(tlsCertificateActions);
-    if (certificateId) {
-      query = query.where(eq(tlsCertificateActions.certificateId, certificateId)) as typeof query;
-    }
-    query = query.orderBy(desc(tlsCertificateActions.createdAt)) as typeof query;
-    const actions = limit ? await query.limit(limit) : await query;
+    const base = db
+      .select()
+      .from(tlsCertificateActions)
+      .where(certificateId ? eq(tlsCertificateActions.certificateId, certificateId) : undefined)
+      .orderBy(desc(tlsCertificateActions.createdAt));
+    const actions = limit ? await base.limit(limit) : await base;
 
     const result: (TlsCertificateAction & { performedBy?: User })[] = [];
     for (const action of actions) {
