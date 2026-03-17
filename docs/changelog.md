@@ -2,6 +2,27 @@
 
 Alle wichtigen Änderungen an Support-Engine werden hier dokumentiert.
 
+## [0.1.4] - März 2026
+
+### Hinzugefügt
+
+- **Erweiterte Berichte & Analysen** (`/reports`)
+  - Neue Berichtsseite mit drei Tabs: Ticket-Analyse, SLA-Performance, Zeiterfassung
+  - Zeitraumfilter: Voreinstellungen 7 Tage / 30 Tage / 90 Tage sowie benutzerdefinierter Zeitraum
+  - Interaktive Diagramme mit Recharts (Balken-, Linien-, Tortendiagramme)
+  - Vier Exportformate pro Bericht: CSV (Excel-kompatibel), XLSX, PDF, HTML (druckfertig)
+  - Neue API-Endpunkte: `GET /api/reports/tickets`, `GET /api/reports/sla`, `GET /api/reports/time`, `GET /api/reports/export`
+  - Agenten-Performance-Tabelle mit Lösungsrate
+  - SLA-Compliance-Rate mit farbkodiertem Tagesdiagramm
+  - Zeiterfassungs-Aufschlüsselung pro Agent mit abrechenbarer Zeit
+- Abhängigkeiten: `xlsx` (SheetJS) und `pdfkit` für serverseitige Exportgenerierung
+
+### Verbessert
+
+- Seitenleiste: Neuer Navigations-Eintrag „Berichte" mit BarChart-Icon zwischen Tickets und Zeiterfassung
+
+---
+
 ## [0.1.3] - März 2026
 
 ### Hinzugefügt

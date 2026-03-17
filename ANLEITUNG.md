@@ -12,11 +12,12 @@ Diese Anleitung ergänzt die [README.md](./README.md) und richtet sich an Admini
 | 2 | [⚙️ Betrieb und Administration](#️-betrieb-und-administration) | Mandanten, Benutzer, Tickets, SLA |
 | 3 | [📧 E-Mail- und Integrationen](#-e-mail--und-integrationen) | Mailabruf, Exchange, Fehlerbehandlung |
 | 4 | [🏢 CRM-Nutzung im Ticketsystem](#-crm-nutzung-im-ticketsystem) | Kunden, Kontakte, Kundenhistorie |
-| 5 | [📊 Logging und Monitoring](#-logging-und-monitoring) | Log-Level, UI, Export, Fehleranalyse |
-| 6 | [🔐 TLS und Sicherheit](#-tls-und-sicherheit) | HTTPS, Let's Encrypt, Zertifikate |
-| 7 | [🎨 Branding und Mandantenanpassung](#-branding-und-mandantenanpassung) | Logos, Farben, E-Mail-Templates |
-| 8 | [🔧 Betriebshinweise](#-betriebshinweise) | Backup, Updates, Wartung |
-| 9 | [📜 AGPL-3.0 Lizenzhinweise](#-agpl-30-lizenzhinweise) | Lizenzpflichten, Quellcode |
+| 5 | [📊 Berichte & Analysen](#-berichte--analysen) | Tickets, SLA, Zeiterfassung, Export |
+| 6 | [📊 Logging und Monitoring](#-logging-und-monitoring) | Log-Level, UI, Export, Fehleranalyse |
+| 7 | [🔐 TLS und Sicherheit](#-tls-und-sicherheit) | HTTPS, Let's Encrypt, Zertifikate |
+| 8 | [🎨 Branding und Mandantenanpassung](#-branding-und-mandantenanpassung) | Logos, Farben, E-Mail-Templates |
+| 9 | [🔧 Betriebshinweise](#-betriebshinweise) | Backup, Updates, Wartung |
+| 10 | [📜 AGPL-3.0 Lizenzhinweise](#-agpl-30-lizenzhinweise) | Lizenzpflichten, Quellcode |
 
 ---
 
@@ -204,6 +205,53 @@ Tickets können nach Typ kategorisiert werden:
 - 📁 Projekt
 
 Die Kategorisierung erfolgt über Ticketarten.
+
+---
+
+## 📊 Berichte & Analysen
+
+Die Berichtsseite bietet mandantenspezifische Auswertungen für Tickets, SLA-Performance und Zeiterfassung.
+
+**🧭 Navigation:** Seitenleiste → **Berichte** (für Admins und Agents zugänglich)
+
+### 📋 Verfügbare Berichte
+
+| Tab | Inhalt |
+|-----|--------|
+| 🎫 **Ticket-Analyse** | Tickets pro Tag, Verteilung nach Status/Priorität, Agenten-Performance |
+| 🛡️ **SLA-Performance** | Compliance-Rate, Ø Antwort- und Lösungszeit, täglicher Verlauf |
+| ⏱️ **Zeiterfassung** | Stunden pro Agent, abrechenbare Zeit, Gesamtbetrag |
+
+### 🗓️ Zeitraumfilter
+
+Alle Berichte lassen sich über die Filterleiste oben einschränken:
+
+- **7 Tage** / **30 Tage** (Standard) / **90 Tage**
+- **Benutzerdefiniert**: freie Eingabe von Start- und Enddatum
+
+### 📤 Exportformate
+
+Jeder Bericht kann über den Button **„Exportieren"** in vier Formaten heruntergeladen werden:
+
+| Format | Verwendung |
+|--------|------------|
+| **CSV** | Excel, LibreOffice Calc (semikolongetrennt, UTF-8 BOM) |
+| **XLSX** | Natives Excel-Format, direkt öffenbar |
+| **PDF** | Druckfertig, mit Kopfzeile und Zeitraum |
+| **HTML** | Im Browser öffnen und über Strg+P drucken |
+
+Der Dateiname enthält automatisch Berichtstyp und Zeitraum, z. B. `bericht-sla-2026-01-01_2026-03-17.pdf`.
+
+### 🔌 API-Zugriff
+
+Die Berichtsdaten sind auch direkt per REST-API abrufbar:
+
+```
+GET /api/reports/tickets?from=YYYY-MM-DD&to=YYYY-MM-DD
+GET /api/reports/sla?from=YYYY-MM-DD&to=YYYY-MM-DD
+GET /api/reports/time?from=YYYY-MM-DD&to=YYYY-MM-DD
+GET /api/reports/export?type=tickets|sla|time&format=csv|xlsx|pdf|html&from=...&to=...
+```
 
 ---
 
@@ -413,7 +461,7 @@ Das System stellt automatisch bereit:
 
 <div align="center">
 
-**📅 Stand:** Dezember 2024
+**📅 Stand:** März 2026
 
 Diese Anleitung wird regelmäßig aktualisiert.  
 Bei Fragen oder Ergänzungswünschen wenden Sie sich an den technischen Ansprechpartner.

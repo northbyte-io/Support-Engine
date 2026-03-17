@@ -165,6 +165,86 @@ Content-Type: application/json
 }
 ```
 
+## Berichte
+
+### Ticket-Analyse abrufen
+
+```http
+GET /api/reports/tickets?from=2026-01-01&to=2026-03-17
+Authorization: Bearer <token>
+```
+
+**Antwort:**
+
+```json
+{
+  "summary": { "total": 42, "open": 10, "inProgress": 5, "resolved": 20, "closed": 7 },
+  "byDay": [{ "date": "2026-01-01", "total": 3, "resolved": 1, "open": 2 }],
+  "byStatus": [{ "status": "open", "count": 10 }],
+  "byPriority": [{ "priority": "high", "count": 8 }],
+  "byAgent": [{ "agentName": "Max Mustermann", "assigned": 15, "resolved": 12 }]
+}
+```
+
+### SLA-Performance abrufen
+
+```http
+GET /api/reports/sla?from=2026-01-01&to=2026-03-17
+Authorization: Bearer <token>
+```
+
+**Antwort:**
+
+```json
+{
+  "complianceRate": 87,
+  "avgResponseMinutes": 45,
+  "avgResolutionMinutes": 320,
+  "summary": { "total": 42, "breached": 5, "compliant": 37 },
+  "byDay": [{ "date": "2026-01-01", "total": 3, "breached": 0, "compliant": 3 }]
+}
+```
+
+### Zeiterfassung abrufen
+
+```http
+GET /api/reports/time?from=2026-01-01&to=2026-03-17
+Authorization: Bearer <token>
+```
+
+**Antwort:**
+
+```json
+{
+  "totalMinutes": 2400,
+  "billableMinutes": 1800,
+  "nonBillableMinutes": 600,
+  "summary": { "totalHours": "40h 0m", "billableHours": "30h 0m", "totalAmount": 450000 },
+  "byAgent": [{ "agentName": "Max Mustermann", "totalMinutes": 1200, "billableMinutes": 960 }],
+  "byDay": [{ "date": "2026-01-01", "minutes": 120, "billableMinutes": 90 }]
+}
+```
+
+### Bericht exportieren
+
+```http
+GET /api/reports/export?type=tickets&format=xlsx&from=2026-01-01&to=2026-03-17
+Authorization: Bearer <token>
+```
+
+**Query-Parameter:**
+
+| Parameter | Werte | Beschreibung |
+|-----------|-------|--------------|
+| `type` | `tickets`, `sla`, `time`, `agents` | Berichtstyp |
+| `format` | `csv`, `xlsx`, `pdf`, `html` | Ausgabeformat |
+| `from` | `YYYY-MM-DD` | Startdatum (Standard: heute − 30 Tage) |
+| `to` | `YYYY-MM-DD` | Enddatum (Standard: heute) |
+
+Die Antwort ist eine Datei mit dem entsprechenden Content-Type und `Content-Disposition: attachment`.
+
+---
+
 ## Fehlerbehandlung
 
 ### HTTP-Statuscodes

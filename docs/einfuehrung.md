@@ -11,8 +11,9 @@
 | **Multi-Tenant** | Vollständige Datenisolierung zwischen Mandanten |
 | **Rollenbasiert** | Admin, Agent und Kunden-Rollen mit feingranularen Berechtigungen |
 | **API-First** | REST-API für Web- und Mobile-Anwendungen |
-| **Modernes Design** | Linear-inspiriertes UI mit Dark/Light Mode |
+| **Modernes Design** | Amber/Navy Design-System mit Dark/Light Mode |
 | **Deutschsprachig** | Alle UI-Texte und Systemmeldungen auf Deutsch |
+| **Erweiterte Berichte** | Ticket-, SLA- und Zeiterfassungsberichte mit Export (CSV, XLSX, PDF, HTML) |
 
 ## Architektur
 

@@ -12,6 +12,7 @@ Preferred communication style: Simple, everyday language (German).
 
 ## Recent Changes
 
+- **March 2026**: Added Advanced Reports feature (`/reports`) — Ticket, SLA, and Time Tracking analysis with date range filters and 4 export formats (CSV, XLSX, PDF, HTML). New API endpoints: `/api/reports/tickets`, `/api/reports/sla`, `/api/reports/time`, `/api/reports/export`. New dependencies: `xlsx` (SheetJS), `pdfkit`. Added "Berichte" nav item to sidebar.
 - **January 2026**: Renamed application from "German Ticket System" to "Support-Engine"
 - **January 2026**: Added comprehensive time tracking system with multiple simultaneous timers, work entry logging, and billable time tracking
 - **January 2026**: Added TipTap rich text editor for ticket descriptions and knowledge base articles with full formatting toolbar
@@ -104,6 +105,16 @@ Preferred communication style: Simple, everyday language (German).
 - WIP limits per column
 - Ticket-project associations
 
+### Advanced Reports & Analytics
+- Three report tabs: Ticket Analysis, SLA Performance, Time Tracking
+- Date range filter: 7d / 30d / 90d / custom
+- Charts: Bar (tickets per day), Pie (by status/priority), Line (SLA trend)
+- Agent performance table with resolution rate
+- SLA compliance rate with color-coded daily chart (green/yellow/red)
+- Time tracking breakdown per agent with billable percentage
+- Export in 4 formats: CSV (Excel-compatible), XLSX (SheetJS), PDF (PDFKit), HTML (print-ready)
+- API: GET /api/reports/tickets|sla|time, GET /api/reports/export?type=&format=&from=&to=
+
 ### Surveys
 - Multiple question types (rating, yes/no, text, NPS)
 - Automatic sending after ticket closure
@@ -189,6 +200,7 @@ Preferred communication style: Simple, everyday language (German).
 - `client/src/components/AppSidebar.tsx` - Navigation sidebar
 - `client/src/lib/branding.tsx` - Tenant branding provider
 - `client/src/pages/branding.tsx` - Branding settings page
+- `client/src/pages/reports.tsx` - Advanced reports page with charts and multi-format export
 - `design_guidelines.md` - Design system documentation
 - `LICENSE` - AGPL-3.0 license text
 - `NOTICE` - Copyright notice

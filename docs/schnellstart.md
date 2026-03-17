@@ -39,6 +39,7 @@ Als Administrator können Sie:
 |---------|----------|
 | **Dashboard** | Übersicht über aktuelle Tickets und Statistiken |
 | **Tickets** | Alle Tickets anzeigen und verwalten |
+| **Berichte** | Erweiterte Analysen, SLA-Performance, Zeitauswertungen und Export |
 | **Wissensdatenbank** | Artikel und FAQ-Beiträge |
 | **CRM** | Kunden, Kontakte und Organisationen |
 | **Projekte** | Kanban-Boards und Projektverwaltung |
@@ -56,5 +57,6 @@ Als Administrator können Sie:
 ## Nächste Schritte
 
 - [Ticket-Management kennenlernen](benutzer/tickets.md)
+- [Berichte & Analysen nutzen](benutzer/berichte.md)
 - [E-Mail-Integration einrichten](admin/email-integration.md)
 - [SLA-Regeln konfigurieren](admin/sla.md)

@@ -4,7 +4,7 @@
 
 **Enterprise-grade Helpdesk & Ticket Management Platform**
 
-[![Release](https://img.shields.io/badge/release-v0.1.3-blue?style=flat-square)](https://github.com/northbyte-io/Support-Engine/releases)
+[![Release](https://img.shields.io/badge/release-v0.1.4-blue?style=flat-square)](https://github.com/northbyte-io/Support-Engine/releases)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-purple?style=flat-square)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen?style=flat-square)](https://nodejs.org/)
 [![Build](https://img.shields.io/badge/build-passing-success?style=flat-square)]()
@@ -27,7 +27,7 @@
 [![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=northbyte-io_Support-Engine&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=northbyte-io_Support-Engine)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=northbyte-io_Support-Engine&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=northbyte-io_Support-Engine)
 
-Multi-Tenant | REST API | SLA Management | CRM | Knowledge Base | Asset Management | Exchange Online
+Multi-Tenant | REST API | SLA Management | CRM | Knowledge Base | Asset Management | Exchange Online | Erweiterte Berichte
 
 </div>
 
@@ -68,8 +68,9 @@ Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und H
 | 🏢 **Multi-Tenant**    | Vollständige Datenisolierung zwischen Mandanten                  |
 | 🔐 **Rollenbasiert**   | Admin, Agent und Kunden-Rollen mit feingranularen Berechtigungen |
 | 📱 **API-First**       | REST-API für Web- und Mobile-Anwendungen (iOS)                   |
-| 🎨 **Modernes Design** | Linear-inspiriertes UI mit Dark/Light Mode                       |
+| 🎨 **Modernes Design** | Amber/Navy Design-System mit Dark/Light Mode                     |
 | 🇩🇪 **Deutschsprachig** | Alle UI-Texte und Systemmeldungen auf Deutsch                    |
+| 📊 **Erweiterte Berichte** | Ticket-, SLA- und Zeitanalysen mit Export als CSV, XLSX, PDF, HTML |
 
 ---
 
@@ -166,6 +167,41 @@ Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und H
 - ✅ Workload-Übersicht pro Agent
 - ✅ Echtzeit-Updates
 - ✅ Trend-Analyse
+
+#### 📊 Erweiterte Berichte & Analysen
+
+- ✅ **Ticket-Analyse**:
+  - 📅 Tickets pro Tag (Balkendiagramm)
+  - 🥧 Verteilung nach Status und Priorität (Tortendiagramme)
+  - 👥 Agenten-Performance-Tabelle mit Lösungsrate
+- ✅ **SLA-Performance**:
+  - 📈 Compliance-Rate mit Farbkodierung (grün/gelb/rot)
+  - ⏱️ Durchschnittliche Reaktions- und Lösungszeit
+  - 📉 SLA-Verlauf als Liniendiagramm
+- ✅ **Zeiterfassung-Auswertung**:
+  - 🕐 Gesamtstunden und abrechenbare Zeit pro Agent
+  - 💰 Berechneter Gesamtbetrag aus abrechenbaren Einträgen
+  - 📊 Tägliche Zeitaufschlüsselung
+- ✅ **Zeitraumfilter**: 7 Tage / 30 Tage / 90 Tage / Benutzerdefiniert
+- ✅ **Export in 4 Formaten**:
+  - 📄 CSV (Excel-kompatibel, UTF-8 BOM)
+  - 📊 XLSX (natives Excel-Format via SheetJS)
+  - 📕 PDF (serverseitig generiert via PDFKit)
+  - 🌐 HTML (druckfertig, gestyltes Dokument)
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                   📊 Berichte & Analysen                             │
+├──────────────────┬──────────────────┬──────────────────────────────┤
+│   🎫 Tickets     │   🛡️ SLA         │   ⏱️ Zeiterfassung           │
+├──────────────────┼──────────────────┼──────────────────────────────┤
+│  Tägl. Verlauf   │ Compliance-Rate  │  Stunden pro Agent            │
+│  Nach Status     │ Ø Antwortzeit    │  Abrechenbar / Nicht          │
+│  Nach Priorität  │ Ø Lösungszeit    │  Gesamtbetrag                 │
+│  Top-Agents      │ Tages-Trend      │  Tages-Verlauf                │
+└──────────────────┴──────────────────┴──────────────────────────────┘
+           ↓ Export: CSV · XLSX · PDF · HTML
+```
 
 #### 🔔 Benachrichtigungssystem
 
