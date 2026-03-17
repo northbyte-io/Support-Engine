@@ -74,6 +74,13 @@ const articleFormSchema = z.object({
 type CategoryFormData = z.infer<typeof categoryFormSchema>;
 type ArticleFormData = z.infer<typeof articleFormSchema>;
 
+function buildArticlePayload<T extends Partial<ArticleFormData>>(data: T): T & { categoryId: string | null } {
+  return {
+    ...data,
+    categoryId: data.categoryId && data.categoryId !== "__none__" ? data.categoryId : null,
+  };
+}
+
 function StatusBadge({ status }: Readonly<{ status: string }>) {
   const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
     draft: { label: "Entwurf", variant: "secondary" },
@@ -171,10 +178,7 @@ export default function KnowledgeBase() {
 
   const createArticleMutation = useMutation({
     mutationFn: async (data: ArticleFormData) => {
-      return apiRequest("POST", "/api/kb/articles", {
-        ...data,
-        categoryId: data.categoryId && data.categoryId !== "__none__" ? data.categoryId : null,
-      });
+      return apiRequest("POST", "/api/kb/articles", buildArticlePayload(data));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/kb/articles"] });
@@ -190,10 +194,7 @@ export default function KnowledgeBase() {
 
   const updateArticleMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<ArticleFormData> }) => {
-      return apiRequest("PATCH", `/api/kb/articles/${id}`, {
-        ...data,
-        categoryId: data.categoryId && data.categoryId !== "__none__" ? data.categoryId : null,
-      });
+      return apiRequest("PATCH", `/api/kb/articles/${id}`, buildArticlePayload(data));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/kb/articles"] });
