@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Response } from "express";
 import type { Server } from "node:http";
 import { Client as ObjectStorageClient } from "@replit/object-storage";
 import { storage } from "./storage";
@@ -542,6 +542,20 @@ function generateSlug(title: string): string {
     .slice(0, 100);
 }
 
+// Prüft, ob eine Ressource zum Mandanten des anfragenden Nutzers gehört.
+// Gibt false zurück und sendet 403, wenn der Zugriff verweigert wird.
+function assertTenantAccess(
+  resource: { tenantId?: string | null },
+  req: AuthenticatedRequest,
+  res: Response
+): boolean {
+  if (resource.tenantId !== req.tenantId) {
+    res.status(403).json({ message: "Zugriff verweigert" });
+    return false;
+  }
+  return true;
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -738,9 +752,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
       // Enforce tenant isolation
-      if (ticket.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(ticket, req, res)) return;
       res.json(ticket);
     } catch (error) {
       logger.error("api", "Get ticket error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -800,9 +812,7 @@ export async function registerRoutes(
       if (!originalTicket) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
-      if (originalTicket.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(originalTicket, req, res)) return;
 
       const previousStatus = originalTicket.status;
       
@@ -842,9 +852,7 @@ export async function registerRoutes(
       if (!ticket) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
-      if (ticket.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(ticket, req, res)) return;
       await storage.hardDeleteTicket(req.params.id, req.tenantId);
       res.status(204).send();
     } catch (error) {
@@ -860,9 +868,7 @@ export async function registerRoutes(
       if (!ticket) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
-      if (ticket.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(ticket, req, res)) return;
       const ticketAttachments = await storage.getAttachments(req.params.id);
       res.json(ticketAttachments);
     } catch (error) {
@@ -934,9 +940,7 @@ export async function registerRoutes(
       if (!ticket) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
-      if (ticket.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(ticket, req, res)) return;
 
       const data = insertCommentSchema.parse({
         ...req.body,
@@ -1020,10 +1024,8 @@ export async function registerRoutes(
       if (!ticket) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
-      if (ticket.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
-      const timer = await storage.startTimer(req.params.id, req.user!.id, req.tenantId);
+      if (!assertTenantAccess(ticket, req, res)) return;
+      const timer = await storage.startTimer(req.params.id, req.user!.id, req.tenantId ?? "");
       logger.info("ticket", "Timer gestartet", `Timer für Ticket ${ticket.ticketNumber} gestartet`, {
         metadata: { ticketId: req.params.id },
         userId: req.user!.id,
@@ -1105,10 +1107,8 @@ export async function registerRoutes(
       if (!ticket) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
-      if (ticket.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
-      const entries = await storage.getWorkEntries(req.params.id, req.tenantId);
+      if (!assertTenantAccess(ticket, req, res)) return;
+      const entries = await storage.getWorkEntries(req.params.id, req.tenantId ?? "");
       res.json(entries);
     } catch (error) {
       logger.error("api", "Get work entries error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -1122,16 +1122,14 @@ export async function registerRoutes(
       if (!ticket) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
-      if (ticket.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(ticket, req, res)) return;
       
       const { description, startTime, endTime, durationMinutes, pausedMinutes, isBillable } = req.body;
       
       const entry = await storage.createWorkEntry({
         ticketId: req.params.id,
         userId: req.user!.id,
-        tenantId: req.tenantId,
+        tenantId: req.tenantId ?? "",
         description,
         startTime: new Date(startTime),
         endTime: new Date(endTime),
@@ -1381,9 +1379,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "SLA-Definition nicht gefunden" });
       }
       // Enforce tenant isolation
-      if (sla.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(sla, req, res)) return;
       res.json(sla);
     } catch (error) {
       logger.error("api", "Get SLA definition error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -1416,9 +1412,7 @@ export async function registerRoutes(
       if (!existing) {
         return res.status(404).json({ message: "SLA-Definition nicht gefunden" });
       }
-      if (existing.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(existing, req, res)) return;
       // Only allow safe fields to be updated (not tenantId)
       const { tenantId, id, ...safeUpdates } = req.body;
       const sla = await storage.updateSlaDefinition(req.params.id, safeUpdates);
@@ -1436,9 +1430,7 @@ export async function registerRoutes(
       if (!existing) {
         return res.status(404).json({ message: "SLA-Definition nicht gefunden" });
       }
-      if (existing.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(existing, req, res)) return;
       await storage.deleteSlaDefinition(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -1455,9 +1447,7 @@ export async function registerRoutes(
       if (!slaDef) {
         return res.status(404).json({ message: "SLA-Definition nicht gefunden" });
       }
-      if (slaDef.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(slaDef, req, res)) return;
       
       const data = insertSlaEscalationSchema.parse({
         ...req.body,
@@ -1507,9 +1497,7 @@ export async function registerRoutes(
       }
       
       // Enforce tenant isolation
-      if (ticket.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(ticket, req, res)) return;
       
       // Only allow access to own tickets for customers
       if (req.user?.role === "customer" && ticket.createdById !== req.user.id) {
@@ -1567,9 +1555,7 @@ export async function registerRoutes(
       if (!category) {
         return res.status(404).json({ message: "Kategorie nicht gefunden" });
       }
-      if (category.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(category, req, res)) return;
       res.json(category);
     } catch (error) {
       logger.error("api", "Get KB category error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -1600,9 +1586,7 @@ export async function registerRoutes(
       if (!existing) {
         return res.status(404).json({ message: "Kategorie nicht gefunden" });
       }
-      if (existing.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(existing, req, res)) return;
       const { tenantId, id, ...safeUpdates } = req.body;
       const category = await storage.updateKbCategory(req.params.id, safeUpdates);
       res.json(category);
@@ -1618,9 +1602,7 @@ export async function registerRoutes(
       if (!existing) {
         return res.status(404).json({ message: "Kategorie nicht gefunden" });
       }
-      if (existing.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(existing, req, res)) return;
       await storage.deleteKbCategory(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -1659,9 +1641,7 @@ export async function registerRoutes(
       if (!article) {
         return res.status(404).json({ message: "Artikel nicht gefunden" });
       }
-      if (article.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(article, req, res)) return;
       // Customers can only see public, published articles
       if (req.user?.role === "customer" && (article.status !== "published" || !article.isPublic)) {
         return res.status(403).json({ message: "Zugriff verweigert" });
@@ -1701,9 +1681,7 @@ export async function registerRoutes(
       if (!existing) {
         return res.status(404).json({ message: "Artikel nicht gefunden" });
       }
-      if (existing.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(existing, req, res)) return;
       
       // Save version before updating
       if (req.body.content && req.body.content !== existing.content) {
@@ -1736,9 +1714,7 @@ export async function registerRoutes(
       if (!existing) {
         return res.status(404).json({ message: "Artikel nicht gefunden" });
       }
-      if (existing.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(existing, req, res)) return;
       // Soft-delete: preserves audit trail
       await storage.deleteKbArticle(req.params.id);
       res.status(204).send();
@@ -1755,9 +1731,7 @@ export async function registerRoutes(
       if (!existing) {
         return res.status(404).json({ message: "Artikel nicht gefunden" });
       }
-      if (existing.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(existing, req, res)) return;
       await storage.hardDeleteKbArticle(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -1773,9 +1747,7 @@ export async function registerRoutes(
       if (!article) {
         return res.status(404).json({ message: "Artikel nicht gefunden" });
       }
-      if (article.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(article, req, res)) return;
       const versions = await storage.getKbArticleVersions(req.params.id);
       res.json(versions);
     } catch (error) {
@@ -1791,9 +1763,7 @@ export async function registerRoutes(
       if (!ticket) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
-      if (ticket.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(ticket, req, res)) return;
       const links = await storage.getTicketKbLinks(req.params.ticketId);
       res.json(links);
     } catch (error) {
@@ -1808,9 +1778,7 @@ export async function registerRoutes(
       if (!ticket) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
-      if (ticket.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(ticket, req, res)) return;
       
       const data = insertTicketKbLinkSchema.parse({
         ticketId: req.params.ticketId,
@@ -1901,9 +1869,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Zeiteintrag nicht gefunden" });
       }
       // Tenant isolation check
-      if (entry.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(entry, req, res)) return;
       res.json(entry);
     } catch (error) {
       logger.error("api", "Get time entry error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -1938,9 +1904,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Zeiteintrag nicht gefunden" });
       }
       // Tenant isolation check
-      if (entry.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(entry, req, res)) return;
       
       const updates: Record<string, unknown> = { ...req.body };
       if (req.body.date) {
@@ -1968,9 +1932,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Zeiteintrag nicht gefunden" });
       }
       // Tenant isolation check
-      if (entry.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(entry, req, res)) return;
       await storage.deleteTimeEntry(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -1986,16 +1948,14 @@ export async function registerRoutes(
       if (!ticket) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
-      if (ticket.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(ticket, req, res)) return;
       
       // Customers can only see time entries if they're the ticket creator
       if (req.user!.role === "customer" && ticket.createdById !== req.user!.id) {
         return res.status(403).json({ message: "Zugriff verweigert" });
       }
       
-      const entries = await storage.getTimeEntries(req.tenantId, { ticketId: req.params.ticketId });
+      const entries = await storage.getTimeEntries(req.tenantId ?? "", { ticketId: req.params.ticketId });
       res.json(entries);
     } catch (error) {
       logger.error("api", "Get ticket time entries error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2010,9 +1970,7 @@ export async function registerRoutes(
       if (!ticket) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
-      if (ticket.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(ticket, req, res)) return;
       
       const parsedDate = z.coerce.date().parse(req.body.date);
       const data = insertTimeEntrySchema.parse({
@@ -2040,11 +1998,9 @@ export async function registerRoutes(
       if (!ticket) {
         return res.status(404).json({ message: "Ticket nicht gefunden" });
       }
-      if (ticket.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(ticket, req, res)) return;
       
-      const summary = await storage.getTimeEntrySummary(req.tenantId, { ticketId: req.params.ticketId });
+      const summary = await storage.getTimeEntrySummary(req.tenantId ?? "", { ticketId: req.params.ticketId });
       res.json(summary);
     } catch (error) {
       logger.error("api", "Get ticket time summary error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2156,9 +2112,7 @@ export async function registerRoutes(
       if (!survey) {
         return res.status(404).json({ message: "Umfrage nicht gefunden" });
       }
-      if (survey.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(survey, req, res)) return;
       res.json(survey);
     } catch (error) {
       logger.error("api", "Get survey error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2191,9 +2145,7 @@ export async function registerRoutes(
       if (!existing) {
         return res.status(404).json({ message: "Umfrage nicht gefunden" });
       }
-      if (existing.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(existing, req, res)) return;
       const { tenantId, id, ...safeUpdates } = req.body;
       const survey = await storage.updateSurvey(req.params.id, safeUpdates);
       res.json(survey);
@@ -2210,9 +2162,7 @@ export async function registerRoutes(
       if (!existing) {
         return res.status(404).json({ message: "Umfrage nicht gefunden" });
       }
-      if (existing.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(existing, req, res)) return;
       await storage.deleteSurvey(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -2228,9 +2178,7 @@ export async function registerRoutes(
       if (!survey) {
         return res.status(404).json({ message: "Umfrage nicht gefunden" });
       }
-      if (survey.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(survey, req, res)) return;
       const questions = await storage.getSurveyQuestions(req.params.surveyId);
       res.json(questions);
     } catch (error) {
@@ -2245,9 +2193,7 @@ export async function registerRoutes(
       if (!survey) {
         return res.status(404).json({ message: "Umfrage nicht gefunden" });
       }
-      if (survey.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
+      if (!assertTenantAccess(survey, req, res)) return;
       
       const data = insertSurveyQuestionSchema.parse({
         ...req.body,
@@ -2295,10 +2241,8 @@ export async function registerRoutes(
       if (!survey) {
         return res.status(404).json({ message: "Umfrage nicht gefunden" });
       }
-      if (survey.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
-      const invitations = await storage.getSurveyInvitations(req.tenantId, req.params.surveyId);
+      if (!assertTenantAccess(survey, req, res)) return;
+      const invitations = await storage.getSurveyInvitations(req.tenantId ?? "", req.params.surveyId);
       res.json(invitations);
     } catch (error) {
       logger.error("api", "Get survey invitations error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2313,10 +2257,8 @@ export async function registerRoutes(
       if (!survey) {
         return res.status(404).json({ message: "Umfrage nicht gefunden" });
       }
-      if (survey.tenantId !== req.tenantId) {
-        return res.status(403).json({ message: "Zugriff verweigert" });
-      }
-      const summary = await storage.getSurveyResultSummary(req.tenantId, req.params.surveyId);
+      if (!assertTenantAccess(survey, req, res)) return;
+      const summary = await storage.getSurveyResultSummary(req.tenantId ?? "", req.params.surveyId);
       res.json(summary);
     } catch (error) {
       logger.error("api", "Get survey results error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
