@@ -1286,8 +1286,8 @@ export async function registerRoutes(
   // Users
   app.get("/api/users", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
-      const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+      const limit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : undefined;
+      const offset = req.query.offset ? Number.parseInt(req.query.offset as string, 10) : undefined;
       const users = await storage.getUsers(req.tenantId, { limit, offset });
       res.json(users.map(u => ({ ...u, password: undefined })));
     } catch (error) {
@@ -1551,8 +1551,8 @@ export async function registerRoutes(
   // Knowledge Base Category Routes
   app.get("/api/kb/categories", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
-      const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+      const limit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : undefined;
+      const offset = req.query.offset ? Number.parseInt(req.query.offset as string, 10) : undefined;
       const categories = await storage.getKbCategories(req.tenantId!, { limit, offset });
       res.json(categories);
     } catch (error) {
@@ -2864,8 +2864,8 @@ export async function registerRoutes(
   app.get("/api/organizations", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const search = req.query.search as string | undefined;
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
-      const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+      const limit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : undefined;
+      const offset = req.query.offset ? Number.parseInt(req.query.offset as string, 10) : undefined;
       const orgs = await storage.getOrganizations(req.user?.tenantId ?? "", { search, limit, offset });
       res.json(orgs);
     } catch (error) {
@@ -3059,8 +3059,8 @@ export async function registerRoutes(
       const search = req.query.search as string | undefined;
       const customerId = req.query.customerId as string | undefined;
       const organizationId = req.query.organizationId as string | undefined;
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
-      const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+      const limit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : undefined;
+      const offset = req.query.offset ? Number.parseInt(req.query.offset as string, 10) : undefined;
       const contacts = await storage.getContacts(req.user?.tenantId ?? "", { search, customerId, organizationId, limit, offset });
       res.json(contacts);
     } catch (error) {
@@ -3641,7 +3641,7 @@ export async function registerRoutes(
       
       const existingConfig = await storage.getExchangeConfiguration(tenantId);
       
-      const configData: Partial<InsertExchangeConfiguration> = {
+      const configData: InsertExchangeConfiguration = {
         tenantId,
         clientId,
         tenantAzureId,
@@ -3664,7 +3664,7 @@ export async function registerRoutes(
         result = await storage.updateExchangeConfiguration(tenantId, configData);
         logger.info("exchange", "Konfiguration aktualisiert", "Exchange-Konfiguration wurde aktualisiert", { userId: req.user!.id });
       } else {
-        result = await storage.createExchangeConfiguration(configData as InsertExchangeConfiguration);
+        result = await storage.createExchangeConfiguration(configData);
         logger.info("exchange", "Konfiguration erstellt", "Exchange-Konfiguration wurde erstellt", { userId: req.user!.id });
       }
       
