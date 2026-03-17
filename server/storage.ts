@@ -503,6 +503,56 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Private Hilfs-Methoden zur Auflösung von Relationen
+  private async resolveTimeEntryRelations(entry: typeof timeEntries.$inferSelect): Promise<TimeEntryWithRelations> {
+    const [user, ticket] = await Promise.all([
+      entry.userId ? db.select().from(users).where(eq(users.id, entry.userId)).then(r => r[0]) : null,
+      entry.ticketId ? db.select().from(tickets).where(eq(tickets.id, entry.ticketId)).then(r => r[0]) : null,
+    ]);
+    const userWithoutPassword = user ? { ...user, password: undefined } : null;
+    return { ...entry, user: userWithoutPassword, ticket: ticket || null };
+  }
+
+  private async resolveSurveyInvitationRelations(invitation: typeof surveyInvitations.$inferSelect): Promise<SurveyInvitationWithRelations> {
+    const [survey, ticket, user, responses] = await Promise.all([
+      invitation.surveyId ? db.select().from(surveys).where(eq(surveys.id, invitation.surveyId)).then(r => r[0]) : null,
+      invitation.ticketId ? db.select().from(tickets).where(eq(tickets.id, invitation.ticketId)).then(r => r[0]) : null,
+      invitation.userId ? db.select().from(users).where(eq(users.id, invitation.userId)).then(r => r[0]) : null,
+      db.select().from(surveyResponses).where(eq(surveyResponses.invitationId, invitation.id)),
+    ]);
+    return {
+      ...invitation,
+      survey: survey || null,
+      ticket: ticket || null,
+      user: user ? { ...user, password: undefined } : null,
+      responses,
+    } as SurveyInvitationWithRelations;
+  }
+
+  private async resolveCustomerRelations(customer: typeof customers.$inferSelect, tenantId: string): Promise<CustomerWithRelations> {
+    const [org, manager, sla, locs, customerContacts] = await Promise.all([
+      customer.organizationId
+        ? db.select().from(organizations).where(and(eq(organizations.id, customer.organizationId), eq(organizations.tenantId, tenantId))).then(r => r[0] ?? null)
+        : null,
+      customer.accountManagerId
+        ? db.select().from(users).where(and(eq(users.id, customer.accountManagerId), eq(users.tenantId, tenantId))).then(r => r[0] ?? null)
+        : null,
+      customer.slaDefinitionId
+        ? db.select().from(slaDefinitions).where(and(eq(slaDefinitions.id, customer.slaDefinitionId), eq(slaDefinitions.tenantId, tenantId))).then(r => r[0] ?? null)
+        : null,
+      db.select().from(customerLocations).where(eq(customerLocations.customerId, customer.id)),
+      db.select().from(contacts).where(and(eq(contacts.customerId, customer.id), eq(contacts.tenantId, tenantId))),
+    ]);
+    return {
+      ...customer,
+      organization: org,
+      accountManager: manager,
+      slaDefinition: sla,
+      locations: locs,
+      contacts: customerContacts,
+    };
+  }
+
   // Users
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
@@ -1191,26 +1241,13 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(desc(timeEntries.date));
     
-    return Promise.all(entries.map(async (entry) => {
-      const [user, ticket] = await Promise.all([
-        entry.userId ? db.select().from(users).where(eq(users.id, entry.userId)).then(r => r[0]) : null,
-        entry.ticketId ? db.select().from(tickets).where(eq(tickets.id, entry.ticketId)).then(r => r[0]) : null,
-      ]);
-      const userWithoutPassword = user ? { ...user, password: undefined } : null;
-      return { ...entry, user: userWithoutPassword, ticket: ticket || null };
-    }));
+    return Promise.all(entries.map(entry => this.resolveTimeEntryRelations(entry)));
   }
 
   async getTimeEntry(id: string): Promise<TimeEntryWithRelations | undefined> {
     const [entry] = await db.select().from(timeEntries).where(eq(timeEntries.id, id));
     if (!entry) return undefined;
-
-    const [user, ticket] = await Promise.all([
-      entry.userId ? db.select().from(users).where(eq(users.id, entry.userId)).then(r => r[0]) : null,
-      entry.ticketId ? db.select().from(tickets).where(eq(tickets.id, entry.ticketId)).then(r => r[0]) : null,
-    ]);
-    const userWithoutPassword = user ? { ...user, password: undefined } : null;
-    return { ...entry, user: userWithoutPassword, ticket: ticket || null };
+    return this.resolveTimeEntryRelations(entry);
   }
 
   async createTimeEntry(entry: InsertTimeEntry): Promise<TimeEntry> {
@@ -1494,26 +1531,7 @@ export class DatabaseStorage implements IStorage {
 
     const results = await query;
 
-    const invitationsWithRelations: SurveyInvitationWithRelations[] = await Promise.all(
-      results.map(async (invitation) => {
-        const [survey, ticket, user, responses] = await Promise.all([
-          invitation.surveyId ? db.select().from(surveys).where(eq(surveys.id, invitation.surveyId)).then(r => r[0]) : null,
-          invitation.ticketId ? db.select().from(tickets).where(eq(tickets.id, invitation.ticketId)).then(r => r[0]) : null,
-          invitation.userId ? db.select().from(users).where(eq(users.id, invitation.userId)).then(r => r[0]) : null,
-          db.select().from(surveyResponses).where(eq(surveyResponses.invitationId, invitation.id)),
-        ]);
-
-        return {
-          ...invitation,
-          survey: survey || null,
-          ticket: ticket || null,
-          user: user ? { ...user, password: undefined } : null,
-          responses,
-        } as SurveyInvitationWithRelations;
-      })
-    );
-
-    return invitationsWithRelations;
+    return Promise.all(results.map(invitation => this.resolveSurveyInvitationRelations(invitation)));
   }
 
   async getSurveyInvitation(id: string): Promise<SurveyInvitationWithRelations | undefined> {
@@ -1522,21 +1540,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(surveyInvitations.id, id));
 
     if (!invitation) return undefined;
-
-    const [survey, ticket, user, responses] = await Promise.all([
-      invitation.surveyId ? db.select().from(surveys).where(eq(surveys.id, invitation.surveyId)).then(r => r[0]) : null,
-      invitation.ticketId ? db.select().from(tickets).where(eq(tickets.id, invitation.ticketId)).then(r => r[0]) : null,
-      invitation.userId ? db.select().from(users).where(eq(users.id, invitation.userId)).then(r => r[0]) : null,
-      db.select().from(surveyResponses).where(eq(surveyResponses.invitationId, invitation.id)),
-    ]);
-
-    return {
-      ...invitation,
-      survey: survey || null,
-      ticket: ticket || null,
-      user: user ? { ...user, password: undefined } : null,
-      responses,
-    } as SurveyInvitationWithRelations;
+    return this.resolveSurveyInvitationRelations(invitation);
   }
 
   async getSurveyInvitationByToken(token: string): Promise<SurveyInvitationWithRelations | undefined> {
@@ -2393,38 +2397,14 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(asc(customers.name));
 
-    const result: CustomerWithRelations[] = [];
-    for (const customer of customersList) {
-      if (params?.search) {
-        const searchLower = params.search.toLowerCase();
-        if (!customer.name.toLowerCase().includes(searchLower) && 
-            !customer.customerNumber.toLowerCase().includes(searchLower)) continue;
-      }
+    const filtered = params?.search
+      ? customersList.filter(c => {
+          const s = params.search!.toLowerCase();
+          return c.name.toLowerCase().includes(s) || c.customerNumber.toLowerCase().includes(s);
+        })
+      : customersList;
 
-      const org = customer.organizationId 
-        ? (await db.select().from(organizations).where(and(eq(organizations.id, customer.organizationId), eq(organizations.tenantId, tenantId))))[0] 
-        : null;
-      const manager = customer.accountManagerId 
-        ? (await db.select().from(users).where(and(eq(users.id, customer.accountManagerId), eq(users.tenantId, tenantId))))[0] 
-        : null;
-      const sla = customer.slaDefinitionId 
-        ? (await db.select().from(slaDefinitions).where(and(eq(slaDefinitions.id, customer.slaDefinitionId), eq(slaDefinitions.tenantId, tenantId))))[0] 
-        : null;
-      const locs = await db.select().from(customerLocations)
-        .where(eq(customerLocations.customerId, customer.id));
-      const customerContacts = await db.select().from(contacts)
-        .where(and(eq(contacts.customerId, customer.id), eq(contacts.tenantId, tenantId)));
-
-      result.push({
-        ...customer,
-        organization: org || null,
-        accountManager: manager || null,
-        slaDefinition: sla || null,
-        locations: locs,
-        contacts: customerContacts,
-      });
-    }
-    return result;
+    return Promise.all(filtered.map(customer => this.resolveCustomerRelations(customer, tenantId)));
   }
 
   async getCustomer(id: string, tenantId: string): Promise<CustomerWithRelations | undefined> {
@@ -2432,36 +2412,17 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)));
     if (!customer) return undefined;
 
-    const org = customer.organizationId 
-      ? (await db.select().from(organizations).where(and(eq(organizations.id, customer.organizationId), eq(organizations.tenantId, tenantId))))[0] 
-      : null;
-    const manager = customer.accountManagerId 
-      ? (await db.select().from(users).where(and(eq(users.id, customer.accountManagerId), eq(users.tenantId, tenantId))))[0] 
-      : null;
-    const sla = customer.slaDefinitionId 
-      ? (await db.select().from(slaDefinitions).where(and(eq(slaDefinitions.id, customer.slaDefinitionId), eq(slaDefinitions.tenantId, tenantId))))[0] 
-      : null;
-    const locs = await db.select().from(customerLocations)
-      .where(eq(customerLocations.customerId, customer.id));
-    const customerContacts = await db.select().from(contacts)
-      .where(and(eq(contacts.customerId, customer.id), eq(contacts.tenantId, tenantId)));
-    const customerTickets = await db.select().from(tickets)
-      .where(and(eq(tickets.customerId, customer.id), eq(tickets.tenantId, tenantId)))
-      .orderBy(desc(tickets.createdAt));
-    const activities = await db.select().from(customerActivities)
-      .where(and(eq(customerActivities.customerId, customer.id), eq(customerActivities.tenantId, tenantId)))
-      .orderBy(desc(customerActivities.createdAt));
+    const [base, customerTickets, activities] = await Promise.all([
+      this.resolveCustomerRelations(customer, tenantId),
+      db.select().from(tickets)
+        .where(and(eq(tickets.customerId, customer.id), eq(tickets.tenantId, tenantId)))
+        .orderBy(desc(tickets.createdAt)),
+      db.select().from(customerActivities)
+        .where(and(eq(customerActivities.customerId, customer.id), eq(customerActivities.tenantId, tenantId)))
+        .orderBy(desc(customerActivities.createdAt)),
+    ]);
 
-    return {
-      ...customer,
-      organization: org || null,
-      accountManager: manager || null,
-      slaDefinition: sla || null,
-      locations: locs,
-      contacts: customerContacts,
-      tickets: customerTickets,
-      activities: activities,
-    };
+    return { ...base, tickets: customerTickets, activities };
   }
 
   async createCustomer(customer: InsertCustomer, tenantId: string): Promise<Customer> {
