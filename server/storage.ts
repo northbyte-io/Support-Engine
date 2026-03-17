@@ -179,7 +179,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined>;
-  getUsers(tenantId?: string): Promise<User[]>;
+  getUsers(tenantId?: string, params?: { limit?: number; offset?: number }): Promise<User[]>;
 
   // Tenants
   getTenant(id: string): Promise<Tenant | undefined>;
@@ -262,7 +262,7 @@ export interface IStorage {
   getAgentWorkload(tenantId?: string): Promise<{ user: User; ticketCount: number }[]>;
 
   // Knowledge Base Categories
-  getKbCategories(tenantId: string): Promise<KbCategory[]>;
+  getKbCategories(tenantId: string, params?: { limit?: number; offset?: number }): Promise<KbCategory[]>;
   getKbCategory(id: string): Promise<KbCategory | undefined>;
   createKbCategory(category: InsertKbCategory): Promise<KbCategory>;
   updateKbCategory(id: string, updates: Partial<InsertKbCategory>): Promise<KbCategory | undefined>;
@@ -398,7 +398,7 @@ export interface IStorage {
   updateTicketBoardOrder(ticketId: string, projectId: string, boardOrder: number, tenantId: string): Promise<void>;
 
   // CRM - Organizations
-  getOrganizations(tenantId: string, params?: { search?: string }): Promise<OrganizationWithRelations[]>;
+  getOrganizations(tenantId: string, params?: { search?: string; limit?: number; offset?: number }): Promise<OrganizationWithRelations[]>;
   getOrganization(id: string, tenantId: string): Promise<OrganizationWithRelations | undefined>;
   createOrganization(org: InsertOrganization, tenantId: string): Promise<Organization>;
   updateOrganization(id: string, updates: Partial<InsertOrganization>, tenantId: string): Promise<Organization | undefined>;
@@ -419,7 +419,7 @@ export interface IStorage {
   deleteCustomerLocation(id: string, tenantId: string): Promise<void>;
 
   // CRM - Contacts
-  getContacts(tenantId: string, params?: { customerId?: string; organizationId?: string; search?: string }): Promise<ContactWithRelations[]>;
+  getContacts(tenantId: string, params?: { customerId?: string; organizationId?: string; search?: string; limit?: number; offset?: number }): Promise<ContactWithRelations[]>;
   getContact(id: string, tenantId: string): Promise<ContactWithRelations | undefined>;
   createContact(contact: InsertContact, tenantId: string): Promise<Contact>;
   updateContact(id: string, updates: Partial<InsertContact>, tenantId: string): Promise<Contact | undefined>;
@@ -524,11 +524,13 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async getUsers(tenantId?: string): Promise<User[]> {
+  async getUsers(tenantId?: string, params?: { limit?: number; offset?: number }): Promise<User[]> {
+    const limit = params?.limit ?? 500;
+    const offset = params?.offset ?? 0;
     if (tenantId) {
-      return db.select().from(users).where(eq(users.tenantId, tenantId));
+      return db.select().from(users).where(eq(users.tenantId, tenantId)).limit(limit).offset(offset);
     }
-    return db.select().from(users);
+    return db.select().from(users).limit(limit).offset(offset);
   }
 
   // Tenants
@@ -1018,10 +1020,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Knowledge Base Categories
-  async getKbCategories(tenantId: string): Promise<KbCategory[]> {
+  async getKbCategories(tenantId: string, params?: { limit?: number; offset?: number }): Promise<KbCategory[]> {
     return db.select().from(kbCategories)
       .where(eq(kbCategories.tenantId, tenantId))
-      .orderBy(asc(kbCategories.order), asc(kbCategories.name));
+      .orderBy(asc(kbCategories.order), asc(kbCategories.name))
+      .limit(params?.limit ?? 500)
+      .offset(params?.offset ?? 0);
   }
 
   async getKbCategory(id: string): Promise<KbCategory | undefined> {
@@ -2281,34 +2285,53 @@ export class DatabaseStorage implements IStorage {
   // CRM - Organizations
   // ============================================
 
-  async getOrganizations(tenantId: string, params?: { search?: string }): Promise<OrganizationWithRelations[]> {
-    let query = db.select().from(organizations).where(eq(organizations.tenantId, tenantId));
-    
-    const orgs = await query.orderBy(asc(organizations.name));
-    
-    const result: OrganizationWithRelations[] = [];
-    for (const org of orgs) {
-      if (params?.search) {
-        const searchLower = params.search.toLowerCase();
-        if (!org.name.toLowerCase().includes(searchLower)) continue;
-      }
-      
-      const orgCustomers = await db.select().from(customers)
-        .where(and(eq(customers.organizationId, org.id), eq(customers.tenantId, tenantId)));
-      const orgContacts = await db.select().from(contacts)
-        .where(and(eq(contacts.organizationId, org.id), eq(contacts.tenantId, tenantId)));
-      const parentOrg = org.parentId 
-        ? (await db.select().from(organizations).where(eq(organizations.id, org.parentId)))[0] 
-        : null;
-      
-      result.push({
-        ...org,
-        customers: orgCustomers,
-        contacts: orgContacts,
-        parentOrganization: parentOrg || null,
-      });
+  async getOrganizations(tenantId: string, params?: { search?: string; limit?: number; offset?: number }): Promise<OrganizationWithRelations[]> {
+    const conditions = [eq(organizations.tenantId, tenantId)];
+    if (params?.search) {
+      conditions.push(ilike(organizations.name, `%${params.search}%`));
     }
-    return result;
+
+    const orgList = await db.select().from(organizations)
+      .where(and(...conditions))
+      .orderBy(asc(organizations.name))
+      .limit(params?.limit ?? 500)
+      .offset(params?.offset ?? 0);
+
+    if (orgList.length === 0) return [];
+
+    const orgIds = orgList.map(o => o.id);
+    const parentIds = [...new Set(orgList.flatMap(o => o.parentId ? [o.parentId] : []))];
+
+    const [orgCustomers, orgContacts, parentOrgs] = await Promise.all([
+      db.select().from(customers).where(and(inArray(customers.organizationId, orgIds), eq(customers.tenantId, tenantId))),
+      db.select().from(contacts).where(and(inArray(contacts.organizationId, orgIds), eq(contacts.tenantId, tenantId))),
+      parentIds.length > 0
+        ? db.select().from(organizations).where(inArray(organizations.id, parentIds))
+        : Promise.resolve([]),
+    ]);
+
+    const customersByOrg = new Map<string, typeof orgCustomers>();
+    for (const c of orgCustomers) {
+      const oid = c.organizationId ?? "";
+      if (!customersByOrg.has(oid)) customersByOrg.set(oid, []);
+      customersByOrg.get(oid)!.push(c);
+    }
+
+    const contactsByOrg = new Map<string, typeof orgContacts>();
+    for (const c of orgContacts) {
+      const oid = c.organizationId ?? "";
+      if (!contactsByOrg.has(oid)) contactsByOrg.set(oid, []);
+      contactsByOrg.get(oid)!.push(c);
+    }
+
+    const parentOrgMap = new Map(parentOrgs.map(o => [o.id, o]));
+
+    return orgList.map(org => ({
+      ...org,
+      customers: customersByOrg.get(org.id) ?? [],
+      contacts: contactsByOrg.get(org.id) ?? [],
+      parentOrganization: org.parentId ? (parentOrgMap.get(org.parentId) ?? null) : null,
+    }));
   }
 
   async getOrganization(id: string, tenantId: string): Promise<OrganizationWithRelations | undefined> {
@@ -2532,46 +2555,57 @@ export class DatabaseStorage implements IStorage {
   // CRM - Contacts
   // ============================================
 
-  async getContacts(tenantId: string, params?: { customerId?: string; organizationId?: string; search?: string }): Promise<ContactWithRelations[]> {
-    let conditions = [eq(contacts.tenantId, tenantId)];
+  async getContacts(tenantId: string, params?: { customerId?: string; organizationId?: string; search?: string; limit?: number; offset?: number }): Promise<ContactWithRelations[]> {
+    const conditions = [eq(contacts.tenantId, tenantId)];
     if (params?.customerId) {
       conditions.push(eq(contacts.customerId, params.customerId));
     }
     if (params?.organizationId) {
       conditions.push(eq(contacts.organizationId, params.organizationId));
     }
+    if (params?.search) {
+      conditions.push(or(
+        ilike(contacts.firstName, `%${params.search}%`),
+        ilike(contacts.lastName, `%${params.search}%`),
+        ilike(contacts.email, `%${params.search}%`)
+      )!);
+    }
 
     const contactsList = await db.select().from(contacts)
       .where(and(...conditions))
-      .orderBy(asc(contacts.lastName), asc(contacts.firstName));
+      .orderBy(asc(contacts.lastName), asc(contacts.firstName))
+      .limit(params?.limit ?? 500)
+      .offset(params?.offset ?? 0);
 
-    const result: ContactWithRelations[] = [];
-    for (const contact of contactsList) {
-      if (params?.search) {
-        const searchLower = params.search.toLowerCase();
-        const fullName = `${contact.firstName} ${contact.lastName}`.toLowerCase();
-        if (!fullName.includes(searchLower) && 
-            !(contact.email?.toLowerCase().includes(searchLower))) continue;
-      }
+    if (contactsList.length === 0) return [];
 
-      const customer = contact.customerId 
-        ? (await db.select().from(customers).where(and(eq(customers.id, contact.customerId), eq(customers.tenantId, tenantId))))[0] 
-        : null;
-      const org = contact.organizationId 
-        ? (await db.select().from(organizations).where(and(eq(organizations.id, contact.organizationId), eq(organizations.tenantId, tenantId))))[0] 
-        : null;
-      const user = contact.userId 
-        ? (await db.select().from(users).where(and(eq(users.id, contact.userId), eq(users.tenantId, tenantId))))[0] 
-        : null;
+    const customerIds = [...new Set(contactsList.flatMap(c => c.customerId ? [c.customerId] : []))];
+    const organizationIds = [...new Set(contactsList.flatMap(c => c.organizationId ? [c.organizationId] : []))];
+    const userIds = [...new Set(contactsList.flatMap(c => c.userId ? [c.userId] : []))];
 
-      result.push({
-        ...contact,
-        customer: customer || null,
-        organization: org || null,
-        user: user || null,
-      });
-    }
-    return result;
+    const [customerRows, orgRows, userRows] = await Promise.all([
+      customerIds.length > 0
+        ? db.select().from(customers).where(and(inArray(customers.id, customerIds), eq(customers.tenantId, tenantId)))
+        : Promise.resolve([]),
+      organizationIds.length > 0
+        ? db.select().from(organizations).where(and(inArray(organizations.id, organizationIds), eq(organizations.tenantId, tenantId)))
+        : Promise.resolve([]),
+      userIds.length > 0
+        ? db.select().from(users).where(and(inArray(users.id, userIds), eq(users.tenantId, tenantId)))
+        : Promise.resolve([]),
+    ]);
+
+    const customerMap = new Map(customerRows.map(c => [c.id, c]));
+    const orgMap = new Map(orgRows.map(o => [o.id, o]));
+    const userMap = new Map(userRows.map(u => [u.id, u]));
+
+    return contactsList.map(contact => ({
+      ...contact,
+      customer: contact.customerId ? (customerMap.get(contact.customerId) ?? null) : null,
+      organization: contact.organizationId ? (orgMap.get(contact.organizationId) ?? null) : null,
+      user: contact.userId ? (userMap.get(contact.userId) ?? null) : null,
+    }));
+
   }
 
   async getContact(id: string, tenantId: string): Promise<ContactWithRelations | undefined> {

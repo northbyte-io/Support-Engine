@@ -1273,7 +1273,9 @@ export async function registerRoutes(
   // Users
   app.get("/api/users", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const users = await storage.getUsers(req.tenantId);
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+      const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+      const users = await storage.getUsers(req.tenantId, { limit, offset });
       res.json(users.map(u => ({ ...u, password: undefined })));
     } catch (error) {
       logger.error("api", "Get users error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -1549,7 +1551,9 @@ export async function registerRoutes(
   // Knowledge Base Category Routes
   app.get("/api/kb/categories", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const categories = await storage.getKbCategories(req.tenantId!);
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+      const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+      const categories = await storage.getKbCategories(req.tenantId!, { limit, offset });
       res.json(categories);
     } catch (error) {
       logger.error("api", "Get KB categories error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2909,7 +2913,9 @@ export async function registerRoutes(
   app.get("/api/organizations", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const search = req.query.search as string | undefined;
-      const orgs = await storage.getOrganizations(req.user?.tenantId ?? "", { search });
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+      const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+      const orgs = await storage.getOrganizations(req.user?.tenantId ?? "", { search, limit, offset });
       res.json(orgs);
     } catch (error) {
       logger.error("api", "Get organizations error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -3102,7 +3108,9 @@ export async function registerRoutes(
       const search = req.query.search as string | undefined;
       const customerId = req.query.customerId as string | undefined;
       const organizationId = req.query.organizationId as string | undefined;
-      const contacts = await storage.getContacts(req.user?.tenantId ?? "", { search, customerId, organizationId });
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+      const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+      const contacts = await storage.getContacts(req.user?.tenantId ?? "", { search, customerId, organizationId, limit, offset });
       res.json(contacts);
     } catch (error) {
       logger.error("api", "Get contacts error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
