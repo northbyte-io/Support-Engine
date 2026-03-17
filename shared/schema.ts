@@ -376,6 +376,68 @@ export const surveyResponses = pgTable("survey_responses", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ============================
+// Approval Workflows
+// ============================
+export const approvalRequestStatusEnum = pgEnum("approval_request_status", ["pending", "approved", "rejected", "cancelled"]);
+export const approvalDecisionEnum = pgEnum("approval_decision", ["pending", "approved", "rejected"]);
+export const approvalApproverTypeEnum = pgEnum("approval_approver_type", ["user", "role"]);
+
+// Workflow templates – Admin definiert wiederverwendbare Genehmigungsprozesse
+export const approvalWorkflows = pgTable("approval_workflows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("approval_workflows_tenant_id_idx").on(table.tenantId),
+]);
+
+// Schritte innerhalb eines Workflow-Templates (geordnet)
+export const approvalWorkflowSteps = pgTable("approval_workflow_steps", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workflowId: varchar("workflow_id").references(() => approvalWorkflows.id),
+  order: integer("order").notNull(),
+  name: text("name").notNull(),
+  approverType: approvalApproverTypeEnum("approver_type").default("user"),
+  approverId: varchar("approver_id").references(() => users.id),  // konkreter Benutzer
+  approverRole: text("approver_role"),                             // oder Rolle (admin/agent)
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Genehmigungsanfragen pro Ticket
+export const approvalRequests = pgTable("approval_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  ticketId: varchar("ticket_id").references(() => tickets.id),
+  workflowId: varchar("workflow_id").references(() => approvalWorkflows.id),
+  requestedById: varchar("requested_by_id").references(() => users.id),
+  currentStepOrder: integer("current_step_order").default(1),
+  status: approvalRequestStatusEnum("status").default("pending"),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("approval_requests_tenant_id_idx").on(table.tenantId),
+  index("approval_requests_ticket_id_idx").on(table.ticketId),
+]);
+
+// Entscheidungen pro Schritt
+export const approvalDecisions = pgTable("approval_decisions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  requestId: varchar("request_id").references(() => approvalRequests.id),
+  stepId: varchar("step_id").references(() => approvalWorkflowSteps.id),
+  stepOrder: integer("step_order").notNull(),
+  approverId: varchar("approver_id").references(() => users.id),
+  decision: approvalDecisionEnum("decision").default("pending"),
+  comment: text("comment"),
+  decidedAt: timestamp("decided_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const tenantsRelations = relations(tenants, ({ many }) => ({
   users: many(users),
@@ -1601,6 +1663,40 @@ export type ActiveTimerWithTicket = ActiveTimer & {
     ticketNumber: string;
     title: string;
   };
+};
+
+// Approval Workflow Insert Schemas
+export const insertApprovalWorkflowSchema = createInsertSchema(approvalWorkflows).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateApprovalWorkflowSchema = insertApprovalWorkflowSchema.partial();
+export const insertApprovalWorkflowStepSchema = createInsertSchema(approvalWorkflowSteps).omit({ id: true, createdAt: true });
+export const updateApprovalWorkflowStepSchema = insertApprovalWorkflowStepSchema.partial();
+export const insertApprovalRequestSchema = createInsertSchema(approvalRequests).omit({ id: true, createdAt: true, updatedAt: true, currentStepOrder: true, status: true });
+export const insertApprovalDecisionSchema = createInsertSchema(approvalDecisions).omit({ id: true, createdAt: true });
+
+// Approval Workflow Types
+export type ApprovalWorkflow = typeof approvalWorkflows.$inferSelect;
+export type InsertApprovalWorkflow = z.infer<typeof insertApprovalWorkflowSchema>;
+export type UpdateApprovalWorkflow = z.infer<typeof updateApprovalWorkflowSchema>;
+export type ApprovalWorkflowStep = typeof approvalWorkflowSteps.$inferSelect;
+export type InsertApprovalWorkflowStep = z.infer<typeof insertApprovalWorkflowStepSchema>;
+export type ApprovalRequest = typeof approvalRequests.$inferSelect;
+export type InsertApprovalRequest = z.infer<typeof insertApprovalRequestSchema>;
+export type ApprovalDecision = typeof approvalDecisions.$inferSelect;
+export type InsertApprovalDecision = z.infer<typeof insertApprovalDecisionSchema>;
+
+// Extended types for UI
+export type ApprovalWorkflowWithSteps = ApprovalWorkflow & {
+  steps: (ApprovalWorkflowStep & { approver?: { id: string; firstName: string; lastName: string; email: string } | null })[];
+};
+export type ApprovalDecisionWithApprover = ApprovalDecision & {
+  approver?: { id: string; firstName: string; lastName: string; email: string } | null;
+};
+export type ApprovalRequestWithDetails = ApprovalRequest & {
+  workflow?: ApprovalWorkflowWithSteps | null;
+  requestedBy?: { id: string; firstName: string; lastName: string; email: string } | null;
+  ticket?: { id: string; ticketNumber: string; title: string } | null;
+  decisions: ApprovalDecisionWithApprover[];
+  currentStep?: (ApprovalWorkflowStep & { approver?: { id: string; firstName: string; lastName: string; email: string } | null }) | null;
 };
 
 // Auth schemas

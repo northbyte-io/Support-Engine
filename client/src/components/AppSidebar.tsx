@@ -20,7 +20,10 @@ import {
   ShieldCheck,
   FileText,
   BarChart3,
+  ClipboardCheck,
+  Workflow,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { useBranding } from "@/lib/branding";
 import { useTheme } from "@/lib/theme";
@@ -65,12 +68,13 @@ const resourceNavItems = [
 ];
 
 const adminNavItems = [
-  { title: "Benutzer",        url: "/users",                icon: Users },
-  { title: "Umfragen",        url: "/surveys",              icon: ClipboardList },
-  { title: "Exchange",        url: "/exchange-integration", icon: Mail },
-  { title: "TLS-Zertifikate", url: "/tls-certificates",    icon: ShieldCheck },
-  { title: "Logs",            url: "/logs",                 icon: FileText },
-  { title: "Einstellungen",   url: "/settings",             icon: Settings },
+  { title: "Benutzer",              url: "/users",                    icon: Users },
+  { title: "Umfragen",              url: "/surveys",                  icon: ClipboardList },
+  { title: "Genehmigungsworkflows", url: "/approvals/workflows",      icon: Workflow },
+  { title: "Exchange",              url: "/exchange-integration",     icon: Mail },
+  { title: "TLS-Zertifikate",       url: "/tls-certificates",         icon: ShieldCheck },
+  { title: "Logs",                  url: "/logs",                     icon: FileText },
+  { title: "Einstellungen",         url: "/settings",                 icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -78,6 +82,13 @@ export function AppSidebar() {
   const { user, logout } = useAuth();
   const { branding } = useBranding();
   const { theme } = useTheme();
+
+  const { data: pendingApprovalData } = useQuery<{ count: number }>({
+    queryKey: ["/api/approvals/pending/count"],
+    enabled: user?.role === "admin" || user?.role === "agent",
+    refetchInterval: 60000,
+  });
+  const pendingApprovalCount = pendingApprovalData?.count ?? 0;
 
   const handleLogout = async () => {
     await logout();
@@ -140,6 +151,25 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {(user?.role === "admin" || user?.role === "agent") && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive("/approvals")}
+                    data-testid="nav-approvals"
+                  >
+                    <a href="/approvals" onClick={(e) => { e.preventDefault(); setLocation("/approvals"); }}>
+                      <ClipboardCheck className="w-4 h-4" />
+                      <span>Genehmigungen</span>
+                      {pendingApprovalCount > 0 && (
+                        <span className="ml-auto bg-amber-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                          {pendingApprovalCount > 9 ? "9+" : pendingApprovalCount}
+                        </span>
+                      )}
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

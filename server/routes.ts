@@ -16,7 +16,7 @@ import {
   TOKEN_COOKIE_OPTIONS,
   type AuthenticatedRequest
 } from "./auth";
-import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyResponseSchema, insertAssetCategorySchema, insertAssetSchema, insertAssetLicenseSchema, insertAssetContractSchema, insertTicketAssetSchema, insertProjectSchema, insertProjectMemberSchema, insertBoardColumnSchema, insertTicketProjectSchema, insertOrganizationSchema, insertCustomerSchema, insertCustomerLocationSchema, insertContactSchema, insertTicketContactSchema, insertCustomerActivitySchema, updateTenantBrandingSchema, type InsertExchangeConfiguration, type InsertExchangeEmail, type ExchangeConfiguration, type ExchangeMailbox, type EmailProcessingRule } from "@shared/schema";
+import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyResponseSchema, insertAssetCategorySchema, insertAssetSchema, insertAssetLicenseSchema, insertAssetContractSchema, insertTicketAssetSchema, insertProjectSchema, insertProjectMemberSchema, insertBoardColumnSchema, insertTicketProjectSchema, insertOrganizationSchema, insertCustomerSchema, insertCustomerLocationSchema, insertContactSchema, insertTicketContactSchema, insertCustomerActivitySchema, updateTenantBrandingSchema, insertApprovalWorkflowSchema, insertApprovalWorkflowStepSchema, insertApprovalRequestSchema, insertApprovalDecisionSchema, type InsertExchangeConfiguration, type InsertExchangeEmail, type ExchangeConfiguration, type ExchangeMailbox, type EmailProcessingRule } from "@shared/schema";
 import crypto from "node:crypto";
 import { z } from "zod";
 import type { GraphEmail } from "./exchange-service";
@@ -4048,6 +4048,278 @@ export async function registerRoutes(
       const errMsg = error instanceof Error ? error.message : String(error);
       logger.error("exchange", "Fehler beim Löschen der Regel", { description: errMsg, cause: "Löschfehler", solution: "Fehlerursache prüfen" });
       res.status(500).json({ message: errMsg || "Fehler beim Löschen der Regel" });
+    }
+  });
+
+  // ==========================================
+  // Approval Workflows – API
+  // ==========================================
+
+  // Alle Workflow-Templates abrufen (Admin)
+  app.get("/api/approval-workflows", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId ?? "";
+      const workflows = await storage.getApprovalWorkflows(tenantId);
+      res.json(workflows);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: errMsg || "Fehler beim Laden der Workflows" });
+    }
+  });
+
+  // Einzelnen Workflow-Template abrufen
+  app.get("/api/approval-workflows/:id", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId ?? "";
+      const workflow = await storage.getApprovalWorkflow(req.params.id, tenantId);
+      if (!workflow) return res.status(404).json({ message: "Workflow nicht gefunden" });
+      res.json(workflow);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: errMsg || "Fehler beim Laden des Workflows" });
+    }
+  });
+
+  // Workflow-Template erstellen (Admin)
+  app.post("/api/approval-workflows", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId ?? "";
+      const parsed = insertApprovalWorkflowSchema.safeParse({ ...req.body, tenantId });
+      if (!parsed.success) return res.status(400).json({ message: "Ungültige Daten", errors: parsed.error.issues });
+      const workflow = await storage.createApprovalWorkflow(parsed.data);
+      logger.info("ticket", "Genehmigungsworkflow erstellt", workflow.name, { userId: req.user!.id });
+      res.status(201).json(workflow);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: errMsg || "Fehler beim Erstellen des Workflows" });
+    }
+  });
+
+  // Workflow-Template aktualisieren (Admin)
+  app.patch("/api/approval-workflows/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId ?? "";
+      const workflow = await storage.updateApprovalWorkflow(req.params.id, req.body, tenantId);
+      if (!workflow) return res.status(404).json({ message: "Workflow nicht gefunden" });
+      logger.info("ticket", "Genehmigungsworkflow aktualisiert", workflow.name, { userId: req.user!.id });
+      res.json(workflow);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: errMsg || "Fehler beim Aktualisieren des Workflows" });
+    }
+  });
+
+  // Workflow-Template löschen (Admin)
+  app.delete("/api/approval-workflows/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId ?? "";
+      await storage.deleteApprovalWorkflow(req.params.id, tenantId);
+      logger.info("ticket", "Genehmigungsworkflow gelöscht", req.params.id, { userId: req.user!.id });
+      res.status(204).send();
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: errMsg || "Fehler beim Löschen des Workflows" });
+    }
+  });
+
+  // Schritt zu Workflow hinzufügen
+  app.post("/api/approval-workflows/:id/steps", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const parsed = insertApprovalWorkflowStepSchema.safeParse({ ...req.body, workflowId: req.params.id });
+      if (!parsed.success) return res.status(400).json({ message: "Ungültige Daten", errors: parsed.error.issues });
+      const step = await storage.createApprovalWorkflowStep(parsed.data);
+      res.status(201).json(step);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: errMsg || "Fehler beim Erstellen des Schritts" });
+    }
+  });
+
+  // Schritt aktualisieren
+  app.patch("/api/approval-workflows/:id/steps/:stepId", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const step = await storage.updateApprovalWorkflowStep(req.params.stepId, req.body);
+      if (!step) return res.status(404).json({ message: "Schritt nicht gefunden" });
+      res.json(step);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: errMsg || "Fehler beim Aktualisieren des Schritts" });
+    }
+  });
+
+  // Schritt löschen
+  app.delete("/api/approval-workflows/:id/steps/:stepId", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      await storage.deleteApprovalWorkflowStep(req.params.stepId, req.params.id);
+      res.status(204).send();
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: errMsg || "Fehler beim Löschen des Schritts" });
+    }
+  });
+
+  // Alle Genehmigungsanfragen abrufen (mit Filter)
+  app.get("/api/approvals", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId ?? "";
+      const { ticketId, status, mine } = req.query as { ticketId?: string; status?: string; mine?: string };
+      const params: { ticketId?: string; status?: string; requestedById?: string } = {};
+      if (ticketId) params.ticketId = ticketId;
+      if (status) params.status = status;
+      if (mine === "true") params.requestedById = req.user!.id;
+      const requests = await storage.getApprovalRequests(tenantId, params);
+      res.json(requests);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: errMsg || "Fehler beim Laden der Genehmigungen" });
+    }
+  });
+
+  // Offene Genehmigungen für den angemeldeten Benutzer (für Badge)
+  app.get("/api/approvals/pending/count", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId ?? "";
+      const pending = await storage.getPendingApprovalsForUser(req.user!.id, tenantId);
+      res.json({ count: pending.length });
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: errMsg || "Fehler beim Laden der Genehmigungen" });
+    }
+  });
+
+  // Meine offenen Genehmigungen (wo ich Approver bin)
+  app.get("/api/approvals/pending", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId ?? "";
+      const pending = await storage.getPendingApprovalsForUser(req.user!.id, tenantId);
+      res.json(pending);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: errMsg || "Fehler beim Laden der Genehmigungen" });
+    }
+  });
+
+  // Einzelne Genehmigungsanfrage abrufen
+  app.get("/api/approvals/:id", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId ?? "";
+      const request = await storage.getApprovalRequest(req.params.id, tenantId);
+      if (!request) return res.status(404).json({ message: "Genehmigungsanfrage nicht gefunden" });
+      res.json(request);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: errMsg || "Fehler beim Laden der Genehmigung" });
+    }
+  });
+
+  // Genehmigungsanfrage für ein Ticket erstellen
+  app.post("/api/approvals", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId ?? "";
+      const parsed = insertApprovalRequestSchema.safeParse({ ...req.body, tenantId, requestedById: req.user!.id });
+      if (!parsed.success) return res.status(400).json({ message: "Ungültige Daten", errors: parsed.error.issues });
+
+      // Prüfen ob bereits eine aktive Anfrage existiert
+      const existing = await storage.getTicketApprovalRequest(parsed.data.ticketId!, tenantId);
+      if (existing && existing.status === "pending") {
+        return res.status(409).json({ message: "Für dieses Ticket existiert bereits eine aktive Genehmigungsanfrage" });
+      }
+
+      const request = await storage.createApprovalRequest(parsed.data);
+
+      // Workflow laden und erste Schritte initialisieren
+      const workflow = await storage.getApprovalWorkflow(request.workflowId!, tenantId);
+      if (workflow && workflow.steps.length > 0) {
+        // Ersten Schritt auf currentStepOrder=1 setzen (bereits Standard)
+        logger.info("ticket", "Genehmigungsanfrage erstellt", `Ticket ${parsed.data.ticketId} – Workflow ${request.workflowId}`, { userId: req.user!.id });
+      }
+
+      const detailed = await storage.getApprovalRequest(request.id, tenantId);
+      res.status(201).json(detailed);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: errMsg || "Fehler beim Erstellen der Genehmigungsanfrage" });
+    }
+  });
+
+  // Genehmigungsanfrage abbrechen
+  app.post("/api/approvals/:id/cancel", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId ?? "";
+      const request = await storage.getApprovalRequest(req.params.id, tenantId);
+      if (!request) return res.status(404).json({ message: "Genehmigungsanfrage nicht gefunden" });
+      if (request.status !== "pending") return res.status(400).json({ message: "Nur ausstehende Anfragen können abgebrochen werden" });
+
+      const updated = await storage.updateApprovalRequest(req.params.id, { status: "cancelled" } as any, tenantId);
+      logger.info("ticket", "Genehmigungsanfrage abgebrochen", req.params.id, { userId: req.user!.id });
+      res.json(updated);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: errMsg || "Fehler beim Abbrechen" });
+    }
+  });
+
+  // Genehmigungsentscheidung treffen (genehmigen / ablehnen)
+  app.post("/api/approvals/:id/decide", authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId ?? "";
+      const { decision, comment } = req.body as { decision: "approved" | "rejected"; comment?: string };
+
+      if (!["approved", "rejected"].includes(decision)) {
+        return res.status(400).json({ message: "Entscheidung muss 'approved' oder 'rejected' sein" });
+      }
+
+      const request = await storage.getApprovalRequest(req.params.id, tenantId);
+      if (!request) return res.status(404).json({ message: "Genehmigungsanfrage nicht gefunden" });
+      if (request.status !== "pending") return res.status(400).json({ message: "Anfrage ist nicht mehr ausstehend" });
+
+      const currentStep = request.currentStep;
+      if (!currentStep) return res.status(400).json({ message: "Kein aktueller Schritt gefunden" });
+
+      // Berechtigungsprüfung: Benutzer muss Approver für diesen Schritt sein
+      const userId = req.user!.id;
+      const userRole = req.user!.role;
+      const isApprover =
+        (currentStep.approverType === "user" && currentStep.approverId === userId) ||
+        (currentStep.approverType === "role" && currentStep.approverRole === userRole);
+
+      if (!isApprover) {
+        return res.status(403).json({ message: "Sie sind nicht berechtigt, diesen Schritt zu genehmigen" });
+      }
+
+      // Entscheidung speichern
+      await storage.createApprovalDecision({
+        requestId: request.id,
+        stepId: currentStep.id,
+        stepOrder: currentStep.order,
+        approverId: userId,
+        decision,
+        comment: comment || null,
+        decidedAt: new Date(),
+      } as any);
+
+      if (decision === "rejected") {
+        // Abgelehnt – gesamte Anfrage als rejected markieren
+        await storage.updateApprovalRequest(req.params.id, { status: "rejected" } as any, tenantId);
+        logger.info("ticket", "Genehmigung abgelehnt", req.params.id, { userId });
+      } else {
+        // Genehmigt – nächsten Schritt prüfen
+        const nextStep = request.workflow?.steps.find(s => s.order === currentStep.order + 1);
+        if (nextStep) {
+          await storage.updateApprovalRequest(req.params.id, { currentStepOrder: nextStep.order } as any, tenantId);
+          logger.info("ticket", `Schritt ${currentStep.order} genehmigt, weiter zu Schritt ${nextStep.order}`, req.params.id, { userId });
+        } else {
+          // Letzter Schritt – vollständig genehmigt
+          await storage.updateApprovalRequest(req.params.id, { status: "approved" } as any, tenantId);
+          logger.info("ticket", "Genehmigung vollständig abgeschlossen", req.params.id, { userId });
+        }
+      }
+
+      const updated = await storage.getApprovalRequest(req.params.id, tenantId);
+      res.json(updated);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: errMsg || "Fehler bei der Genehmigungsentscheidung" });
     }
   });
 

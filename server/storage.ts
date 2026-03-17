@@ -169,6 +169,22 @@ import {
   type WorkEntry,
   type InsertWorkEntry,
   type ActiveTimerWithTicket,
+  approvalWorkflows,
+  approvalWorkflowSteps,
+  approvalRequests,
+  approvalDecisions,
+  type ApprovalWorkflow,
+  type InsertApprovalWorkflow,
+  type UpdateApprovalWorkflow,
+  type ApprovalWorkflowStep,
+  type InsertApprovalWorkflowStep,
+  type ApprovalRequest,
+  type InsertApprovalRequest,
+  type ApprovalDecision,
+  type InsertApprovalDecision,
+  type ApprovalWorkflowWithSteps,
+  type ApprovalRequestWithDetails,
+  type ApprovalDecisionWithApprover,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, ilike, or, count, gt, lt, inArray, isNull, type SQL } from "drizzle-orm";
@@ -534,6 +550,23 @@ export interface IStorage {
   createWorkEntry(entry: InsertWorkEntry): Promise<WorkEntry>;
   updateWorkEntry(id: string, updates: Partial<InsertWorkEntry>, tenantId: string): Promise<WorkEntry | undefined>;
   deleteWorkEntry(id: string, tenantId: string): Promise<void>;
+
+  // Approval Workflows
+  getApprovalWorkflows(tenantId: string): Promise<ApprovalWorkflowWithSteps[]>;
+  getApprovalWorkflow(id: string, tenantId: string): Promise<ApprovalWorkflowWithSteps | undefined>;
+  createApprovalWorkflow(data: InsertApprovalWorkflow): Promise<ApprovalWorkflow>;
+  updateApprovalWorkflow(id: string, updates: UpdateApprovalWorkflow, tenantId: string): Promise<ApprovalWorkflow | undefined>;
+  deleteApprovalWorkflow(id: string, tenantId: string): Promise<void>;
+  createApprovalWorkflowStep(step: InsertApprovalWorkflowStep): Promise<ApprovalWorkflowStep>;
+  updateApprovalWorkflowStep(id: string, updates: Partial<InsertApprovalWorkflowStep>): Promise<ApprovalWorkflowStep | undefined>;
+  deleteApprovalWorkflowStep(id: string, workflowId: string): Promise<void>;
+  getApprovalRequests(tenantId: string, params?: { ticketId?: string; status?: string; requestedById?: string }): Promise<ApprovalRequestWithDetails[]>;
+  getApprovalRequest(id: string, tenantId: string): Promise<ApprovalRequestWithDetails | undefined>;
+  getTicketApprovalRequest(ticketId: string, tenantId: string): Promise<ApprovalRequestWithDetails | undefined>;
+  createApprovalRequest(data: InsertApprovalRequest): Promise<ApprovalRequest>;
+  updateApprovalRequest(id: string, updates: Partial<ApprovalRequest>, tenantId: string): Promise<ApprovalRequest | undefined>;
+  createApprovalDecision(decision: InsertApprovalDecision): Promise<ApprovalDecision>;
+  getPendingApprovalsForUser(userId: string, tenantId: string): Promise<ApprovalRequestWithDetails[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3461,6 +3494,182 @@ export class DatabaseStorage implements IStorage {
   async deleteWorkEntry(id: string, tenantId: string): Promise<void> {
     await db.delete(workEntries)
       .where(and(eq(workEntries.id, id), eq(workEntries.tenantId, tenantId)));
+  }
+
+  // ==============================
+  // Approval Workflows
+  // ==============================
+
+  private async resolveWorkflowWithSteps(workflow: ApprovalWorkflow): Promise<ApprovalWorkflowWithSteps> {
+    const steps = await db.select()
+      .from(approvalWorkflowSteps)
+      .where(eq(approvalWorkflowSteps.workflowId, workflow.id))
+      .orderBy(asc(approvalWorkflowSteps.order));
+
+    const stepsWithApprovers = await Promise.all(steps.map(async (step) => {
+      const approver = step.approverId
+        ? await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, email: users.email })
+            .from(users).where(eq(users.id, step.approverId)).then(r => r[0] || null)
+        : null;
+      return { ...step, approver };
+    }));
+
+    return { ...workflow, steps: stepsWithApprovers };
+  }
+
+  private async resolveRequestWithDetails(request: ApprovalRequest): Promise<ApprovalRequestWithDetails> {
+    const [workflow, requestedBy, ticket, decisions] = await Promise.all([
+      request.workflowId
+        ? db.select().from(approvalWorkflows).where(eq(approvalWorkflows.id, request.workflowId)).then(async r => r[0] ? this.resolveWorkflowWithSteps(r[0]) : null)
+        : Promise.resolve(null),
+      request.requestedById
+        ? db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, email: users.email })
+            .from(users).where(eq(users.id, request.requestedById)).then(r => r[0] || null)
+        : Promise.resolve(null),
+      request.ticketId
+        ? db.select({ id: tickets.id, ticketNumber: tickets.ticketNumber, title: tickets.title })
+            .from(tickets).where(eq(tickets.id, request.ticketId)).then(r => r[0] || null)
+        : Promise.resolve(null),
+      db.select().from(approvalDecisions).where(eq(approvalDecisions.requestId, request.id)).orderBy(asc(approvalDecisions.stepOrder)),
+    ]);
+
+    const decisionsWithApprovers: ApprovalDecisionWithApprover[] = await Promise.all(
+      decisions.map(async (d) => {
+        const approver = d.approverId
+          ? await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, email: users.email })
+              .from(users).where(eq(users.id, d.approverId)).then(r => r[0] || null)
+          : null;
+        return { ...d, approver };
+      })
+    );
+
+    const currentStep = workflow?.steps.find(s => s.order === request.currentStepOrder) || null;
+
+    return { ...request, workflow, requestedBy, ticket, decisions: decisionsWithApprovers, currentStep };
+  }
+
+  async getApprovalWorkflows(tenantId: string): Promise<ApprovalWorkflowWithSteps[]> {
+    const wfs = await db.select().from(approvalWorkflows)
+      .where(eq(approvalWorkflows.tenantId, tenantId))
+      .orderBy(desc(approvalWorkflows.createdAt));
+    return Promise.all(wfs.map(w => this.resolveWorkflowWithSteps(w)));
+  }
+
+  async getApprovalWorkflow(id: string, tenantId: string): Promise<ApprovalWorkflowWithSteps | undefined> {
+    const wf = await db.select().from(approvalWorkflows)
+      .where(and(eq(approvalWorkflows.id, id), eq(approvalWorkflows.tenantId, tenantId)))
+      .then(r => r[0]);
+    return wf ? this.resolveWorkflowWithSteps(wf) : undefined;
+  }
+
+  async createApprovalWorkflow(data: InsertApprovalWorkflow): Promise<ApprovalWorkflow> {
+    const [wf] = await db.insert(approvalWorkflows).values(data).returning();
+    return wf;
+  }
+
+  async updateApprovalWorkflow(id: string, updates: UpdateApprovalWorkflow, tenantId: string): Promise<ApprovalWorkflow | undefined> {
+    const [result] = await db.update(approvalWorkflows)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(approvalWorkflows.id, id), eq(approvalWorkflows.tenantId, tenantId)))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteApprovalWorkflow(id: string, tenantId: string): Promise<void> {
+    // Delete steps first
+    const steps = await db.select().from(approvalWorkflowSteps).where(eq(approvalWorkflowSteps.workflowId, id));
+    for (const step of steps) {
+      await db.delete(approvalWorkflowSteps).where(eq(approvalWorkflowSteps.id, step.id));
+    }
+    await db.delete(approvalWorkflows).where(and(eq(approvalWorkflows.id, id), eq(approvalWorkflows.tenantId, tenantId)));
+  }
+
+  async createApprovalWorkflowStep(step: InsertApprovalWorkflowStep): Promise<ApprovalWorkflowStep> {
+    const [result] = await db.insert(approvalWorkflowSteps).values(step).returning();
+    return result;
+  }
+
+  async updateApprovalWorkflowStep(id: string, updates: Partial<InsertApprovalWorkflowStep>): Promise<ApprovalWorkflowStep | undefined> {
+    const [result] = await db.update(approvalWorkflowSteps)
+      .set(updates)
+      .where(eq(approvalWorkflowSteps.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteApprovalWorkflowStep(id: string, workflowId: string): Promise<void> {
+    await db.delete(approvalWorkflowSteps)
+      .where(and(eq(approvalWorkflowSteps.id, id), eq(approvalWorkflowSteps.workflowId, workflowId)));
+  }
+
+  async getApprovalRequests(tenantId: string, params?: { ticketId?: string; status?: string; requestedById?: string }): Promise<ApprovalRequestWithDetails[]> {
+    const conditions = [eq(approvalRequests.tenantId, tenantId)];
+    if (params?.ticketId) conditions.push(eq(approvalRequests.ticketId, params.ticketId));
+    if (params?.status) conditions.push(eq(approvalRequests.status, params.status as any));
+    if (params?.requestedById) conditions.push(eq(approvalRequests.requestedById, params.requestedById));
+
+    const requests = await db.select().from(approvalRequests)
+      .where(and(...conditions))
+      .orderBy(desc(approvalRequests.createdAt));
+    return Promise.all(requests.map(r => this.resolveRequestWithDetails(r)));
+  }
+
+  async getApprovalRequest(id: string, tenantId: string): Promise<ApprovalRequestWithDetails | undefined> {
+    const request = await db.select().from(approvalRequests)
+      .where(and(eq(approvalRequests.id, id), eq(approvalRequests.tenantId, tenantId)))
+      .then(r => r[0]);
+    return request ? this.resolveRequestWithDetails(request) : undefined;
+  }
+
+  async getTicketApprovalRequest(ticketId: string, tenantId: string): Promise<ApprovalRequestWithDetails | undefined> {
+    const request = await db.select().from(approvalRequests)
+      .where(and(
+        eq(approvalRequests.ticketId, ticketId),
+        eq(approvalRequests.tenantId, tenantId),
+        or(eq(approvalRequests.status, "pending"), eq(approvalRequests.status, "approved"))
+      ))
+      .orderBy(desc(approvalRequests.createdAt))
+      .then(r => r[0]);
+    return request ? this.resolveRequestWithDetails(request) : undefined;
+  }
+
+  async createApprovalRequest(data: InsertApprovalRequest): Promise<ApprovalRequest> {
+    const [request] = await db.insert(approvalRequests).values(data).returning();
+    return request;
+  }
+
+  async updateApprovalRequest(id: string, updates: Partial<ApprovalRequest>, tenantId: string): Promise<ApprovalRequest | undefined> {
+    const [result] = await db.update(approvalRequests)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(approvalRequests.id, id), eq(approvalRequests.tenantId, tenantId)))
+      .returning();
+    return result || undefined;
+  }
+
+  async createApprovalDecision(decision: InsertApprovalDecision): Promise<ApprovalDecision> {
+    const [result] = await db.insert(approvalDecisions).values(decision).returning();
+    return result;
+  }
+
+  async getPendingApprovalsForUser(userId: string, tenantId: string): Promise<ApprovalRequestWithDetails[]> {
+    // Find all pending requests where the user is the approver for the current step
+    const allPending = await db.select().from(approvalRequests)
+      .where(and(eq(approvalRequests.tenantId, tenantId), eq(approvalRequests.status, "pending")))
+      .orderBy(desc(approvalRequests.createdAt));
+
+    const withDetails = await Promise.all(allPending.map(r => this.resolveRequestWithDetails(r)));
+
+    // Filter: user is approver for current step (by userId or by role)
+    const user = await db.select().from(users).where(eq(users.id, userId)).then(r => r[0]);
+    if (!user) return [];
+
+    return withDetails.filter(r => {
+      const step = r.currentStep;
+      if (!step) return false;
+      if (step.approverType === "user") return step.approverId === userId;
+      if (step.approverType === "role") return step.approverRole === user.role;
+      return false;
+    });
   }
 }
 

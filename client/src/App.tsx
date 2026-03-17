@@ -37,6 +37,8 @@ import TlsCertificatesPage from "@/pages/tls-certificates";
 import ExchangeIntegrationPage from "@/pages/exchange-integration";
 import ReportsPage from "@/pages/reports";
 import SearchPage from "@/pages/search";
+import ApprovalsPage from "@/pages/approvals";
+import ApprovalWorkflowsPage from "@/pages/approval-workflows";
 
 function ProtectedRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -266,6 +268,18 @@ function Router() {
         <AgentRoute>
           <SearchPage />
         </AgentRoute>
+      </Route>
+
+      <Route path="/approvals">
+        <AgentRoute>
+          <ApprovalsPage />
+        </AgentRoute>
+      </Route>
+
+      <Route path="/approvals/workflows">
+        <AdminRoute>
+          <ApprovalWorkflowsPage />
+        </AdminRoute>
       </Route>
 
       <Route component={NotFound} />

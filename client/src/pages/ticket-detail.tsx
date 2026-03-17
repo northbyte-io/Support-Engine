@@ -25,6 +25,11 @@ import {
   Mail,
   Phone,
   Timer,
+  ShieldCheck,
+  CheckCircle2,
+  XCircle,
+  Ban,
+  Plus,
 } from "lucide-react";
 import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -68,10 +73,11 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { format, formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
-import type { TicketWithRelations, Project, CustomerWithRelations } from "@shared/schema";
+import type { TicketWithRelations, Project, CustomerWithRelations, ApprovalRequestWithDetails, ApprovalWorkflowWithSteps } from "@shared/schema";
 import { TicketTimerControl } from "@/components/TicketTimerControl";
 import { WorkEntriesList } from "@/components/WorkEntriesList";
 import { statusOptions, priorityOptions } from "@/lib/ticket-options";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 export default function TicketDetailPage() {
   const params = useParams<{ id: string }>();
@@ -101,6 +107,68 @@ export default function TicketDetailPage() {
   const { data: customers } = useQuery<CustomerWithRelations[]>({
     queryKey: ["/api/customers"],
   });
+
+  // Approval Workflow States
+  const [showRequestApprovalDialog, setShowRequestApprovalDialog] = useState(false);
+  const [approvalForm, setApprovalForm] = useState({ workflowId: "", note: "" });
+  const [showDecideDialog, setShowDecideDialog] = useState(false);
+  const [decideForm, setDecideForm] = useState({ decision: "" as "approved" | "rejected" | "", comment: "" });
+
+  const { data: approvalWorkflows = [] } = useQuery<ApprovalWorkflowWithSteps[]>({
+    queryKey: ["/api/approval-workflows"],
+    enabled: user?.role === "admin" || user?.role === "agent",
+  });
+
+  const { data: ticketApproval, refetch: refetchApproval } = useQuery<ApprovalRequestWithDetails | null>({
+    queryKey: ["/api/approvals", { ticketId: params.id }],
+    queryFn: () => fetch(`/api/approvals?ticketId=${params.id}`, { credentials: "include" })
+      .then(r => r.json())
+      .then((arr: ApprovalRequestWithDetails[]) => arr[0] || null),
+    enabled: !!params.id,
+  });
+
+  const activeWorkflows = approvalWorkflows.filter(w => w.isActive);
+
+  const requestApprovalMutation = useMutation({
+    mutationFn: (data: { workflowId: string; ticketId: string; note?: string }) =>
+      apiRequest("POST", "/api/approvals", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/approvals/pending/count"] });
+      setShowRequestApprovalDialog(false);
+      setApprovalForm({ workflowId: "", note: "" });
+      toast({ title: "Genehmigungsanfrage erstellt" });
+    },
+    onError: (e: Error) => toast({ title: "Fehler", description: e.message, variant: "destructive" }),
+  });
+
+  const cancelApprovalMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("POST", `/api/approvals/${id}/cancel`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/approvals/pending/count"] });
+      toast({ title: "Genehmigungsanfrage abgebrochen" });
+    },
+    onError: (e: Error) => toast({ title: "Fehler", description: e.message, variant: "destructive" }),
+  });
+
+  const decideApprovalMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { decision: string; comment?: string } }) =>
+      apiRequest("POST", `/api/approvals/${id}/decide`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/approvals/pending/count"] });
+      setShowDecideDialog(false);
+      setDecideForm({ decision: "", comment: "" });
+      toast({ title: decideForm.decision === "approved" ? "Genehmigt ✓" : "Abgelehnt" });
+    },
+    onError: (e: Error) => toast({ title: "Fehler", description: e.message, variant: "destructive" }),
+  });
+
+  const isApproverForCurrentStep = ticketApproval?.status === "pending" && ticketApproval?.currentStep && (
+    (ticketApproval.currentStep.approverType === "user" && ticketApproval.currentStep.approverId === user?.id) ||
+    (ticketApproval.currentStep.approverType === "role" && ticketApproval.currentStep.approverRole === user?.role)
+  );
 
   const updateCustomerMutation = useMutation({
     mutationFn: async (customerId: string | null) => {
@@ -460,6 +528,15 @@ export default function TicketDetailPage() {
                   <Clock className="w-4 h-4 mr-2" />
                   Aktivität
                 </TabsTrigger>
+                {(user?.role === "admin" || user?.role === "agent") && (
+                  <TabsTrigger value="approval" data-testid="tab-approval">
+                    <ShieldCheck className="w-4 h-4 mr-2" />
+                    Genehmigung
+                    {ticketApproval?.status === "pending" && (
+                      <span className="ml-1.5 w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                    )}
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               <TabsContent value="comments" className="mt-4">
@@ -620,6 +697,128 @@ export default function TicketDetailPage() {
                   </CardContent>
                 </Card>
               </TabsContent>
+
+              {(user?.role === "admin" || user?.role === "agent") && (
+                <TabsContent value="approval" className="mt-4">
+                  <Card>
+                    <CardContent className="p-4 space-y-4">
+                      {!ticketApproval ? (
+                        <div className="flex flex-col items-center justify-center py-10 text-center">
+                          <ShieldCheck className="w-12 h-12 text-muted-foreground mb-3" />
+                          <h3 className="font-medium mb-1">Keine aktive Genehmigung</h3>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Starten Sie einen Genehmigungsworkflow für dieses Ticket.
+                          </p>
+                          {activeWorkflows.length > 0 ? (
+                            <Button onClick={() => setShowRequestApprovalDialog(true)} data-testid="button-request-approval">
+                              <Plus className="w-4 h-4 mr-2" />
+                              Genehmigung anfordern
+                            </Button>
+                          ) : (
+                            <p className="text-xs text-muted-foreground italic">
+                              Es sind keine aktiven Genehmigungsworkflows konfiguriert.
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {/* Status-Header */}
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {ticketApproval.status === "pending" && <span className="flex items-center gap-1 text-sm font-medium text-amber-600"><Clock className="w-4 h-4" /> Ausstehend</span>}
+                                {ticketApproval.status === "approved" && <span className="flex items-center gap-1 text-sm font-medium text-green-600"><CheckCircle2 className="w-4 h-4" /> Genehmigt</span>}
+                                {ticketApproval.status === "rejected" && <span className="flex items-center gap-1 text-sm font-medium text-red-600"><XCircle className="w-4 h-4" /> Abgelehnt</span>}
+                                {ticketApproval.status === "cancelled" && <span className="flex items-center gap-1 text-sm font-medium text-muted-foreground"><Ban className="w-4 h-4" /> Abgebrochen</span>}
+                                {ticketApproval.workflow && (
+                                  <span className="text-sm text-muted-foreground">— {ticketApproval.workflow.name}</span>
+                                )}
+                              </div>
+                              {ticketApproval.requestedBy && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Angefordert von {ticketApproval.requestedBy.firstName} {ticketApproval.requestedBy.lastName} · {new Date(ticketApproval.createdAt!).toLocaleDateString("de-DE")}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex gap-2">
+                              {isApproverForCurrentStep && (
+                                <Button size="sm" onClick={() => { setShowDecideDialog(true); setDecideForm({ decision: "", comment: "" }); }} data-testid="button-decide-approval">
+                                  Entscheiden
+                                </Button>
+                              )}
+                              {ticketApproval.status === "pending" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => cancelApprovalMutation.mutate(ticketApproval.id)}
+                                  disabled={cancelApprovalMutation.isPending}
+                                  data-testid="button-cancel-approval"
+                                >
+                                  Abbrechen
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Schritt-Timeline */}
+                          {ticketApproval.workflow?.steps && ticketApproval.workflow.steps.length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Genehmigungsschritte</p>
+                              {ticketApproval.workflow.steps.map((step, idx) => {
+                                const decision = ticketApproval.decisions.find(d => d.stepOrder === step.order);
+                                const isCurrent = step.order === ticketApproval.currentStepOrder && ticketApproval.status === "pending";
+                                return (
+                                  <div key={step.id} className="flex items-start gap-3 p-3 rounded-md bg-muted/40" data-testid={`approval-step-${step.id}`}>
+                                    <div className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                                      decision?.decision === "approved" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
+                                      decision?.decision === "rejected" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" :
+                                      isCurrent ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" :
+                                      "bg-muted text-muted-foreground"
+                                    }`}>
+                                      {decision?.decision === "approved" ? <CheckCircle2 className="w-3.5 h-3.5" /> :
+                                       decision?.decision === "rejected" ? <XCircle className="w-3.5 h-3.5" /> :
+                                       idx + 1}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-sm font-medium">{step.name}</span>
+                                        {isCurrent && <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded">Aktuell</span>}
+                                        {decision?.decision === "approved" && <span className="text-xs text-green-600">✓ Genehmigt</span>}
+                                        {decision?.decision === "rejected" && <span className="text-xs text-red-600">✗ Abgelehnt</span>}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground mt-0.5">
+                                        {step.approverType === "role"
+                                          ? step.approverRole === "admin" ? "Alle Admins" : "Alle Agenten"
+                                          : step.approver ? `${step.approver.firstName} ${step.approver.lastName}` : "Bestimmter Benutzer"}
+                                      </p>
+                                      {decision?.comment && (
+                                        <p className="text-xs text-muted-foreground italic mt-1">"{decision.comment}"</p>
+                                      )}
+                                      {decision?.approver && decision.decidedAt && (
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                          von {decision.approver.firstName} {decision.approver.lastName} · {new Date(decision.decidedAt).toLocaleDateString("de-DE")}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Neue Anfrage nach Abschluss */}
+                          {(ticketApproval.status === "rejected" || ticketApproval.status === "cancelled") && activeWorkflows.length > 0 && (
+                            <Button variant="outline" size="sm" onClick={() => setShowRequestApprovalDialog(true)} data-testid="button-request-approval-again">
+                              <Plus className="w-4 h-4 mr-2" />
+                              Neue Anfrage stellen
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              )}
             </Tabs>
           </div>
 
@@ -962,6 +1161,130 @@ export default function TicketDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Dialog: Genehmigung anfordern */}
+      <Dialog open={showRequestApprovalDialog} onOpenChange={setShowRequestApprovalDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Genehmigung anfordern</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="approval-workflow">Workflow auswählen *</Label>
+              <Select value={approvalForm.workflowId} onValueChange={v => setApprovalForm(f => ({ ...f, workflowId: v }))}>
+                <SelectTrigger id="approval-workflow" data-testid="select-approval-workflow">
+                  <SelectValue placeholder="Workflow auswählen..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeWorkflows.map(wf => (
+                    <SelectItem key={wf.id} value={wf.id}>
+                      {wf.name} ({wf.steps.length} {wf.steps.length === 1 ? "Schritt" : "Schritte"})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {approvalForm.workflowId && (
+              <div className="p-3 bg-muted/50 rounded-md text-sm space-y-1">
+                {activeWorkflows.find(w => w.id === approvalForm.workflowId)?.steps.map((step, idx) => (
+                  <div key={step.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">{idx + 1}</span>
+                    {step.name}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="space-y-1">
+              <Label htmlFor="approval-note">Hinweis (optional)</Label>
+              <Textarea
+                id="approval-note"
+                value={approvalForm.note}
+                onChange={e => setApprovalForm(f => ({ ...f, note: e.target.value }))}
+                placeholder="Begründung oder Hinweis für die Genehmiger..."
+                rows={3}
+                data-testid="input-approval-note"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRequestApprovalDialog(false)}>Abbrechen</Button>
+            <Button
+              onClick={() => requestApprovalMutation.mutate({ workflowId: approvalForm.workflowId, ticketId: params.id, note: approvalForm.note || undefined })}
+              disabled={!approvalForm.workflowId || requestApprovalMutation.isPending}
+              data-testid="button-submit-approval-request"
+            >
+              Anfordern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Genehmigungsentscheidung */}
+      <Dialog open={showDecideDialog} onOpenChange={setShowDecideDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Genehmigungsentscheidung</DialogTitle>
+          </DialogHeader>
+          {ticketApproval && (
+            <div className="space-y-4 py-2">
+              {ticketApproval.currentStep && (
+                <div className="p-3 bg-muted/50 rounded-md">
+                  <p className="text-xs text-muted-foreground mb-0.5">Aktueller Schritt</p>
+                  <p className="text-sm font-medium">{ticketApproval.currentStep.name}</p>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setDecideForm(f => ({ ...f, decision: "approved" }))}
+                  className={`p-3 rounded-md border-2 transition-colors flex flex-col items-center gap-1 ${
+                    decideForm.decision === "approved"
+                      ? "border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
+                      : "border-muted hover:border-green-300"
+                  }`}
+                  data-testid="button-approve-decision"
+                >
+                  <CheckCircle2 className="w-6 h-6" />
+                  <span className="text-sm font-medium">Genehmigen</span>
+                </button>
+                <button
+                  onClick={() => setDecideForm(f => ({ ...f, decision: "rejected" }))}
+                  className={`p-3 rounded-md border-2 transition-colors flex flex-col items-center gap-1 ${
+                    decideForm.decision === "rejected"
+                      ? "border-red-500 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
+                      : "border-muted hover:border-red-300"
+                  }`}
+                  data-testid="button-reject-decision"
+                >
+                  <XCircle className="w-6 h-6" />
+                  <span className="text-sm font-medium">Ablehnen</span>
+                </button>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="decide-comment">Kommentar (optional)</Label>
+                <Textarea
+                  id="decide-comment"
+                  value={decideForm.comment}
+                  onChange={e => setDecideForm(f => ({ ...f, comment: e.target.value }))}
+                  placeholder="Begründung..."
+                  rows={3}
+                  data-testid="input-ticket-decision-comment"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDecideDialog(false)}>Abbrechen</Button>
+            <Button
+              onClick={() => ticketApproval && decideApprovalMutation.mutate({ id: ticketApproval.id, data: { decision: decideForm.decision, comment: decideForm.comment || undefined } })}
+              disabled={!decideForm.decision || decideApprovalMutation.isPending}
+              className={decideForm.decision === "rejected" ? "bg-destructive hover:bg-destructive/90" : ""}
+              data-testid="button-submit-ticket-decision"
+            >
+              {decideApprovalMutation.isPending ? "..." : decideForm.decision === "approved" ? "Genehmigen" : decideForm.decision === "rejected" ? "Ablehnen" : "Entscheiden"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
