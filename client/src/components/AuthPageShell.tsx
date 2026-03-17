@@ -62,7 +62,7 @@ export function AuthPageShell({ title, description, children }: Readonly<Props>)
             </div>
             <div>
               <span className="font-display font-bold text-base text-foreground block leading-tight">Support-Engine</span>
-              <span className="font-mono text-[10px] text-muted-foreground">v0.1.2</span>
+              <span className="font-mono text-[10px] text-muted-foreground">v0.1.3</span>
             </div>
           </div>
 

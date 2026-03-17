@@ -2,6 +2,30 @@
 
 Alle wichtigen Änderungen an Support-Engine werden hier dokumentiert.
 
+## [0.1.3] - März 2026
+
+### Hinzugefügt
+
+- Neues Design-System: Amber als Primärfarbe, Navy Dunkel-Theme, warmes Off-White Hell-Theme
+- Drei Schriftfamilien: Syne (Display), DM Sans (Fließtext), JetBrains Mono (Code/Zahlen)
+- Neue AuthPageShell mit Split-Panel-Layout (Markenpanel links, Formular rechts)
+- Neue StatusBadge- und PriorityBadge-Komponenten (eigene `<span>`-Elemente statt shadcn Badge)
+
+### Verbessert
+
+- Alle 26 Seiten auf semantische Design-Tokens migriert (keine hardcodierten Blau-/Grau-Klassen mehr)
+- Seitenleiste mit drei Navigationsgruppen und integriertem AGPL-3.0-Footer
+- Sticky Topbar mit Blur-Effekt in MainLayout
+- Standard-Projektfarbe auf Amber (#F59E0B) geändert
+- Branding-Provider vereinfacht: keine dynamischen Farb-Overrides mehr
+
+### Behoben
+
+- Hardcodierte Farbklassen in Dashboard, Logs, Benutzer, Kunden, Kontakte, Exchange-Integration
+- Rate-Limiter-Warnung durch korrekte Proxy-Trust-Konfiguration behoben
+
+---
+
 ## [0.1.2] - März 2026
 
 ### Hinzugefügt
