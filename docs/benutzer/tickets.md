@@ -88,6 +88,16 @@ Wenn eine SLA-Definition für die Ticket-Priorität konfiguriert ist, zeigt das 
 - Verbleibende Zeit bis zur Lösungsfrist
 - Farblicher Status: grün (OK), gelb (Warnung), rot (überschritten)
 
+## Genehmigung anfordern
+
+Tickets können einen Genehmigungsprozess durchlaufen, bevor eine Anfrage umgesetzt wird. Der Tab **Genehmigung** in der Ticket-Detailansicht zeigt den aktuellen Status und die Schritt-Timeline.
+
+- **Genehmigung anfordern**: Workflow-Template auswählen und optional eine Notiz hinterlegen.
+- **Entscheidung treffen**: Wenn Sie als Genehmiger zuständig sind, erscheint die Schaltfläche „Entscheiden". Sie können die Anfrage genehmigen oder ablehnen und einen Kommentar hinzufügen.
+- **Anfrage abbrechen**: Admins und Agenten können eine laufende Anfrage jederzeit abbrechen.
+
+Eine vollständige Beschreibung des Genehmigungsworkflows finden Sie im Abschnitt [Genehmigungsworkflows](genehmigungen.md).
+
 ## Optimistische Updates
 
 Status- und Prioritätsänderungen werden optimistisch aktualisiert: Die Oberfläche reagiert sofort, ohne auf die Server-Bestätigung zu warten. Bei einem Fehler wird die vorherige Ansicht wiederhergestellt.

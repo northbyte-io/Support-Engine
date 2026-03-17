@@ -2,6 +2,29 @@
 
 Alle wichtigen Änderungen an Support-Engine werden hier dokumentiert.
 
+## [0.1.5] - März 2026
+
+### Hinzugefügt
+
+- **Genehmigungsworkflows** (`/approvals`, `/approvals/workflows`)
+  - Mehrstufige Freigabeprozesse für Tickets (Multi-Step-Approval)
+  - Admin-UI zum Erstellen und Verwalten von Workflow-Templates mit beliebig vielen Schritten
+  - Genehmigertypen: konkreter Benutzer oder Rolle (alle Mitglieder einer Rolle können entscheiden)
+  - Sequenzielle Schrittreihenfolge: nächster Schritt wird erst aktiv, wenn der aktuelle genehmigt wurde
+  - Neuer Tab „Genehmigung" in der Ticket-Detailansicht mit Schritt-Timeline und Entscheidungs-Dialog
+  - Neue Seite „Meine Genehmigungen" mit zwei Tabs: „Warten auf mich" und „Meine Anfragen"
+  - Sidebar-Badge mit Echtzeit-Zähler für ausstehende Entscheidungen (Polling alle 60 Sekunden)
+  - Neue DB-Tabellen: `approvalWorkflows`, `approvalWorkflowSteps`, `approvalRequests`, `approvalDecisions`
+  - Neue Enums: `approvalStatus` (`pending`, `approved`, `rejected`, `cancelled`), `approverType` (`user`, `role`), `approvalDecisionValue` (`approved`, `rejected`)
+  - Neue REST-Endpunkte: `GET/POST /api/approval-workflows`, `POST /api/approval-workflows/:id/steps`, `DELETE /api/approval-workflows/:workflowId/steps/:stepId`, `GET /api/approvals`, `GET /api/approvals/pending`, `GET /api/approvals/pending/count`, `GET /api/approvals/ticket/:ticketId`, `POST /api/approvals`, `POST /api/approvals/:id/decide`, `POST /api/approvals/:id/cancel`
+
+### Verbessert
+
+- Seitenleiste: Neuer Navigations-Eintrag „Genehmigungen" mit ClipboardCheck-Icon und Amber-Badge für offene Anfragen
+- Seitenleiste (Admin): Direktlink zu „Workflows verwalten" unterhalb des Genehmigungen-Eintrags
+
+---
+
 ## [0.1.4] - März 2026
 
 ### Hinzugefügt

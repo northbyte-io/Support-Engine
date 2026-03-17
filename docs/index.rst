@@ -1,15 +1,15 @@
 Support-Engine Dokumentation
 =============================
 
-.. image:: https://img.shields.io/badge/version-0.1.4-blue
-   :alt: Version 0.1.4
+.. image:: https://img.shields.io/badge/version-0.1.5-blue
+   :alt: Version 0.1.5
 
 .. image:: https://img.shields.io/badge/license-AGPL--3.0-purple
    :alt: AGPL-3.0 Lizenz
 
 Willkommen zur offiziellen Dokumentation von **Support-Engine** – einer mandantenfähigen Helpdesk- und Ticketverwaltungsplattform für deutschsprachige Unternehmen.
 
-Support-Engine bietet Ticketverwaltung mit SLA-Tracking, CRM, Wissensdatenbank, Zeiterfassung, Asset-Management, Projektmanagement sowie eine vollständige Microsoft Exchange Online Integration – alles in einem modernen, responsiven Interface mit Dark und Light Mode.
+Support-Engine bietet Ticketverwaltung mit SLA-Tracking, CRM, Wissensdatenbank, Zeiterfassung, Asset-Management, Projektmanagement, Genehmigungsworkflows sowie eine vollständige Microsoft Exchange Online Integration – alles in einem modernen, responsiven Interface mit Dark und Light Mode.
 
 .. toctree::
    :maxdepth: 2
@@ -24,6 +24,7 @@ Support-Engine bietet Ticketverwaltung mit SLA-Tracking, CRM, Wissensdatenbank, 
    :caption: Benutzerhandbuch
 
    benutzer/tickets
+   benutzer/genehmigungen
    benutzer/wissensdatenbank
    benutzer/zeiterfassung
    benutzer/crm
@@ -39,6 +40,7 @@ Support-Engine bietet Ticketverwaltung mit SLA-Tracking, CRM, Wissensdatenbank, 
    admin/mandanten
    admin/benutzer
    admin/sla
+   admin/genehmigungen
    admin/email-integration
    admin/branding
    admin/tls
@@ -69,6 +71,7 @@ Schnellübersicht
 
 * **Multi-Tenant** – vollständige Datenisolierung zwischen Mandanten
 * **Ticketverwaltung** – Status-Workflow, SLA-Tracking, Kommentare, Anhänge
+* **Genehmigungsworkflows** – mehrstufige Freigabeprozesse für Tickets mit Rollen- oder Benutzerzuweisung
 * **CRM** – Kunden, Organisationen, Kontakte, Aktivitätsverfolgung
 * **Asset-Management** – Hardware, Software, Lizenzen, Verträge
 * **Wissensdatenbank** – versionierte Artikel mit Rich-Text-Editor

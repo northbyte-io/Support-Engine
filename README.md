@@ -4,7 +4,7 @@
 
 **Enterprise-grade Helpdesk & Ticket Management Platform**
 
-[![Release](https://img.shields.io/badge/release-v0.1.4-blue?style=flat-square)](https://github.com/northbyte-io/Support-Engine/releases)
+[![Release](https://img.shields.io/badge/release-v0.1.5-blue?style=flat-square)](https://github.com/northbyte-io/Support-Engine/releases)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-purple?style=flat-square)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen?style=flat-square)](https://nodejs.org/)
 [![Build](https://img.shields.io/badge/build-passing-success?style=flat-square)]()
@@ -27,7 +27,7 @@
 [![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=northbyte-io_Support-Engine&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=northbyte-io_Support-Engine)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=northbyte-io_Support-Engine&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=northbyte-io_Support-Engine)
 
-Multi-Tenant | REST API | SLA Management | CRM | Knowledge Base | Asset Management | Exchange Online | Erweiterte Berichte | Globale Suche
+Multi-Tenant | REST API | SLA Management | CRM | Knowledge Base | Asset Management | Exchange Online | Genehmigungsworkflows | Erweiterte Berichte | Globale Suche
 
 </div>
 
@@ -71,6 +71,7 @@ Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und H
 | 🎨 **Modernes Design**     | Amber/Navy Design-System mit Dark/Light Mode                       |
 | 🇩🇪 **Deutschsprachig**    | Alle UI-Texte und Systemmeldungen auf Deutsch                      |
 | 🔍 **Globale Suche**       | Mandantenübergreifende Suche in Tickets, KB, Kunden und Kontakten  |
+| ✅ **Genehmigungen**       | Mehrstufige Freigabeprozesse für Tickets mit Rollen- oder Benutzerzuweisung |
 | 📊 **Erweiterte Berichte** | Ticket-, SLA- und Zeitanalysen mit Export als CSV, XLSX, PDF, HTML |
 
 ---
@@ -102,6 +103,26 @@ Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und H
 ┌──────────┐    ┌───────────────┐    ┌──────────┐    ┌──────────┐    ┌────────────┐
 │  Offen   │ →  │ In Bearbeitung│ →  │ Wartend  │ →  │  Gelöst  │ →  │ Geschlossen│
 └──────────┘    └───────────────┘    └──────────┘    └──────────┘    └────────────┘
+```
+
+#### ✅ Genehmigungsworkflows
+
+- ✅ Admin-UI für Workflow-Templates mit beliebig vielen sequenziellen Schritten
+- ✅ Genehmigertypen: Konkreter **Benutzer** oder **Rolle** (alle Rollenmitglieder können entscheiden)
+- ✅ Neuer Tab „Genehmigung" in der Ticket-Detailansicht mit vollständiger Schritt-Timeline
+- ✅ Genehmigungsstatus: `Ausstehend` → `Genehmigt` / `Abgelehnt` / `Abgebrochen`
+- ✅ Entscheidungsdialog mit Kommentarfeld (Genehmigen / Ablehnen)
+- ✅ Seite „Meine Genehmigungen": „Warten auf mich"-Tab und „Meine Anfragen"-Tab
+- ✅ Sidebar-Badge mit Echtzeit-Zähler für ausstehende Entscheidungen (60s-Polling)
+- ✅ Multi-Tenancy: vollständige Datenisolierung zwischen Mandanten
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                   Genehmigungsprozess                            │
+├─────────────┬─────────────┬─────────────┬────────────────────────┤
+│  Anfordern  │  Schritt 1  │  Schritt 2  │     Endergebnis        │
+│  (Agent)    │  Teamleiter │  Abteil.-L. │  Genehmigt / Abgelehnt │
+└─────────────┴─────────────┴─────────────┴────────────────────────┘
 ```
 
 #### ⏱️ SLA-Management
@@ -405,7 +426,7 @@ Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und H
 | 📈 Erweiterte Berichte           | ✅ Fertig    | Ticket-, SLA- und Zeitanalyse; Export CSV/XLSX/PDF/HTML     |
 | 🔍 Globale Suche                 | ✅ Fertig    | Tickets, KB, Kunden, Kontakte – von jeder Seite erreichbar  |
 | 🖥️ Dashboard-Redesign            | ✅ Fertig    | Radialdiagramme, Aktivitätsfeed, Agent-Performance          |
-| ✅ Genehmigungsworkflows         | 🔜 Geplant   | Multi-Step-Approval für Tickets                             |
+| ✅ Genehmigungsworkflows         | ✅ Fertig    | Multi-Step-Approval für Tickets, Templates, Timeline        |
 | 🔗 Azure AD / SSO                | 🔜 Geplant   | Single Sign-On via Azure Entra ID                           |
 | 💬 Teams-Integration             | 🔜 Geplant   | Benachrichtigungen und Ticket-Updates via Microsoft Teams   |
 | 🤖 AI-Funktionen                 | 📅 Später    | Auto-Kategorisierung, KB-Vorschläge, intelligente Zuweisung |
@@ -608,6 +629,15 @@ Eine vollständige deutsche SaaS-Webanwendung für professionelles Ticket- und H
 | 🔗 `ticketContacts`     | Ticket-Kontakt-Verknüpfungen       |
 | 📊 `customerActivities` | Kundenaktivitäten                  |
 
+### ✅ Genehmigungsworkflows
+
+| Tabelle                    | Beschreibung                                        |
+| -------------------------- | --------------------------------------------------- |
+| ✅ `approvalWorkflows`     | Workflow-Templates (Name, Beschreibung, aktiv)      |
+| 📋 `approvalWorkflowSteps` | Schritte je Template (Reihenfolge, Genehmigertyp)   |
+| 📄 `approvalRequests`      | Laufende Anfragen (Ticket, Status, Antragsteller)   |
+| 🗳️ `approvalDecisions`    | Einzelne Entscheidungen (Genehmiger, Kommentar)     |
+
 ### 📧 Exchange Online
 
 | Tabelle                      | Beschreibung                       |
@@ -647,6 +677,8 @@ DELETE /api/[resource]/:id      # 🗑️ Löschen
 | `/api/kb`             | 📚 Wissensdatenbank                         |
 | `/api/surveys`        | 📊 Umfragen                                 |
 | `/api/search`         | 🔍 Globale Suche (`?q=term`)                |
+| `/api/approval-workflows` | ✅ Genehmigungsworkflow-Templates (Admin)       |
+| `/api/approvals`          | 📋 Genehmigungsanfragen erstellen & verwalten  |
 | `/api/reports`        | 📈 Berichte (tickets, sla, time, export)    |
 | `/api/logs`           | 📊 System-Logs (Admin)                      |
 | `/api/exchange`       | 📧 Exchange Online Integration (Admin)      |
@@ -721,6 +753,8 @@ Die Anwendung ist dann unter `http://localhost:5000` verfügbar.
 | System-Logs einsehen    | ✅     |
 | CRM-Vollzugriff         | ✅     |
 | Berichte & Export       | ✅     |
+| Genehmigungsworkflows verwalten | ✅ |
+| Genehmigungen entscheiden | ✅   |
 
 ### 👷 Agent
 
@@ -734,6 +768,8 @@ Die Anwendung ist dann unter `http://localhost:5000` verfügbar.
 | Interne Kommentare    | ✅     |
 | CRM-Lesezugriff       | ✅     |
 | Berichte lesen        | ✅     |
+| Genehmigungen anfordern | ✅   |
+| Genehmigungen entscheiden (eigene Rolle) | ✅ |
 
 ### 👤 Kunde
 

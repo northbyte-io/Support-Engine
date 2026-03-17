@@ -12,6 +12,7 @@ Preferred communication style: Simple, everyday language (German).
 
 ## Recent Changes
 
+- **March 2026**: Added Approval Workflows feature (`/approvals`, `/approvals/workflows`) — Multi-step approval processes for tickets. New DB tables: `approvalWorkflows`, `approvalWorkflowSteps`, `approvalRequests`, `approvalDecisions`. New REST endpoints: `/api/approval-workflows`, `/api/approvals`, `/api/approvals/pending`, `/api/approvals/pending/count`, `/api/approvals/ticket/:id`, `/api/approvals/:id/decide`, `/api/approvals/:id/cancel`. New frontend pages: `approval-workflows.tsx` (admin template management) and `approvals.tsx` (my approvals with two tabs). New "Genehmigung" tab in ticket detail page with step timeline and decision dialog. Added amber badge in sidebar for pending approvals count (60s polling).
 - **March 2026**: Added Advanced Reports feature (`/reports`) — Ticket, SLA, and Time Tracking analysis with date range filters and 4 export formats (CSV, XLSX, PDF, HTML). New API endpoints: `/api/reports/tickets`, `/api/reports/sla`, `/api/reports/time`, `/api/reports/export`. New dependencies: `xlsx` (SheetJS), `pdfkit`. Added "Berichte" nav item to sidebar.
 - **January 2026**: Renamed application from "German Ticket System" to "Support-Engine"
 - **January 2026**: Added comprehensive time tracking system with multiple simultaneous timers, work entry logging, and billable time tracking
@@ -104,6 +105,16 @@ Preferred communication style: Simple, everyday language (German).
 - Kanban board with drag-and-drop (dnd-kit)
 - WIP limits per column
 - Ticket-project associations
+
+### Approval Workflows
+- Admin UI for creating and managing workflow templates with sequential steps
+- Approver types: specific user or role (all role members can decide)
+- New "Genehmigung" tab in ticket detail view with step timeline and decision dialog
+- Approval statuses: pending, approved, rejected, cancelled
+- "My Approvals" page with two tabs: "Waiting for me" and "My Requests"
+- Sidebar badge with real-time count of pending decisions (60s polling)
+- DB: `approvalWorkflows`, `approvalWorkflowSteps`, `approvalRequests`, `approvalDecisions`
+- API: GET/POST `/api/approval-workflows`, step CRUD, GET/POST `/api/approvals`, decide, cancel
 
 ### Advanced Reports & Analytics
 - Three report tabs: Ticket Analysis, SLA Performance, Time Tracking
@@ -201,6 +212,8 @@ Preferred communication style: Simple, everyday language (German).
 - `client/src/lib/branding.tsx` - Tenant branding provider
 - `client/src/pages/branding.tsx` - Branding settings page
 - `client/src/pages/reports.tsx` - Advanced reports page with charts and multi-format export
+- `client/src/pages/approvals.tsx` - My approvals page (pending + own requests tabs)
+- `client/src/pages/approval-workflows.tsx` - Admin: approval workflow template management
 - `design_guidelines.md` - Design system documentation
 - `LICENSE` - AGPL-3.0 license text
 - `NOTICE` - Copyright notice

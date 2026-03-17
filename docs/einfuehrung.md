@@ -11,6 +11,7 @@ Die Anwendung ist als vollständige SaaS-Lösung konzipiert und kann für mehrer
 | Funktion | Beschreibung |
 |----------|--------------|
 | **Ticketverwaltung** | Vollständiger Lebenszyklus mit SLA-Tracking, Eskalation und Mehrfachzuweisung |
+| **Genehmigungsworkflows** | Mehrstufige Freigabeprozesse für Tickets mit Rollen- oder Benutzerzuweisung |
 | **CRM** | Kunden, Organisationen, Kontakte und Aktivitätsverfolgung |
 | **Wissensdatenbank** | Versionierte Artikel mit Rich-Text-Editor und Ticket-Verknüpfung |
 | **Zeiterfassung** | Timer, manuelle Buchung, abrechenbare und nicht abrechenbare Einträge |
@@ -76,10 +77,11 @@ Support-Engine richtet sich an:
 
 ## Versionsinformationen
 
-Diese Dokumentation beschreibt **Support-Engine v0.1.4**.
+Diese Dokumentation beschreibt **Support-Engine v0.1.5**.
 
 | Version | Thema | Datum |
 |---------|-------|-------|
+| v0.1.5 | Genehmigungsworkflows | März 2026 |
 | v0.1.4 | Erweiterte Berichte & Analysen | März 2026 |
 | v0.1.3 | Big Redesign – neues Design-System | März 2026 |
 | v0.1.2 | Sicherheit, Tests & Code-Qualität | März 2026 |
