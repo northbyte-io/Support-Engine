@@ -556,6 +556,21 @@ function assertTenantAccess(
   return true;
 }
 
+async function requireOwnedResource<T extends { tenantId?: string | null }>(
+  fetcher: () => Promise<T | undefined>,
+  req: AuthenticatedRequest,
+  res: Response,
+  notFoundMessage: string
+): Promise<T | undefined> {
+  const resource = await fetcher();
+  if (!resource) {
+    res.status(404).json({ message: notFoundMessage });
+    return undefined;
+  }
+  if (!assertTenantAccess(resource, req, res)) return undefined;
+  return resource;
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -747,12 +762,11 @@ export async function registerRoutes(
 
   app.get("/api/tickets/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const ticket = await storage.getTicket(req.params.id);
-      if (!ticket) {
-        return res.status(404).json({ message: "Ticket nicht gefunden" });
-      }
-      // Enforce tenant isolation
-      if (!assertTenantAccess(ticket, req, res)) return;
+      const ticket = await requireOwnedResource(
+        () => storage.getTicket(req.params.id),
+        req, res, "Ticket nicht gefunden"
+      );
+      if (!ticket) return;
       res.json(ticket);
     } catch (error) {
       logger.error("api", "Get ticket error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -808,11 +822,11 @@ export async function registerRoutes(
   app.patch("/api/tickets/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       // Get original ticket to check status change
-      const originalTicket = await storage.getTicket(req.params.id);
-      if (!originalTicket) {
-        return res.status(404).json({ message: "Ticket nicht gefunden" });
-      }
-      if (!assertTenantAccess(originalTicket, req, res)) return;
+      const originalTicket = await requireOwnedResource(
+        () => storage.getTicket(req.params.id),
+        req, res, "Ticket nicht gefunden"
+      );
+      if (!originalTicket) return;
 
       const previousStatus = originalTicket.status;
       
@@ -848,11 +862,11 @@ export async function registerRoutes(
   // Admin-only hard delete — permanently removes ticket and all related data
   app.delete("/api/tickets/:id/hard", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const ticket = await storage.getTicket(req.params.id);
-      if (!ticket) {
-        return res.status(404).json({ message: "Ticket nicht gefunden" });
-      }
-      if (!assertTenantAccess(ticket, req, res)) return;
+      const ticket = await requireOwnedResource(
+        () => storage.getTicket(req.params.id),
+        req, res, "Ticket nicht gefunden"
+      );
+      if (!ticket) return;
       await storage.hardDeleteTicket(req.params.id, req.tenantId);
       res.status(204).send();
     } catch (error) {
@@ -864,11 +878,11 @@ export async function registerRoutes(
   // Ticket Attachments - Liste abrufen
   app.get("/api/tickets/:id/attachments", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const ticket = await storage.getTicket(req.params.id);
-      if (!ticket) {
-        return res.status(404).json({ message: "Ticket nicht gefunden" });
-      }
-      if (!assertTenantAccess(ticket, req, res)) return;
+      const ticket = await requireOwnedResource(
+        () => storage.getTicket(req.params.id),
+        req, res, "Ticket nicht gefunden"
+      );
+      if (!ticket) return;
       const ticketAttachments = await storage.getAttachments(req.params.id);
       res.json(ticketAttachments);
     } catch (error) {
@@ -936,11 +950,11 @@ export async function registerRoutes(
   app.post("/api/tickets/:id/comments", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       // First check tenant isolation
-      const ticket = await storage.getTicket(req.params.id);
-      if (!ticket) {
-        return res.status(404).json({ message: "Ticket nicht gefunden" });
-      }
-      if (!assertTenantAccess(ticket, req, res)) return;
+      const ticket = await requireOwnedResource(
+        () => storage.getTicket(req.params.id),
+        req, res, "Ticket nicht gefunden"
+      );
+      if (!ticket) return;
 
       const data = insertCommentSchema.parse({
         ...req.body,
@@ -1020,11 +1034,11 @@ export async function registerRoutes(
 
   app.post("/api/tickets/:id/timer/start", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const ticket = await storage.getTicket(req.params.id);
-      if (!ticket) {
-        return res.status(404).json({ message: "Ticket nicht gefunden" });
-      }
-      if (!assertTenantAccess(ticket, req, res)) return;
+      const ticket = await requireOwnedResource(
+        () => storage.getTicket(req.params.id),
+        req, res, "Ticket nicht gefunden"
+      );
+      if (!ticket) return;
       const timer = await storage.startTimer(req.params.id, req.user!.id, req.tenantId ?? "");
       logger.info("ticket", "Timer gestartet", `Timer für Ticket ${ticket.ticketNumber} gestartet`, {
         metadata: { ticketId: req.params.id },
@@ -1103,11 +1117,11 @@ export async function registerRoutes(
   // Time Tracking - Work Entries
   app.get("/api/tickets/:id/work-entries", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const ticket = await storage.getTicket(req.params.id);
-      if (!ticket) {
-        return res.status(404).json({ message: "Ticket nicht gefunden" });
-      }
-      if (!assertTenantAccess(ticket, req, res)) return;
+      const ticket = await requireOwnedResource(
+        () => storage.getTicket(req.params.id),
+        req, res, "Ticket nicht gefunden"
+      );
+      if (!ticket) return;
       const entries = await storage.getWorkEntries(req.params.id, req.tenantId ?? "");
       res.json(entries);
     } catch (error) {
@@ -1118,11 +1132,11 @@ export async function registerRoutes(
 
   app.post("/api/tickets/:id/work-entries", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const ticket = await storage.getTicket(req.params.id);
-      if (!ticket) {
-        return res.status(404).json({ message: "Ticket nicht gefunden" });
-      }
-      if (!assertTenantAccess(ticket, req, res)) return;
+      const ticket = await requireOwnedResource(
+        () => storage.getTicket(req.params.id),
+        req, res, "Ticket nicht gefunden"
+      );
+      if (!ticket) return;
       
       const { description, startTime, endTime, durationMinutes, pausedMinutes, isBillable } = req.body;
       
@@ -1374,12 +1388,11 @@ export async function registerRoutes(
 
   app.get("/api/sla-definitions/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const sla = await storage.getSlaDefinition(req.params.id);
-      if (!sla) {
-        return res.status(404).json({ message: "SLA-Definition nicht gefunden" });
-      }
-      // Enforce tenant isolation
-      if (!assertTenantAccess(sla, req, res)) return;
+      const sla = await requireOwnedResource(
+        () => storage.getSlaDefinition(req.params.id),
+        req, res, "SLA-Definition nicht gefunden"
+      );
+      if (!sla) return;
       res.json(sla);
     } catch (error) {
       logger.error("api", "Get SLA definition error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -1408,11 +1421,11 @@ export async function registerRoutes(
   app.patch("/api/sla-definitions/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       // Check tenant ownership first
-      const existing = await storage.getSlaDefinition(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ message: "SLA-Definition nicht gefunden" });
-      }
-      if (!assertTenantAccess(existing, req, res)) return;
+      const existing = await requireOwnedResource(
+        () => storage.getSlaDefinition(req.params.id),
+        req, res, "SLA-Definition nicht gefunden"
+      );
+      if (!existing) return;
       // Only allow safe fields to be updated (not tenantId)
       const { tenantId, id, ...safeUpdates } = req.body;
       const sla = await storage.updateSlaDefinition(req.params.id, safeUpdates);
@@ -1426,11 +1439,11 @@ export async function registerRoutes(
   app.delete("/api/sla-definitions/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       // Check tenant ownership first
-      const existing = await storage.getSlaDefinition(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ message: "SLA-Definition nicht gefunden" });
-      }
-      if (!assertTenantAccess(existing, req, res)) return;
+      const existing = await requireOwnedResource(
+        () => storage.getSlaDefinition(req.params.id),
+        req, res, "SLA-Definition nicht gefunden"
+      );
+      if (!existing) return;
       await storage.deleteSlaDefinition(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -1443,11 +1456,11 @@ export async function registerRoutes(
   app.post("/api/sla-definitions/:id/escalations", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       // Check SLA definition tenant ownership first
-      const slaDef = await storage.getSlaDefinition(req.params.id);
-      if (!slaDef) {
-        return res.status(404).json({ message: "SLA-Definition nicht gefunden" });
-      }
-      if (!assertTenantAccess(slaDef, req, res)) return;
+      const slaDef = await requireOwnedResource(
+        () => storage.getSlaDefinition(req.params.id),
+        req, res, "SLA-Definition nicht gefunden"
+      );
+      if (!slaDef) return;
       
       const data = insertSlaEscalationSchema.parse({
         ...req.body,
@@ -1491,14 +1504,12 @@ export async function registerRoutes(
 
   app.get("/api/portal/tickets/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const ticket = await storage.getTicket(req.params.id);
-      if (!ticket) {
-        return res.status(404).json({ message: "Ticket nicht gefunden" });
-      }
-      
-      // Enforce tenant isolation
-      if (!assertTenantAccess(ticket, req, res)) return;
-      
+      const ticket = await requireOwnedResource(
+        () => storage.getTicket(req.params.id),
+        req, res, "Ticket nicht gefunden"
+      );
+      if (!ticket) return;
+
       // Only allow access to own tickets for customers
       if (req.user?.role === "customer" && ticket.createdById !== req.user.id) {
         return res.status(403).json({ message: "Keine Berechtigung" });
@@ -1551,11 +1562,11 @@ export async function registerRoutes(
 
   app.get("/api/kb/categories/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const category = await storage.getKbCategory(req.params.id);
-      if (!category) {
-        return res.status(404).json({ message: "Kategorie nicht gefunden" });
-      }
-      if (!assertTenantAccess(category, req, res)) return;
+      const category = await requireOwnedResource(
+        () => storage.getKbCategory(req.params.id),
+        req, res, "Kategorie nicht gefunden"
+      );
+      if (!category) return;
       res.json(category);
     } catch (error) {
       logger.error("api", "Get KB category error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -1582,11 +1593,11 @@ export async function registerRoutes(
 
   app.patch("/api/kb/categories/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const existing = await storage.getKbCategory(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ message: "Kategorie nicht gefunden" });
-      }
-      if (!assertTenantAccess(existing, req, res)) return;
+      const existing = await requireOwnedResource(
+        () => storage.getKbCategory(req.params.id),
+        req, res, "Kategorie nicht gefunden"
+      );
+      if (!existing) return;
       const { tenantId, id, ...safeUpdates } = req.body;
       const category = await storage.updateKbCategory(req.params.id, safeUpdates);
       res.json(category);
@@ -1598,11 +1609,11 @@ export async function registerRoutes(
 
   app.delete("/api/kb/categories/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const existing = await storage.getKbCategory(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ message: "Kategorie nicht gefunden" });
-      }
-      if (!assertTenantAccess(existing, req, res)) return;
+      const existing = await requireOwnedResource(
+        () => storage.getKbCategory(req.params.id),
+        req, res, "Kategorie nicht gefunden"
+      );
+      if (!existing) return;
       await storage.deleteKbCategory(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -1637,11 +1648,11 @@ export async function registerRoutes(
 
   app.get("/api/kb/articles/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const article = await storage.getKbArticle(req.params.id);
-      if (!article) {
-        return res.status(404).json({ message: "Artikel nicht gefunden" });
-      }
-      if (!assertTenantAccess(article, req, res)) return;
+      const article = await requireOwnedResource(
+        () => storage.getKbArticle(req.params.id),
+        req, res, "Artikel nicht gefunden"
+      );
+      if (!article) return;
       // Customers can only see public, published articles
       if (req.user?.role === "customer" && (article.status !== "published" || !article.isPublic)) {
         return res.status(403).json({ message: "Zugriff verweigert" });
@@ -1677,11 +1688,11 @@ export async function registerRoutes(
 
   app.patch("/api/kb/articles/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const existing = await storage.getKbArticle(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ message: "Artikel nicht gefunden" });
-      }
-      if (!assertTenantAccess(existing, req, res)) return;
+      const existing = await requireOwnedResource(
+        () => storage.getKbArticle(req.params.id),
+        req, res, "Artikel nicht gefunden"
+      );
+      if (!existing) return;
       
       // Save version before updating
       if (req.body.content && req.body.content !== existing.content) {
@@ -1710,11 +1721,11 @@ export async function registerRoutes(
 
   app.delete("/api/kb/articles/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const existing = await storage.getKbArticle(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ message: "Artikel nicht gefunden" });
-      }
-      if (!assertTenantAccess(existing, req, res)) return;
+      const existing = await requireOwnedResource(
+        () => storage.getKbArticle(req.params.id),
+        req, res, "Artikel nicht gefunden"
+      );
+      if (!existing) return;
       // Soft-delete: preserves audit trail
       await storage.deleteKbArticle(req.params.id);
       res.status(204).send();
@@ -1727,11 +1738,11 @@ export async function registerRoutes(
   // Admin-only hard delete — permanently removes KB article and all related data
   app.delete("/api/kb/articles/:id/hard", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const existing = await storage.getKbArticle(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ message: "Artikel nicht gefunden" });
-      }
-      if (!assertTenantAccess(existing, req, res)) return;
+      const existing = await requireOwnedResource(
+        () => storage.getKbArticle(req.params.id),
+        req, res, "Artikel nicht gefunden"
+      );
+      if (!existing) return;
       await storage.hardDeleteKbArticle(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -1743,11 +1754,11 @@ export async function registerRoutes(
   // KB Article Versions
   app.get("/api/kb/articles/:id/versions", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const article = await storage.getKbArticle(req.params.id);
-      if (!article) {
-        return res.status(404).json({ message: "Artikel nicht gefunden" });
-      }
-      if (!assertTenantAccess(article, req, res)) return;
+      const article = await requireOwnedResource(
+        () => storage.getKbArticle(req.params.id),
+        req, res, "Artikel nicht gefunden"
+      );
+      if (!article) return;
       const versions = await storage.getKbArticleVersions(req.params.id);
       res.json(versions);
     } catch (error) {
@@ -1759,11 +1770,11 @@ export async function registerRoutes(
   // Ticket KB Links
   app.get("/api/tickets/:ticketId/kb-links", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const ticket = await storage.getTicket(req.params.ticketId);
-      if (!ticket) {
-        return res.status(404).json({ message: "Ticket nicht gefunden" });
-      }
-      if (!assertTenantAccess(ticket, req, res)) return;
+      const ticket = await requireOwnedResource(
+        () => storage.getTicket(req.params.ticketId),
+        req, res, "Ticket nicht gefunden"
+      );
+      if (!ticket) return;
       const links = await storage.getTicketKbLinks(req.params.ticketId);
       res.json(links);
     } catch (error) {
@@ -1774,11 +1785,11 @@ export async function registerRoutes(
 
   app.post("/api/tickets/:ticketId/kb-links", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const ticket = await storage.getTicket(req.params.ticketId);
-      if (!ticket) {
-        return res.status(404).json({ message: "Ticket nicht gefunden" });
-      }
-      if (!assertTenantAccess(ticket, req, res)) return;
+      const ticket = await requireOwnedResource(
+        () => storage.getTicket(req.params.ticketId),
+        req, res, "Ticket nicht gefunden"
+      );
+      if (!ticket) return;
       
       const data = insertTicketKbLinkSchema.parse({
         ticketId: req.params.ticketId,
@@ -1864,12 +1875,11 @@ export async function registerRoutes(
 
   app.get("/api/time-entries/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const entry = await storage.getTimeEntry(req.params.id);
-      if (!entry) {
-        return res.status(404).json({ message: "Zeiteintrag nicht gefunden" });
-      }
-      // Tenant isolation check
-      if (!assertTenantAccess(entry, req, res)) return;
+      const entry = await requireOwnedResource(
+        () => storage.getTimeEntry(req.params.id),
+        req, res, "Zeiteintrag nicht gefunden"
+      );
+      if (!entry) return;
       res.json(entry);
     } catch (error) {
       logger.error("api", "Get time entry error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -1899,12 +1909,11 @@ export async function registerRoutes(
 
   app.patch("/api/time-entries/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const entry = await storage.getTimeEntry(req.params.id);
-      if (!entry) {
-        return res.status(404).json({ message: "Zeiteintrag nicht gefunden" });
-      }
-      // Tenant isolation check
-      if (!assertTenantAccess(entry, req, res)) return;
+      const entry = await requireOwnedResource(
+        () => storage.getTimeEntry(req.params.id),
+        req, res, "Zeiteintrag nicht gefunden"
+      );
+      if (!entry) return;
       
       const updates: Record<string, unknown> = { ...req.body };
       if (req.body.date) {
@@ -1927,12 +1936,11 @@ export async function registerRoutes(
 
   app.delete("/api/time-entries/:id", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const entry = await storage.getTimeEntry(req.params.id);
-      if (!entry) {
-        return res.status(404).json({ message: "Zeiteintrag nicht gefunden" });
-      }
-      // Tenant isolation check
-      if (!assertTenantAccess(entry, req, res)) return;
+      const entry = await requireOwnedResource(
+        () => storage.getTimeEntry(req.params.id),
+        req, res, "Zeiteintrag nicht gefunden"
+      );
+      if (!entry) return;
       await storage.deleteTimeEntry(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -1944,11 +1952,11 @@ export async function registerRoutes(
   // Get time entries for a specific ticket
   app.get("/api/tickets/:ticketId/time-entries", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const ticket = await storage.getTicket(req.params.ticketId);
-      if (!ticket) {
-        return res.status(404).json({ message: "Ticket nicht gefunden" });
-      }
-      if (!assertTenantAccess(ticket, req, res)) return;
+      const ticket = await requireOwnedResource(
+        () => storage.getTicket(req.params.ticketId),
+        req, res, "Ticket nicht gefunden"
+      );
+      if (!ticket) return;
       
       // Customers can only see time entries if they're the ticket creator
       if (req.user!.role === "customer" && ticket.createdById !== req.user!.id) {
@@ -1966,11 +1974,11 @@ export async function registerRoutes(
   // Create time entry for a specific ticket
   app.post("/api/tickets/:ticketId/time-entries", authMiddleware, agentMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const ticket = await storage.getTicket(req.params.ticketId);
-      if (!ticket) {
-        return res.status(404).json({ message: "Ticket nicht gefunden" });
-      }
-      if (!assertTenantAccess(ticket, req, res)) return;
+      const ticket = await requireOwnedResource(
+        () => storage.getTicket(req.params.ticketId),
+        req, res, "Ticket nicht gefunden"
+      );
+      if (!ticket) return;
       
       const parsedDate = z.coerce.date().parse(req.body.date);
       const data = insertTimeEntrySchema.parse({
@@ -1994,11 +2002,11 @@ export async function registerRoutes(
   // Get time entry summary for a specific ticket
   app.get("/api/tickets/:ticketId/time-summary", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const ticket = await storage.getTicket(req.params.ticketId);
-      if (!ticket) {
-        return res.status(404).json({ message: "Ticket nicht gefunden" });
-      }
-      if (!assertTenantAccess(ticket, req, res)) return;
+      const ticket = await requireOwnedResource(
+        () => storage.getTicket(req.params.ticketId),
+        req, res, "Ticket nicht gefunden"
+      );
+      if (!ticket) return;
       
       const summary = await storage.getTimeEntrySummary(req.tenantId ?? "", { ticketId: req.params.ticketId });
       res.json(summary);
@@ -2108,11 +2116,11 @@ export async function registerRoutes(
   // Get single survey
   app.get("/api/surveys/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const survey = await storage.getSurvey(req.params.id);
-      if (!survey) {
-        return res.status(404).json({ message: "Umfrage nicht gefunden" });
-      }
-      if (!assertTenantAccess(survey, req, res)) return;
+      const survey = await requireOwnedResource(
+        () => storage.getSurvey(req.params.id),
+        req, res, "Umfrage nicht gefunden"
+      );
+      if (!survey) return;
       res.json(survey);
     } catch (error) {
       logger.error("api", "Get survey error", { description: error instanceof Error ? error.message : String(error), cause: "Unbekannter Fehler", solution: "Fehlerursache prüfen" });
@@ -2141,11 +2149,11 @@ export async function registerRoutes(
   // Update survey
   app.patch("/api/surveys/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const existing = await storage.getSurvey(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ message: "Umfrage nicht gefunden" });
-      }
-      if (!assertTenantAccess(existing, req, res)) return;
+      const existing = await requireOwnedResource(
+        () => storage.getSurvey(req.params.id),
+        req, res, "Umfrage nicht gefunden"
+      );
+      if (!existing) return;
       const { tenantId, id, ...safeUpdates } = req.body;
       const survey = await storage.updateSurvey(req.params.id, safeUpdates);
       res.json(survey);
@@ -2158,11 +2166,11 @@ export async function registerRoutes(
   // Delete survey
   app.delete("/api/surveys/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const existing = await storage.getSurvey(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ message: "Umfrage nicht gefunden" });
-      }
-      if (!assertTenantAccess(existing, req, res)) return;
+      const existing = await requireOwnedResource(
+        () => storage.getSurvey(req.params.id),
+        req, res, "Umfrage nicht gefunden"
+      );
+      if (!existing) return;
       await storage.deleteSurvey(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -2174,11 +2182,11 @@ export async function registerRoutes(
   // Survey Questions
   app.get("/api/surveys/:surveyId/questions", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const survey = await storage.getSurvey(req.params.surveyId);
-      if (!survey) {
-        return res.status(404).json({ message: "Umfrage nicht gefunden" });
-      }
-      if (!assertTenantAccess(survey, req, res)) return;
+      const survey = await requireOwnedResource(
+        () => storage.getSurvey(req.params.surveyId),
+        req, res, "Umfrage nicht gefunden"
+      );
+      if (!survey) return;
       const questions = await storage.getSurveyQuestions(req.params.surveyId);
       res.json(questions);
     } catch (error) {
@@ -2189,11 +2197,11 @@ export async function registerRoutes(
 
   app.post("/api/surveys/:surveyId/questions", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const survey = await storage.getSurvey(req.params.surveyId);
-      if (!survey) {
-        return res.status(404).json({ message: "Umfrage nicht gefunden" });
-      }
-      if (!assertTenantAccess(survey, req, res)) return;
+      const survey = await requireOwnedResource(
+        () => storage.getSurvey(req.params.surveyId),
+        req, res, "Umfrage nicht gefunden"
+      );
+      if (!survey) return;
       
       const data = insertSurveyQuestionSchema.parse({
         ...req.body,
@@ -2237,11 +2245,11 @@ export async function registerRoutes(
   // Survey Invitations
   app.get("/api/surveys/:surveyId/invitations", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const survey = await storage.getSurvey(req.params.surveyId);
-      if (!survey) {
-        return res.status(404).json({ message: "Umfrage nicht gefunden" });
-      }
-      if (!assertTenantAccess(survey, req, res)) return;
+      const survey = await requireOwnedResource(
+        () => storage.getSurvey(req.params.surveyId),
+        req, res, "Umfrage nicht gefunden"
+      );
+      if (!survey) return;
       const invitations = await storage.getSurveyInvitations(req.tenantId ?? "", req.params.surveyId);
       res.json(invitations);
     } catch (error) {
@@ -2253,11 +2261,11 @@ export async function registerRoutes(
   // Survey Results Summary
   app.get("/api/surveys/:surveyId/results", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
-      const survey = await storage.getSurvey(req.params.surveyId);
-      if (!survey) {
-        return res.status(404).json({ message: "Umfrage nicht gefunden" });
-      }
-      if (!assertTenantAccess(survey, req, res)) return;
+      const survey = await requireOwnedResource(
+        () => storage.getSurvey(req.params.surveyId),
+        req, res, "Umfrage nicht gefunden"
+      );
+      if (!survey) return;
       const summary = await storage.getSurveyResultSummary(req.tenantId ?? "", req.params.surveyId);
       res.json(summary);
     } catch (error) {
