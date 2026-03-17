@@ -569,54 +569,68 @@ export class DatabaseStorage implements IStorage {
 
   // Tickets
   async getTicket(id: string): Promise<TicketWithRelations | undefined> {
-    const [ticket] = await db.select().from(tickets).where(and(eq(tickets.id, id), isNull(tickets.deletedAt)));
-    if (!ticket) return undefined;
-
-    const [ticketType, createdByUser, assigneesList, watchersList, commentsList, attachmentsList, areasList] = await Promise.all([
-      ticket.ticketTypeId ? db.select().from(ticketTypes).where(eq(ticketTypes.id, ticket.ticketTypeId)).then(r => r[0]) : null,
-      ticket.createdById ? db.select().from(users).where(eq(users.id, ticket.createdById)).then(r => r[0]) : null,
-      this.getTicketAssignees(id),
-      this.getTicketWatchers(id),
-      this.getComments(id),
-      this.getAttachments(id),
-      db.select().from(ticketAreas).leftJoin(areas, eq(ticketAreas.areaId, areas.id)).where(eq(ticketAreas.ticketId, id)),
-    ]).catch((err: unknown) => {
+    // Single batched relational query replaces 7+ individual round-trips
+    const result = await db.query.tickets.findFirst({
+      where: (t, { and: qAnd, eq: qEq, isNull: qIsNull }) => qAnd(qEq(t.id, id), qIsNull(t.deletedAt)),
+      with: {
+        ticketType: true,
+        createdBy: true,
+        slaDefinition: true,
+        assignees: { with: { user: true } },
+        watchers: { with: { user: true } },
+        comments: { with: { author: true, attachments: true } },
+        attachments: true,
+        areas: { with: { area: true } },
+      },
+    }).catch((err: unknown) => {
       throw new Error(`Fehler beim Laden der Ticket-Relationen für ${id}: ${err instanceof Error ? err.message : String(err)}`);
     });
 
-    // Remove password from user object
-    const createdBy = createdByUser ? { ...createdByUser, password: undefined } : null;
+    if (!result) return undefined;
 
-    // Fetch customer with contacts if ticket has customerId
+    // Fetch customer with contacts and organization separately (conditional on customerId)
     let customer = null;
-    if (ticket.customerId && ticket.tenantId) {
+    if (result.customerId && result.tenantId) {
       const [customerData] = await db.select().from(customers)
-        .where(and(eq(customers.id, ticket.customerId), eq(customers.tenantId, ticket.tenantId)));
+        .where(and(eq(customers.id, result.customerId), eq(customers.tenantId, result.tenantId)));
       if (customerData) {
-        const customerContacts = await db.select().from(contacts)
-          .where(and(eq(contacts.customerId, customerData.id), eq(contacts.tenantId, ticket.tenantId)));
-        const org = customerData.organizationId 
-          ? (await db.select().from(organizations).where(and(eq(organizations.id, customerData.organizationId), eq(organizations.tenantId, ticket.tenantId))))[0] 
-          : null;
-        customer = {
-          ...customerData,
-          contacts: customerContacts,
-          organization: org || null,
-        };
+        const [customerContacts, org] = await Promise.all([
+          db.select().from(contacts)
+            .where(and(eq(contacts.customerId, customerData.id), eq(contacts.tenantId, result.tenantId))),
+          customerData.organizationId
+            ? db.select().from(organizations)
+                .where(and(eq(organizations.id, customerData.organizationId), eq(organizations.tenantId, result.tenantId)))
+                .then(r => r[0] ?? null)
+            : Promise.resolve(null),
+        ]);
+        customer = { ...customerData, contacts: customerContacts, organization: org };
       }
     }
 
+    // Strip passwords from user objects
+    const createdBy = result.createdBy ? { ...result.createdBy, password: undefined } : null;
+    const assignees = result.assignees.map(a => ({
+      ...a,
+      user: a.user ? { ...a.user, password: undefined } : undefined,
+    }));
+    const watchers = result.watchers.map(w => ({
+      ...w,
+      user: w.user ? { ...w.user, password: undefined } : undefined,
+    }));
+    const comments = result.comments.map(c => ({
+      ...c,
+      author: c.author ? { ...c.author, password: undefined } : undefined,
+    }));
+
     return {
-      ...ticket,
-      ticketType,
+      ...result,
       createdBy,
-      assignees: assigneesList,
-      watchers: watchersList,
-      comments: commentsList,
-      attachments: attachmentsList,
-      areas: areasList.map(r => ({ ...r.ticket_areas, area: r.areas || undefined })),
+      assignees,
+      watchers,
+      comments,
+      areas: result.areas.map(r => ({ ...r, area: r.area || undefined })),
       customer,
-    };
+    } as TicketWithRelations;
   }
 
   async getTickets(params: { tenantId?: string; userId?: string; status?: string[]; priority?: string[]; limit?: number }): Promise<TicketWithRelations[]> {

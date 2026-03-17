@@ -511,6 +511,10 @@ export const ticketsRelations = relations(tickets, ({ one, many }) => ({
     fields: [tickets.createdById],
     references: [users.id],
   }),
+  slaDefinition: one(slaDefinitions, {
+    fields: [tickets.slaDefinitionId],
+    references: [slaDefinitions.id],
+  }),
   assignees: many(ticketAssignees),
   watchers: many(ticketWatchers),
   comments: many(comments),
