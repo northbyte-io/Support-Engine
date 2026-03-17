@@ -86,6 +86,31 @@ export class TlsService {
     }
   }
 
+  // Hilfsmethode: ACME HTTP-01 Challenges für eine Order verarbeiten
+  private async processAcmeChallenges(
+    order: acme.Order,
+    domain: string,
+    tenantId?: string | null
+  ): Promise<void> {
+    const authorizations = await this.client!.getAuthorizations(order);
+    for (const auth of authorizations) {
+      const httpChallenge = auth.challenges.find(c => c.type === "http-01");
+      if (!httpChallenge) throw new Error("HTTP-01 Challenge nicht verfügbar");
+      const keyAuthorization = await this.client!.getChallengeKeyAuthorization(httpChallenge);
+      await storage.createTlsChallenge({
+        tenantId: tenantId || null,
+        token: httpChallenge.token,
+        keyAuthorization,
+        domain,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+      });
+      await this.client!.verifyChallenge(auth, httpChallenge);
+      await this.client!.completeChallenge(httpChallenge);
+      await this.client!.waitForValidStatus(httpChallenge);
+      await storage.completeTlsChallenge(httpChallenge.token);
+    }
+  }
+
   async requestCertificate(
     domain: string,
     email: string,
@@ -132,30 +157,7 @@ export class TlsService {
         identifiers: [{ type: "dns", value: domain }]
       });
 
-      const authorizations = await this.client!.getAuthorizations(order);
-
-      for (const auth of authorizations) {
-        const httpChallenge = auth.challenges.find(c => c.type === "http-01");
-        if (!httpChallenge) {
-          throw new Error("HTTP-01 Challenge nicht verfügbar");
-        }
-
-        const keyAuthorization = await this.client!.getChallengeKeyAuthorization(httpChallenge);
-        
-        await storage.createTlsChallenge({
-          tenantId: tenantId || null,
-          token: httpChallenge.token,
-          keyAuthorization,
-          domain,
-          expiresAt: new Date(Date.now() + 10 * 60 * 1000)
-        });
-
-        await this.client!.verifyChallenge(auth, httpChallenge);
-        await this.client!.completeChallenge(httpChallenge);
-        await this.client!.waitForValidStatus(httpChallenge);
-        
-        await storage.completeTlsChallenge(httpChallenge.token);
-      }
+      await this.processAcmeChallenges(order, domain, tenantId);
 
       await this.client!.finalizeOrder(order, csr);
       const certificatePem = await this.client!.getCertificate(order);
@@ -246,30 +248,7 @@ export class TlsService {
         identifiers: [{ type: "dns", value: cert.domain }]
       });
 
-      const authorizations = await this.client!.getAuthorizations(order);
-
-      for (const auth of authorizations) {
-        const httpChallenge = auth.challenges.find(c => c.type === "http-01");
-        if (!httpChallenge) {
-          throw new Error("HTTP-01 Challenge nicht verfügbar");
-        }
-
-        const keyAuthorization = await this.client!.getChallengeKeyAuthorization(httpChallenge);
-
-        await storage.createTlsChallenge({
-          tenantId: tenantId || null,
-          token: httpChallenge.token,
-          keyAuthorization,
-          domain: cert.domain,
-          expiresAt: new Date(Date.now() + 10 * 60 * 1000)
-        });
-
-        await this.client!.verifyChallenge(auth, httpChallenge);
-        await this.client!.completeChallenge(httpChallenge);
-        await this.client!.waitForValidStatus(httpChallenge);
-        
-        await storage.completeTlsChallenge(httpChallenge.token);
-      }
+      await this.processAcmeChallenges(order, cert.domain, tenantId);
 
       await this.client!.finalizeOrder(order, csr);
       const certificatePem = await this.client!.getCertificate(order);
