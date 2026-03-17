@@ -70,8 +70,8 @@ const customerFormSchema = z.object({
 type CustomerFormData = z.infer<typeof customerFormSchema>;
 
 const priorityConfig: Record<string, { label: string; color: string }> = {
-  low: { label: "Niedrig", color: "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300" },
-  medium: { label: "Mittel", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
+  low: { label: "Niedrig", color: "bg-muted text-muted-foreground" },
+  medium: { label: "Mittel", color: "bg-primary/10 text-primary" },
   high: { label: "Hoch", color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300" },
   urgent: { label: "Dringend", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" },
 };

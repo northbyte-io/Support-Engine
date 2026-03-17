@@ -395,7 +395,7 @@ export default function TicketDetailPage() {
               <StatusBadge status={ticket.status || "open"} />
               <PriorityBadge priority={ticket.priority || "medium"} />
             </div>
-            <h1 className="text-2xl font-semibold mt-1" data-testid="text-ticket-title">
+            <h1 className="text-2xl font-semibold font-display mt-1" data-testid="text-ticket-title">
               {ticket.title}
             </h1>
           </div>

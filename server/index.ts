@@ -24,6 +24,10 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// Trust the first proxy hop (Replit's infrastructure) so that express-rate-limit
+// can correctly identify clients via the X-Forwarded-For header
+app.set("trust proxy", 1);
+
 // Rate limiting — protect auth and expensive sync endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes

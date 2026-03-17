@@ -134,7 +134,7 @@ export default function PortalPage() {
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <Ticket className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="font-semibold">Kundenportal</span>
+            <span className="font-semibold font-display">Kundenportal</span>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={toggleTheme} data-testid="button-theme-toggle">
@@ -150,7 +150,7 @@ export default function PortalPage() {
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold">Willkommen, {user?.firstName}!</h1>
+          <h1 className="text-3xl font-bold font-display">Willkommen, {user?.firstName}!</h1>
           <p className="text-muted-foreground">
             Hier können Sie Ihre Support-Tickets verwalten und den Status verfolgen.
           </p>

@@ -27,7 +27,7 @@ import type { NotificationWithRelations } from "@shared/schema";
 function getNotificationIcon(type: string) {
   switch (type) {
     case "mention":
-      return <MessageSquare className="h-4 w-4 text-blue-500" />;
+      return <MessageSquare className="h-4 w-4 text-primary" />;
     case "assignment":
       return <Users className="h-4 w-4 text-green-500" />;
     case "comment":
