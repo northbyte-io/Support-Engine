@@ -303,7 +303,7 @@ export default function TicketFormPage() {
                         <Package className="w-4 h-4" />
                         Assets des Kunden
                       </Label>
-                      <div className="flex flex-wrap gap-2 mt-2">
+                      <div className="flex flex-wrap gap-2 mt-2" role="group" aria-label="Assets auswählen">
                         {assets && assets.length > 0 ? (
                           assets.map((asset) => {
                             const isSelected = selectedAssetIds?.includes(asset.id);
@@ -313,6 +313,7 @@ export default function TicketFormPage() {
                                 type="button"
                                 variant={isSelected ? "default" : "outline"}
                                 size="sm"
+                                aria-pressed={isSelected}
                                 onClick={() => {
                                   const current = form.getValues("assetIds") || [];
                                   if (isSelected) {
@@ -522,7 +523,7 @@ export default function TicketFormPage() {
               <CardContent className="space-y-4">
                 <div>
                   <Label className="text-sm">Bereiche</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="flex flex-wrap gap-2 mt-2" role="group" aria-label="Bereiche auswählen">
                     {areas?.map((area) => {
                       const isSelected = selectedAreaIds?.includes(area.id);
                       return (
@@ -531,6 +532,7 @@ export default function TicketFormPage() {
                           type="button"
                           variant={isSelected ? "default" : "outline"}
                           size="sm"
+                          aria-pressed={isSelected}
                           onClick={() => {
                             const current = form.getValues("areaIds") || [];
                             if (isSelected) {
@@ -553,7 +555,7 @@ export default function TicketFormPage() {
 
                 <div>
                   <Label className="text-sm">Bearbeiter</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="flex flex-wrap gap-2 mt-2" role="group" aria-label="Bearbeiter auswählen">
                     {users?.filter((u) => u.role === "agent" || u.role === "admin").map((user) => {
                       const isSelected = selectedAssigneeIds?.includes(user.id);
                       return (
@@ -562,6 +564,7 @@ export default function TicketFormPage() {
                           type="button"
                           variant={isSelected ? "default" : "outline"}
                           size="sm"
+                          aria-pressed={isSelected}
                           onClick={() => {
                             const current = form.getValues("assigneeIds") || [];
                             if (isSelected) {
