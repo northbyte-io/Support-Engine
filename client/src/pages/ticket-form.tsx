@@ -222,7 +222,7 @@ export default function TicketFormPage() {
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <h1 className="text-2xl font-semibold">
+          <h1 className="text-2xl font-semibold font-display">
             {isEditing ? "Ticket bearbeiten" : "Neues Ticket erstellen"}
           </h1>
         </div>
