@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useAuth } from "@/lib/auth.tsx";
+import { t } from "@/lib/i18n";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import DOMPurify from "dompurify";
@@ -272,8 +273,8 @@ export default function TicketDetailPage() {
       globalThis.URL.revokeObjectURL(url);
     } catch {
       toast({
-        title: "Download fehlgeschlagen",
-        description: "Die Datei konnte nicht heruntergeladen werden.",
+        title: t("tickets.downloadFailed"),
+        description: t("tickets.downloadFailedDescription"),
         variant: "destructive",
       });
     } finally {

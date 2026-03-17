@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { t } from "@/lib/i18n";
 import { MainLayout } from "@/components/MainLayout";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -350,7 +351,7 @@ export default function TimeTrackingPage() {
           {(() => {
             if (entriesLoading) return (
               <div className="text-center py-8 text-muted-foreground">
-                Zeiteinträge werden geladen...
+                {t("loading.timeEntries")}
               </div>
             );
             if (timeEntries.length === 0) return (

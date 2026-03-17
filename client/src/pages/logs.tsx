@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { t } from "@/lib/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { 
   Search, 
@@ -266,7 +267,7 @@ export default function LogsPage() {
       return (
         <div className="p-8 text-center">
           <RefreshCw className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
-          <p className="mt-2 text-muted-foreground">Logs werden geladen...</p>
+          <p className="mt-2 text-muted-foreground">{t("loading.logs")}</p>
         </div>
       );
     }

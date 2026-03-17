@@ -125,6 +125,8 @@ export const de = {
     addWatcher: "Beobachter hinzufügen",
     removeAssignee: "Bearbeiter entfernen",
     removeWatcher: "Beobachter entfernen",
+    downloadFailed: "Download fehlgeschlagen",
+    downloadFailedDescription: "Die Datei konnte nicht heruntergeladen werden.",
   },
 
   // Ticket Status
@@ -203,6 +205,15 @@ export const de = {
     minutes: "Minuten",
     hours: "Stunden",
     days: "Tage",
+  },
+
+  // Loading States
+  loading: {
+    generic: "Wird geladen...",
+    articles: "Artikel werden geladen...",
+    timeEntries: "Zeiteinträge werden geladen...",
+    logs: "Logs werden geladen...",
+    folders: "Ordner werden geladen...",
   },
 
   // Empty States

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { t } from "@/lib/i18n";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { MainLayout } from "@/components/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1938,7 +1939,7 @@ export default function ExchangeIntegration() {
                   {isLoadingRuleFolders ? (
                     <div className="flex items-center gap-2 p-2 text-sm text-muted-foreground">
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Ordner werden geladen...
+                      {t("loading.folders")}
                     </div>
                   ) : (
                     <Select 

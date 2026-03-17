@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/lib/theme";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { BrandingProvider } from "@/lib/branding";
 import { LoadingPage } from "@/components/LoadingState";
+import { t } from "@/lib/i18n";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
@@ -39,7 +40,7 @@ function ProtectedRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return <LoadingPage message="Wird geladen..." />;
+    return <LoadingPage message={t("loading.generic")} />;
   }
 
   if (!isAuthenticated) {
@@ -53,7 +54,7 @@ function CustomerRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return <LoadingPage message="Wird geladen..." />;
+    return <LoadingPage message={t("loading.generic")} />;
   }
 
   if (!isAuthenticated) {
@@ -71,7 +72,7 @@ function AgentRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return <LoadingPage message="Wird geladen..." />;
+    return <LoadingPage message={t("loading.generic")} />;
   }
 
   if (!isAuthenticated) {
@@ -89,7 +90,7 @@ function AdminRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return <LoadingPage message="Wird geladen..." />;
+    return <LoadingPage message={t("loading.generic")} />;
   }
 
   if (!isAuthenticated) {
