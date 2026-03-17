@@ -36,7 +36,10 @@ type SortOrder = "asc" | "desc";
 
 export default function TicketsPage() {
   const [, setLocation] = useLocation();
-  const [searchQuery, setSearchQuery] = useState("");
+  const initialSearch = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("q") ?? ""
+    : "";
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [priorityFilter, setPriorityFilter] = useState<string[]>([]);
   const [sortField, setSortField] = useState<SortField>("createdAt");

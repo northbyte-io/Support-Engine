@@ -250,6 +250,11 @@ export default function DashboardPage() {
               className="pl-9 h-8 w-60 text-xs bg-muted/50 border-border/50"
               value={search}
               onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && search.trim()) {
+                  setLocation(`/tickets?q=${encodeURIComponent(search.trim())}`);
+                }
+              }}
               data-testid="input-dashboard-search"
             />
           </div>
