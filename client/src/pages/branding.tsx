@@ -78,6 +78,27 @@ function ColorPreview({ color, label }: Readonly<{ color: string; label: string 
   );
 }
 
+function buildBrandingFormValues(tenant: Tenant): BrandingFormData {
+  return {
+    logo: tenant.logo || "",
+    logoLight: tenant.logoLight || "",
+    logoDark: tenant.logoDark || "",
+    favicon: tenant.favicon || "",
+    primaryColor: tenant.primaryColor || "#3B82F6",
+    secondaryColor: tenant.secondaryColor || "#6366F1",
+    accentColor: tenant.accentColor || "#10B981",
+    fontFamily: tenant.fontFamily || "Inter",
+    emailHeaderHtml: tenant.emailHeaderHtml || "",
+    emailFooterHtml: tenant.emailFooterHtml || "",
+    emailFromName: tenant.emailFromName || "",
+    emailFromAddress: tenant.emailFromAddress || "",
+    customCss: tenant.customCss || "",
+    companyWebsite: tenant.companyWebsite || "",
+    supportEmail: tenant.supportEmail || "",
+    supportPhone: tenant.supportPhone || "",
+  };
+}
+
 export default function BrandingPage() {
   const { toast } = useToast();
   const [previewMode, setPreviewMode] = useState<"light" | "dark">("light");
@@ -110,24 +131,7 @@ export default function BrandingPage() {
 
   useEffect(() => {
     if (tenant) {
-      form.reset({
-        logo: tenant.logo || "",
-        logoLight: tenant.logoLight || "",
-        logoDark: tenant.logoDark || "",
-        favicon: tenant.favicon || "",
-        primaryColor: tenant.primaryColor || "#3B82F6",
-        secondaryColor: tenant.secondaryColor || "#6366F1",
-        accentColor: tenant.accentColor || "#10B981",
-        fontFamily: tenant.fontFamily || "Inter",
-        emailHeaderHtml: tenant.emailHeaderHtml || "",
-        emailFooterHtml: tenant.emailFooterHtml || "",
-        emailFromName: tenant.emailFromName || "",
-        emailFromAddress: tenant.emailFromAddress || "",
-        customCss: tenant.customCss || "",
-        companyWebsite: tenant.companyWebsite || "",
-        supportEmail: tenant.supportEmail || "",
-        supportPhone: tenant.supportPhone || "",
-      });
+      form.reset(buildBrandingFormValues(tenant));
     }
   }, [tenant, form]);
 
@@ -160,24 +164,7 @@ export default function BrandingPage() {
 
   const handleReset = () => {
     if (tenant) {
-      form.reset({
-        logo: tenant.logo || "",
-        logoLight: tenant.logoLight || "",
-        logoDark: tenant.logoDark || "",
-        favicon: tenant.favicon || "",
-        primaryColor: tenant.primaryColor || "#3B82F6",
-        secondaryColor: tenant.secondaryColor || "#6366F1",
-        accentColor: tenant.accentColor || "#10B981",
-        fontFamily: tenant.fontFamily || "Inter",
-        emailHeaderHtml: tenant.emailHeaderHtml || "",
-        emailFooterHtml: tenant.emailFooterHtml || "",
-        emailFromName: tenant.emailFromName || "",
-        emailFromAddress: tenant.emailFromAddress || "",
-        customCss: tenant.customCss || "",
-        companyWebsite: tenant.companyWebsite || "",
-        supportEmail: tenant.supportEmail || "",
-        supportPhone: tenant.supportPhone || "",
-      });
+      form.reset(buildBrandingFormValues(tenant));
       toast({
         title: "Zurückgesetzt",
         description: "Die Änderungen wurden verworfen.",
