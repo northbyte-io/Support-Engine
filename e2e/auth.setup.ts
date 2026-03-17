@@ -15,7 +15,7 @@
  * authentifizierten Tests schlagen fehl – dies ist das erwartete Verhalten.
  */
 import { test as setup, expect } from "@playwright/test";
-import path from "path";
+import path from "node:path";
 
 const AUTH_FILE = path.join("e2e", ".auth", "admin.json");
 
@@ -33,8 +33,8 @@ setup("Testbenutzer authentifizieren", async ({ page }) => {
   await page.goto("/login");
   await expect(page.getByTestId("input-email")).toBeVisible();
 
-  await page.getByTestId("input-email").fill(email!);
-  await page.getByTestId("input-password").fill(password!);
+  await page.getByTestId("input-email").fill(email ?? "");
+  await page.getByTestId("input-password").fill(password ?? "");
   await page.getByTestId("button-login").click();
 
   // Nach erfolgreichem Login wird auf das Dashboard weitergeleitet
