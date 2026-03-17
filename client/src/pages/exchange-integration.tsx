@@ -1022,6 +1022,7 @@ export default function ExchangeIntegration() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              aria-label="Postfach bearbeiten"
                               onClick={() => openEditMailboxDialog(mailbox)}
                               data-testid={`button-edit-mailbox-${mailbox.id}`}
                             >
@@ -1030,6 +1031,7 @@ export default function ExchangeIntegration() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              aria-label="Postfach löschen"
                               onClick={() => deleteMailboxMutation.mutate(mailbox.id)}
                               data-testid={`button-delete-mailbox-${mailbox.id}`}
                             >
@@ -1147,6 +1149,7 @@ export default function ExchangeIntegration() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              aria-label="Regel bearbeiten"
                               onClick={() => openEditRule(rule)}
                               data-testid={`button-edit-rule-${rule.id}`}
                             >
@@ -1155,6 +1158,7 @@ export default function ExchangeIntegration() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              aria-label="Regel löschen"
                               onClick={() => deleteRuleMutation.mutate(rule.id)}
                               data-testid={`button-delete-rule-${rule.id}`}
                             >
@@ -1772,6 +1776,7 @@ export default function ExchangeIntegration() {
                             variant="ghost"
                             size="icon"
                             className="h-9 w-9 text-destructive hover:text-destructive"
+                            aria-label="Bedingung entfernen"
                             onClick={() => {
                               setRuleConditions(ruleConditions.filter((_, i) => i !== index));
                             }}
@@ -1867,6 +1872,7 @@ export default function ExchangeIntegration() {
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6"
+                              aria-label="Aktion nach oben verschieben"
                               disabled={index === 0}
                               onClick={() => {
                                 const newActions = [...ruleActions];
@@ -1882,6 +1888,7 @@ export default function ExchangeIntegration() {
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6"
+                              aria-label="Aktion nach unten verschieben"
                               disabled={index === ruleActions.length - 1}
                               onClick={() => {
                                 const newActions = [...ruleActions];

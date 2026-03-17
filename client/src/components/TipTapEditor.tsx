@@ -70,6 +70,7 @@ function ToolbarButton({ onClick, isActive, disabled, tooltip, children }: Toolb
           variant="ghost"
           size="icon"
           className={cn("h-8 w-8", isActive && "bg-muted")}
+          aria-label={tooltip}
           onClick={onClick}
           disabled={disabled}
         >
@@ -312,6 +313,7 @@ export function TipTapEditor({
               variant="ghost"
               size="icon"
               className={cn("h-8 w-8", editor.isActive("link") && "bg-muted")}
+              aria-label="Link einfügen"
             >
               <LinkIcon className="h-4 w-4" />
             </Button>
@@ -336,7 +338,7 @@ export function TipTapEditor({
 
         <Popover>
           <PopoverTrigger asChild>
-            <Button type="button" variant="ghost" size="icon" className="h-8 w-8">
+            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label="Bild einfügen">
               <ImageIcon className="h-4 w-4" />
             </Button>
           </PopoverTrigger>

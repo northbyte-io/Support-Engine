@@ -774,7 +774,7 @@ export default function AssetsPage() {
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button size="icon" variant="ghost" data-testid={`button-asset-menu-${asset.id}`}>
+                          <Button size="icon" variant="ghost" aria-label="Asset-Aktionen" data-testid={`button-asset-menu-${asset.id}`}>
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>

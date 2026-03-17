@@ -164,6 +164,7 @@ export function TicketTimerControl({ ticketId, ticketNumber, ticketTitle }: Tick
                 variant="ghost"
                 onClick={() => resumeMutation.mutate()}
                 disabled={resumeMutation.isPending}
+                aria-label="Timer fortsetzen"
                 data-testid="button-resume-timer"
               >
                 <Play className="w-4 h-4" />
@@ -174,6 +175,7 @@ export function TicketTimerControl({ ticketId, ticketNumber, ticketTitle }: Tick
                 variant="ghost"
                 onClick={() => pauseMutation.mutate()}
                 disabled={pauseMutation.isPending}
+                aria-label="Timer pausieren"
                 data-testid="button-pause-timer"
               >
                 <Pause className="w-4 h-4" />
@@ -185,6 +187,7 @@ export function TicketTimerControl({ ticketId, ticketNumber, ticketTitle }: Tick
               className="text-destructive"
               onClick={handleStop}
               disabled={stopMutation.isPending}
+              aria-label="Timer stoppen"
               data-testid="button-stop-timer"
             >
               <Square className="w-4 h-4" />

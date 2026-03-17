@@ -304,7 +304,7 @@ export default function ContactsPage() {
             <TableCell>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" data-testid={`button-contact-actions-${contact.id}`}>
+                  <Button variant="ghost" size="icon" aria-label="Kontakt-Aktionen" data-testid={`button-contact-actions-${contact.id}`}>
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>

@@ -357,6 +357,7 @@ export default function KnowledgeBase() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        aria-label="Artikel bearbeiten"
                         onClick={(e) => {
                           e.stopPropagation();
                           openArticleDialog(article);
@@ -369,6 +370,7 @@ export default function KnowledgeBase() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label="Artikel löschen"
                           onClick={(e) => {
                             e.stopPropagation();
                             deleteArticleMutation.mutate(article.id);

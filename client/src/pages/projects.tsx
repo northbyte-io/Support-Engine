@@ -275,7 +275,7 @@ export default function ProjectsPage() {
                     {isAdmin && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" data-testid={`button-project-menu-${project.id}`}>
+                          <Button variant="ghost" size="icon" aria-label="Projektoptionen" data-testid={`button-project-menu-${project.id}`}>
                             <MoreHorizontal className="w-4 h-4" />
                           </Button>
                         </DropdownMenuTrigger>

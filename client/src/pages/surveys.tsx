@@ -770,10 +770,10 @@ export default function SurveysPage() {
                               </TableCell>
                               <TableCell>
                                 <div className="flex gap-1">
-                                  <Button variant="ghost" size="icon" onClick={() => openEditQuestion(question)} data-testid={`button-edit-question-${question.id}`}>
+                                  <Button variant="ghost" size="icon" aria-label="Frage bearbeiten" onClick={() => openEditQuestion(question)} data-testid={`button-edit-question-${question.id}`}>
                                     <Edit className="h-4 w-4" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteQuestionMutation.mutate(question.id)} data-testid={`button-delete-question-${question.id}`}>
+                                  <Button variant="ghost" size="icon" aria-label="Frage löschen" className="text-destructive" onClick={() => deleteQuestionMutation.mutate(question.id)} data-testid={`button-delete-question-${question.id}`}>
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </div>

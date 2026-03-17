@@ -378,6 +378,7 @@ export default function BrandingPage() {
                         <Button
                           type="button"
                           size="icon"
+                          aria-label="Vorschau: Hell"
                           variant={previewMode === "light" ? "default" : "outline"}
                           onClick={() => setPreviewMode("light")}
                           data-testid="button-preview-light"
@@ -387,6 +388,7 @@ export default function BrandingPage() {
                         <Button
                           type="button"
                           size="icon"
+                          aria-label="Vorschau: Dunkel"
                           variant={previewMode === "dark" ? "default" : "outline"}
                           onClick={() => setPreviewMode("dark")}
                           data-testid="button-preview-dark"

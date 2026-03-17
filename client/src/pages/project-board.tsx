@@ -129,7 +129,7 @@ function SortableTicketCard({
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild onPointerDown={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-6 w-6 cursor-pointer">
+              <Button variant="ghost" size="icon" className="h-6 w-6 cursor-pointer" aria-label="Ticket-Optionen">
                 <MoreHorizontal className="w-3 h-3" />
               </Button>
             </DropdownMenuTrigger>
@@ -228,7 +228,7 @@ function DroppableColumn({
             {column.wipLimit && `/${column.wipLimit}`}
           </Badge>
         </div>
-        <Button variant="ghost" size="icon" onClick={onAddTicket}>
+        <Button variant="ghost" size="icon" aria-label="Ticket hinzufügen" onClick={onAddTicket}>
           <Plus className="w-4 h-4" />
         </Button>
       </div>

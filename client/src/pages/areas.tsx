@@ -192,7 +192,7 @@ export default function AreasPage() {
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" data-testid={`button-area-menu-${area.id}`}>
+                    <Button variant="ghost" size="icon" aria-label="Bereichsaktionen" data-testid={`button-area-menu-${area.id}`}>
                       <MoreHorizontal className="w-4 h-4" />
                     </Button>
                   </DropdownMenuTrigger>

@@ -284,7 +284,7 @@ export default function OrganizationsPage() {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" data-testid={`button-menu-org-${org.id}`}>
+                            <Button variant="ghost" size="icon" aria-label="Organisationsaktionen" data-testid={`button-menu-org-${org.id}`}>
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>

@@ -98,6 +98,7 @@ function TimerItem({ timer, onOpenTicket, onStop }: TimerItemProps) {
             variant="ghost"
             onClick={() => resumeMutation.mutate()}
             disabled={resumeMutation.isPending}
+            aria-label="Timer fortsetzen"
             data-testid={`button-resume-timer-${timer.ticketId}`}
           >
             <Play className="w-4 h-4" />
@@ -108,6 +109,7 @@ function TimerItem({ timer, onOpenTicket, onStop }: TimerItemProps) {
             variant="ghost"
             onClick={() => pauseMutation.mutate()}
             disabled={pauseMutation.isPending}
+            aria-label="Timer pausieren"
             data-testid={`button-pause-timer-${timer.ticketId}`}
           >
             <Pause className="w-4 h-4" />
@@ -118,6 +120,7 @@ function TimerItem({ timer, onOpenTicket, onStop }: TimerItemProps) {
           variant="ghost"
           className="text-destructive"
           onClick={() => onStop(timer)}
+          aria-label="Timer stoppen"
           data-testid={`button-stop-timer-${timer.ticketId}`}
         >
           <Square className="w-4 h-4" />
@@ -126,6 +129,7 @@ function TimerItem({ timer, onOpenTicket, onStop }: TimerItemProps) {
           size="icon"
           variant="ghost"
           onClick={() => onOpenTicket(timer.ticketId)}
+          aria-label="Ticket öffnen"
           data-testid={`button-open-ticket-${timer.ticketId}`}
         >
           <ExternalLink className="w-4 h-4" />

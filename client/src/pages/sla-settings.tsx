@@ -169,6 +169,7 @@ export default function SlaSettings() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label="SLA bearbeiten"
                     onClick={() => setEditingSla(sla)}
                     data-testid={`button-edit-sla-${sla.id}`}
                   >
@@ -177,6 +178,7 @@ export default function SlaSettings() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label="SLA löschen"
                     onClick={() => {
                       if (confirm('Sind Sie sicher, dass Sie diese SLA-Definition löschen möchten?')) {
                         deleteMutation.mutate(sla.id);

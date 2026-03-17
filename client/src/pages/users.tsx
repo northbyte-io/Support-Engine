@@ -222,7 +222,7 @@ export default function UsersPage() {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" data-testid={`button-user-menu-${user.id}`}>
+                            <Button variant="ghost" size="icon" aria-label="Benutzeroptionen" data-testid={`button-user-menu-${user.id}`}>
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>

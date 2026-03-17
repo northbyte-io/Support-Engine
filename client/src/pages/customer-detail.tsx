@@ -79,7 +79,7 @@ export default function CustomerDetailPage() {
     <MainLayout title={customer.name}>
       <div className="space-y-6">
         <div className="flex items-center gap-4 flex-wrap">
-          <Button variant="ghost" size="icon" onClick={() => setLocation("/customers")} data-testid="button-back">
+          <Button variant="ghost" size="icon" aria-label="Zurück zur Kundenliste" onClick={() => setLocation("/customers")} data-testid="button-back">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1 min-w-0">

@@ -421,6 +421,7 @@ export default function TimeTrackingPage() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label="Zeiteintrag bearbeiten"
                           onClick={() => openDialog(entry)}
                           data-testid={`button-edit-entry-${entry.id}`}
                         >
@@ -429,6 +430,7 @@ export default function TimeTrackingPage() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label="Zeiteintrag löschen"
                           onClick={() => {
                             if (confirm("Zeiteintrag wirklich löschen?")) {
                               deleteMutation.mutate(entry.id);

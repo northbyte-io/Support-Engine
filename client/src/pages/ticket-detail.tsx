@@ -366,7 +366,7 @@ export default function TicketDetailPage() {
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" data-testid="button-ticket-menu">
+              <Button variant="outline" size="icon" aria-label="Ticket-Optionen" data-testid="button-ticket-menu">
                 <MoreHorizontal className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -393,6 +393,7 @@ export default function TicketDetailPage() {
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Zurück zur Ticketliste"
             onClick={() => setLocation("/tickets")}
             data-testid="button-back"
           >
@@ -895,6 +896,7 @@ export default function TicketDetailPage() {
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6"
+                          aria-label="Projektzuordnung entfernen"
                           onClick={() => removeFromProjectMutation.mutate(tp.projectId)}
                           data-testid={`button-remove-project-${tp.projectId}`}
                         >

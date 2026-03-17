@@ -132,6 +132,7 @@ export function NotificationDropdown() {
           variant="ghost"
           size="icon"
           className="relative"
+          aria-label="Benachrichtigungen öffnen"
           data-testid="button-notifications"
         >
           <Bell className="h-5 w-5" />
@@ -221,6 +222,7 @@ export function NotificationDropdown() {
                           onClick={() =>
                             markReadMutation.mutate(notification.id)
                           }
+                          aria-label="Als gelesen markieren"
                           disabled={markReadMutation.isPending}
                           data-testid={`button-mark-read-${notification.id}`}
                         >
@@ -232,6 +234,7 @@ export function NotificationDropdown() {
                         size="icon"
                         className="h-7 w-7 text-muted-foreground"
                         onClick={() => deleteMutation.mutate(notification.id)}
+                        aria-label="Benachrichtigung löschen"
                         disabled={deleteMutation.isPending}
                         data-testid={`button-delete-notification-${notification.id}`}
                       >

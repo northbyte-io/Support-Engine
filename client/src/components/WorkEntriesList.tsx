@@ -150,6 +150,7 @@ export function WorkEntriesList({ ticketId }: WorkEntriesListProps) {
                         size="icon"
                         variant="ghost"
                         className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        aria-label="Eintrag löschen"
                         onClick={() => setDeleteId(entry.id)}
                         data-testid={`button-delete-entry-${entry.id}`}
                       >

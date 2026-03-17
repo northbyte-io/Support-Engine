@@ -217,6 +217,7 @@ export default function TicketFormPage() {
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Zurück"
             onClick={() => setLocation(isEditing ? `/tickets/${params.id}` : "/tickets")}
             data-testid="button-back"
           >

@@ -296,7 +296,7 @@ export default function CustomersPage() {
             <TableCell>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" data-testid={`button-customer-actions-${customer.id}`}>
+                  <Button variant="ghost" size="icon" aria-label="Kundenaktionen" data-testid={`button-customer-actions-${customer.id}`}>
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
