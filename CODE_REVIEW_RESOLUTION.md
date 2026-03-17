@@ -509,16 +509,27 @@ All 100 pre-existing violations fixed to reach 0 errors:
 
 ---
 
+### 1.3 — JWT Stored in localStorage (XSS Risk)
+
+**Severity:** Critical · **Commit:** `e0e7168`
+
+**Problem:** Two pages (`time-tracking.tsx`, `logs.tsx`) stored the JWT in `localStorage` and sent it as an `Authorization: Bearer` header, making the token accessible to any JavaScript running on the page (XSS vector). The rest of the codebase had already been migrated to httpOnly cookies, but these pages were missed.
+
+**Investigation:** `server/auth.ts`'s `authMiddleware` reads exclusively from the `Cookie` header — it has no `Authorization: Bearer` fallback. This meant the localStorage-based fetches in these two files would silently return 401 for any user who had no token in localStorage (e.g. after a browser restart), while also being XSS-exploitable for users who did.
+
+`client/src/lib/auth.tsx`, `server/routes.ts` (login/register/logout/me), and `client/src/lib/queryClient.ts` were already fully cookie-based. Only these two pages had regressed to the old pattern.
+
+**Fix:**
+- `client/src/pages/time-tracking.tsx`: removed `Authorization: Bearer ${localStorage.getItem("token")}` header from both `/api/time-entries` and `/api/time-entries/summary` custom `queryFn`s; replaced with `credentials: "include"`.
+- `client/src/pages/logs.tsx`: removed `localStorage.getItem("token")` + conditional `Authorization` header from the `/api/logs` query, `/api/logs/export` fetch, and `/api/logs/test` fetch; replaced all with `credentials: "include"`.
+
+No JWT is stored in `localStorage` or `sessionStorage` anywhere in the client. The entire auth surface uses `credentials: "include"` with the httpOnly cookie set by `res.cookie(TOKEN_COOKIE_NAME, token, TOKEN_COOKIE_OPTIONS)` on login.
+
+---
+
 ## Deferred Issues
 
-The following issues from the code review require architectural decisions or
-significant refactoring effort. They are logged here for future sprints.
-
-| # | Issue | Reason deferred |
-|---|-------|----------------|
-| 1.3 | JWT in localStorage (XSS) | Requires migrating the entire auth flow to httpOnly cookies; affects every API call and the auth context. High risk, plan as a dedicated feature. |
-| 6.7 | Hardcoded German strings bypassing i18n | Establish a convention that all UI strings longer than 3 characters go through `i18n.ts`. |
-| 7.2 | Custom selectors missing keyboard navigation | Refactor asset/area selectors in `ticket-form.tsx` to use `<Select>` or `<Command>`. |
+All issues from the original code review have been resolved. No issues remain deferred.
 
 ---
 
@@ -526,7 +537,7 @@ significant refactoring effort. They are logged here for future sprints.
 
 | # | File(s) | Category | Severity | Status |
 |---|---------|----------|----------|--------|
-| 1.3 | `client/src/lib/auth.tsx` | Security | **Critical** | Deferred |
+| 1.3 | `time-tracking.tsx`, `logs.tsx` | Security | **Critical** | **Fixed** |
 | 1.6 | `server/routes.ts`, `storage.ts`, `schema.ts` | Security | **High** | **Fixed** |
 | 2.4 | `server/exchange-service.ts`, `shared/schema.ts` | Security | **High** | **Fixed** |
 | 2.5 | `server/storage.ts`, `shared/schema.ts`, `server/routes.ts` | Compliance | **High** | **Fixed** |
@@ -557,5 +568,5 @@ significant refactoring effort. They are logged here for future sprints.
 | 11.2 | Repository | Quality | **Medium** | **Fixed** |
 | 11.3 | `.gitignore` | Build | **Low** | **Fixed** |
 
-**Fixed: 28 issues** across 27 commits.
-**Deferred: 1 issue** (architectural / large scope).
+**Fixed: 29 issues** across 28 commits.
+**Deferred: 0 issues — all issues resolved.**
