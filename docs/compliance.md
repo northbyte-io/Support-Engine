@@ -178,7 +178,7 @@ Die folgende Tabelle listet die technisch-organisatorischen Maßnahmen (TOMs) di
 
 ## Offene Compliance-Lücken (Zusammenfassung)
 
-Die folgende Tabelle listet alle identifizierten Lücken mit Priorität. Details, betroffene Dateien und Lösungsempfehlungen sind in {doc}`compliance-issues` dokumentiert.
+Die folgende Tabelle listet alle identifizierten Lücken mit Priorität. Details, betroffene Dateien und Lösungsempfehlungen sind in der lokalen Datei `docs/compliance-issues.md` dokumentiert (nicht im öffentlichen Repository — enthält sicherheitskritische Implementierungsdetails).
 
 | ID | Beschreibung | Priorität | DSGVO | BSI |
 |----|-------------|-----------|-------|-----|
