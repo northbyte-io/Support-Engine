@@ -150,7 +150,7 @@ export default function PortalPage() {
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold">Willkommen, {user?.firstName}!</h1>
+          <h1 className="text-3xl font-bold font-display">Willkommen, {user?.firstName}!</h1>
           <p className="text-muted-foreground">
             Hier können Sie Ihre Support-Tickets verwalten und den Status verfolgen.
           </p>

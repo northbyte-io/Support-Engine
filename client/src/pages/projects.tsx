@@ -63,7 +63,7 @@ function CreateProjectDialog({ onCreated }: Readonly<{ onCreated: () => void }>)
       name: "",
       key: "",
       description: "",
-      color: "#3B82F6",
+      color: "#F59E0B",
     },
   });
 
@@ -263,7 +263,7 @@ export default function ProjectsPage() {
                     <div className="flex items-center gap-3">
                       <div
                         className="w-10 h-10 rounded-md flex items-center justify-center"
-                        style={{ backgroundColor: project.color || "#3B82F6" }}
+                        style={{ backgroundColor: project.color || "#F59E0B" }}
                       >
                         <Kanban className="w-5 h-5 text-white" />
                       </div>

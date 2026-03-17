@@ -84,7 +84,7 @@ export default function CustomerDetailPage() {
           </Button>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-semibold">{customer.name}</h1>
+              <h1 className="text-2xl font-semibold font-display">{customer.name}</h1>
               <Badge variant="outline">{customer.customerNumber}</Badge>
               {customer.priority && (
                 <Badge className={priorityColor}>
