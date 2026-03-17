@@ -285,6 +285,16 @@ export interface IStorage {
     summary: { totalHours: string; billableHours: string; totalAmount: number };
   }>;
 
+  // Global Search
+  globalSearch(tenantId: string, query: string): Promise<{
+    tickets: { id: string; ticketNumber: string; title: string; status: string; priority: string; createdAt: Date | null }[];
+    articles: { id: string; title: string; summary: string | null; status: string }[];
+    customers: { id: string; name: string; email: string | null; customerNumber: string }[];
+    organizations: { id: string; name: string; email: string | null; industry: string | null }[];
+    contacts: { id: string; firstName: string; lastName: string; email: string | null; title: string | null }[];
+    total: number;
+  }>;
+
   // Knowledge Base Categories
   getKbCategories(tenantId: string, params?: { limit?: number; offset?: number }): Promise<KbCategory[]>;
   getKbCategory(id: string): Promise<KbCategory | undefined>;
@@ -1303,6 +1313,84 @@ export class DatabaseStorage implements IStorage {
 
     const fmt = (m: number) => `${Math.floor(m / 60)}h ${m % 60}m`;
     return { totalMinutes, billableMinutes, nonBillableMinutes, byAgent, byDay, summary: { totalHours: fmt(totalMinutes), billableHours: fmt(billableMinutes), totalAmount } };
+  }
+
+  // Global Search
+  async globalSearch(tenantId: string, query: string): Promise<{
+    tickets: { id: string; ticketNumber: string; title: string; status: string; priority: string; createdAt: Date | null }[];
+    articles: { id: string; title: string; summary: string | null; status: string }[];
+    customers: { id: string; name: string; email: string | null; customerNumber: string }[];
+    organizations: { id: string; name: string; email: string | null; industry: string | null }[];
+    contacts: { id: string; firstName: string; lastName: string; email: string | null; title: string | null }[];
+    total: number;
+  }> {
+    const q = `%${query}%`;
+    const [ticketRows, articleRows, customerRows, orgRows, contactRows] = await Promise.all([
+      db.select({
+        id: tickets.id,
+        ticketNumber: tickets.ticketNumber,
+        title: tickets.title,
+        status: tickets.status,
+        priority: tickets.priority,
+        createdAt: tickets.createdAt,
+      }).from(tickets).where(and(
+        eq(tickets.tenantId, tenantId),
+        isNull(tickets.deletedAt),
+        or(ilike(tickets.title, q), ilike(tickets.ticketNumber, q))
+      )).orderBy(desc(tickets.createdAt)).limit(8),
+
+      db.select({
+        id: kbArticles.id,
+        title: kbArticles.title,
+        summary: kbArticles.summary,
+        status: kbArticles.status,
+      }).from(kbArticles).where(and(
+        eq(kbArticles.tenantId, tenantId),
+        isNull(kbArticles.deletedAt),
+        or(ilike(kbArticles.title, q), ilike(kbArticles.content, q), ilike(kbArticles.summary, q))
+      )).orderBy(desc(kbArticles.updatedAt)).limit(6),
+
+      db.select({
+        id: customers.id,
+        name: customers.name,
+        email: customers.email,
+        customerNumber: customers.customerNumber,
+      }).from(customers).where(and(
+        eq(customers.tenantId, tenantId),
+        or(ilike(customers.name, q), ilike(customers.email, q), ilike(customers.customerNumber, q))
+      )).limit(6),
+
+      db.select({
+        id: organizations.id,
+        name: organizations.name,
+        email: organizations.email,
+        industry: organizations.industry,
+      }).from(organizations).where(and(
+        eq(organizations.tenantId, tenantId),
+        or(ilike(organizations.name, q), ilike(organizations.email, q))
+      )).limit(6),
+
+      db.select({
+        id: contacts.id,
+        firstName: contacts.firstName,
+        lastName: contacts.lastName,
+        email: contacts.email,
+        title: contacts.title,
+      }).from(contacts).where(and(
+        eq(contacts.tenantId, tenantId),
+        or(ilike(contacts.firstName, q), ilike(contacts.lastName, q), ilike(contacts.email, q))
+      )).limit(6),
+    ]);
+
+    const total = ticketRows.length + articleRows.length + customerRows.length + orgRows.length + contactRows.length;
+    return {
+      tickets: ticketRows.map(r => ({ ...r, status: r.status ?? "open", priority: r.priority ?? "medium" })),
+      articles: articleRows.map(r => ({ ...r, status: r.status ?? "draft" })),
+      customers: customerRows,
+      organizations: orgRows,
+      contacts: contactRows,
+      total,
+    };
   }
 
   // Knowledge Base Categories

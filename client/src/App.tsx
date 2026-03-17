@@ -36,6 +36,7 @@ import BrandingPage from "@/pages/branding";
 import TlsCertificatesPage from "@/pages/tls-certificates";
 import ExchangeIntegrationPage from "@/pages/exchange-integration";
 import ReportsPage from "@/pages/reports";
+import SearchPage from "@/pages/search";
 
 function ProtectedRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -258,6 +259,12 @@ function Router() {
       <Route path="/reports">
         <AgentRoute>
           <ReportsPage />
+        </AgentRoute>
+      </Route>
+
+      <Route path="/search">
+        <AgentRoute>
+          <SearchPage />
         </AgentRoute>
       </Route>
 

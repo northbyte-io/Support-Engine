@@ -762,6 +762,20 @@ export async function registerRoutes(
     return { from: fromDate, to: toDate };
   }
 
+  // Global Search
+  app.get("/api/search", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const q = (req.query.q as string || "").trim();
+      if (!q || q.length < 2) {
+        return res.json({ tickets: [], articles: [], customers: [], organizations: [], contacts: [], total: 0 });
+      }
+      const results = await storage.globalSearch(req.tenantId!, q);
+      res.json(results);
+    } catch (error) {
+      handleApiError(res, error, "Global search error");
+    }
+  });
+
   app.get("/api/reports/tickets", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const { from, to } = parseDateRange(req.query.from as string, req.query.to as string);

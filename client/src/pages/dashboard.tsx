@@ -252,8 +252,12 @@ export default function DashboardPage() {
               onChange={e => setSearch(e.target.value)}
               onKeyDown={e => {
                 if (e.key === "Enter" && search.trim()) {
-                  setLocation(`/tickets?q=${encodeURIComponent(search.trim())}`);
+                  setLocation(`/search?q=${encodeURIComponent(search.trim())}`);
                 }
+              }}
+              onClick={() => {
+                if (search.trim()) setLocation(`/search?q=${encodeURIComponent(search.trim())}`);
+                else setLocation("/search");
               }}
               data-testid="input-dashboard-search"
             />
