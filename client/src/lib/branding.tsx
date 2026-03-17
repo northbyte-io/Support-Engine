@@ -17,63 +17,10 @@ export function useBranding() {
   return useContext(BrandingContext);
 }
 
-function hexToHsl(hex: string): string {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return "210 100% 50%";
-
-  const r = Number.parseInt(result[1], 16) / 255;
-  const g = Number.parseInt(result[2], 16) / 255;
-  const b = Number.parseInt(result[3], 16) / 255;
-
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  let h = 0;
-  let s = 0;
-  const l = (max + min) / 2;
-
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r:
-        h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-        break;
-      case g:
-        h = ((b - r) / d + 2) / 6;
-        break;
-      case b:
-        h = ((r - g) / d + 4) / 6;
-        break;
-    }
-  }
-
-  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
-}
+// Color overrides removed — amber is the global primary (design system decision).
+// Branding only controls: favicon, custom CSS, logo, and tenant name.
 
 function applyBrandingStyles(branding: Tenant) {
-  const root = document.documentElement;
-
-  if (branding.primaryColor) {
-    const primaryHsl = hexToHsl(branding.primaryColor);
-    root.style.setProperty("--primary", primaryHsl);
-    root.style.setProperty("--primary-foreground", "0 0% 100%");
-  }
-
-  if (branding.secondaryColor) {
-    const secondaryHsl = hexToHsl(branding.secondaryColor);
-    root.style.setProperty("--secondary", secondaryHsl);
-  }
-
-  if (branding.accentColor) {
-    const accentHsl = hexToHsl(branding.accentColor);
-    root.style.setProperty("--accent", accentHsl);
-  }
-
-  if (branding.fontFamily) {
-    root.style.setProperty("--font-family", branding.fontFamily);
-    document.body.style.fontFamily = `${branding.fontFamily}, system-ui, sans-serif`;
-  }
-
   if (branding.favicon) {
     const existingFavicon = document.querySelector("link[rel='icon']");
     if (existingFavicon) {
@@ -98,14 +45,6 @@ function applyBrandingStyles(branding: Tenant) {
 }
 
 function removeBrandingStyles() {
-  const root = document.documentElement;
-  root.style.removeProperty("--primary");
-  root.style.removeProperty("--primary-foreground");
-  root.style.removeProperty("--secondary");
-  root.style.removeProperty("--accent");
-  root.style.removeProperty("--font-family");
-  document.body.style.fontFamily = "";
-
   const customCss = document.getElementById("tenant-custom-css");
   if (customCss) {
     customCss.remove();
