@@ -60,6 +60,23 @@ tokens.
 
 ---
 
+### 2.5 — Hard Deletes of Audit-Critical Data
+
+**Severity:** High · **Commit:** `10343f9`
+
+**Problem:** Tickets and knowledge-base articles were permanently deleted with no
+soft-delete or audit trail, violating compliance and GDPR audit requirements.
+
+**Fix:**
+- Added `deletedAt: timestamp("deleted_at")` column to both `tickets` and `kbArticles` tables in `shared/schema.ts`.
+- `deleteTicket()` and `deleteKbArticle()` in `server/storage.ts` now set `deletedAt = now()` instead of issuing a hard delete.
+- `getTicket()`, `getTickets()`, `getKbArticle()`, and `getKbArticles()` all filter `WHERE deletedAt IS NULL` so soft-deleted records are invisible to normal queries.
+- Added `hardDeleteTicket()` and `hardDeleteKbArticle()` methods for permanent removal (used only by admins).
+- Added admin-only endpoints `DELETE /api/tickets/:id/hard` and `DELETE /api/kb/articles/:id/hard` in `server/routes.ts`.
+- Run `npm run db:push` to add the new columns to the database.
+
+---
+
 ### 2.7 — No Rate Limiting on Any Endpoint
 
 **Severity:** High · **Commit:** `acd6140`
@@ -275,7 +292,6 @@ significant refactoring effort. They are logged here for future sprints.
 | # | Issue | Reason deferred |
 |---|-------|----------------|
 | 1.3 | JWT in localStorage (XSS) | Requires migrating the entire auth flow to httpOnly cookies; affects every API call and the auth context. High risk, plan as a dedicated feature. |
-| 2.5 | Hard deletes of audit-critical data | Adding `deletedAt` soft-delete requires schema migration on `tickets` and `kbArticles` plus updating every list query. |
 | 3.1 | N+1 in `getTicket()` — 10+ queries | Refactor to Drizzle relational API (`db.query.tickets.findFirst({ with: … })`). Large refactor with risk. |
 | 3.2 | N+1 in `getTickets()` — queries in map | Requires batch `inArray()` queries and in-memory join. |
 | 3.4 | N+1 in `getAssets()` | Same pattern as 3.2. |
@@ -298,7 +314,7 @@ significant refactoring effort. They are logged here for future sprints.
 | 1.3 | `client/src/lib/auth.tsx` | Security | **Critical** | Deferred |
 | 1.6 | `server/routes.ts`, `storage.ts`, `schema.ts` | Security | **High** | **Fixed** |
 | 2.4 | `server/exchange-service.ts`, `shared/schema.ts` | Security | **High** | **Fixed** |
-| 2.5 | `server/storage.ts` | Compliance | **High** | Deferred |
+| 2.5 | `server/storage.ts`, `shared/schema.ts`, `server/routes.ts` | Compliance | **High** | **Fixed** |
 | 2.7 | `server/index.ts` | Security | **High** | **Fixed** |
 | 2.9 | `client/src/App.tsx` | Stability | **Medium** | **Fixed** |
 | 3.1 | `server/storage.ts` | Performance | **High** | Deferred |
@@ -326,5 +342,5 @@ significant refactoring effort. They are logged here for future sprints.
 | 11.2 | Repository | Quality | **Medium** | Deferred |
 | 11.3 | `.gitignore` | Build | **Low** | **Fixed** |
 
-**Fixed: 15 issues** across 13 commits.
-**Deferred: 15 issues** (architectural / large scope).
+**Fixed: 16 issues** across 14 commits.
+**Deferred: 14 issues** (architectural / large scope).
