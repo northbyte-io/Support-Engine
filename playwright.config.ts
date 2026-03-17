@@ -68,7 +68,7 @@ export default defineConfig({
     {
       name: "chromium-no-auth",
       use: { ...devices["Desktop Chrome"] },
-      testMatch: /.*\.noauth\.spec\.ts/,
+      testMatch: /\.noauth\.spec\.ts$/,
     },
   ],
 
