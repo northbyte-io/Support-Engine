@@ -7,9 +7,10 @@ const KEY_LENGTH = 32;
 const ITERATIONS = 100000;
 
 function getMasterKey(): Buffer {
-  const masterKeyEnv = process.env.TLS_MASTER_KEY || process.env.SESSION_SECRET;
+  // BSI APP.3.1 — TLS_MASTER_KEY muss ein eigenes Geheimnis sein, kein Fallback auf SESSION_SECRET
+  const masterKeyEnv = process.env.TLS_MASTER_KEY;
   if (!masterKeyEnv) {
-    throw new Error("TLS_MASTER_KEY oder SESSION_SECRET muss gesetzt sein");
+    throw new Error("TLS_MASTER_KEY muss als Umgebungsvariable gesetzt sein");
   }
   const salt = crypto.createHash("sha256").update("tls-key-vault-salt").digest();
   return crypto.pbkdf2Sync(masterKeyEnv, salt, ITERATIONS, KEY_LENGTH, "sha512");
