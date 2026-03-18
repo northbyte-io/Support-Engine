@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
@@ -23,6 +24,23 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+
+// HTTP-Sicherheitsheader (DSGVO Art. 32, BSI APP.3.1)
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'"],
+      },
+    },
+    hsts: { maxAge: 31536000, includeSubDomains: true },
+  }),
+);
 
 // Trust the first proxy hop (Replit's infrastructure) so that express-rate-limit
 // can correctly identify clients via the X-Forwarded-For header
