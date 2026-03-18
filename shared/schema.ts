@@ -54,6 +54,8 @@ export const users = pgTable("users", {
   role: userRoleEnum("role").default("customer"),
   isActive: boolean("is_active").default(true),
   lastLoginAt: timestamp("last_login_at"),
+  failedLoginAttempts: integer("failed_login_attempts").default(0).notNull(), // BSI ORP.4.A9 — Kontosperre
+  lockedUntil: timestamp("locked_until"),
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"), // DSGVO Art. 17 — Recht auf Löschung
 }, (table) => [

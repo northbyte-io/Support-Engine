@@ -667,14 +667,24 @@ export async function registerRoutes(
       
       const user = await storage.getUserByEmail(data.email);
       if (!user) {
-        logger.security("auth", "Fehlgeschlagener Anmeldeversuch", `Anmeldeversuch mit unbekannter E-Mail-Adresse`, {
-          metadata: { email: data.email },
-        });
+        logger.security("auth", "Fehlgeschlagener Anmeldeversuch", `Anmeldeversuch mit unbekannter E-Mail-Adresse`, {});
         return res.status(401).json({ message: "Ungültige Anmeldedaten" });
+      }
+
+      // BSI ORP.4.A9 — Kontosperre nach wiederholten Fehlversuchen prüfen
+      if (user.lockedUntil && user.lockedUntil > new Date()) {
+        logger.security("auth", "Anmeldeversuch auf gesperrtem Konto", `Konto ist bis ${user.lockedUntil.toISOString()} gesperrt`, {
+          entityType: "user",
+          entityId: user.id,
+          tenantId: user.tenantId || undefined,
+          userId: user.id,
+        });
+        return res.status(423).json({ message: "Konto vorübergehend gesperrt. Bitte später erneut versuchen." });
       }
 
       const validPassword = await comparePassword(data.password, user.password);
       if (!validPassword) {
+        await storage.incrementFailedLoginAttempts(user.id);
         logger.security("auth", "Fehlgeschlagener Anmeldeversuch", `Falsches Passwort für Benutzer eingegeben`, {
           entityType: "user",
           entityId: user.id,
@@ -694,6 +704,7 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Konto ist deaktiviert" });
       }
 
+      await storage.resetFailedLoginAttempts(user.id);
       // lastLoginAt is excluded from InsertUser but valid in DB — cast required
       await storage.updateUser(user.id, { lastLoginAt: new Date() } as Parameters<typeof storage.updateUser>[1]);
 
