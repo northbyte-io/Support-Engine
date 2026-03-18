@@ -7,6 +7,8 @@ import { storage } from "./storage";
 import { logger } from "./logger";
 import {
   generateToken,
+  generatePreAuthToken,
+  verifyPreAuthToken,
   hashPassword,
   comparePassword,
   authMiddleware,
@@ -14,10 +16,13 @@ import {
   agentMiddleware,
   TOKEN_COOKIE_NAME,
   TOKEN_COOKIE_OPTIONS,
+  PRE_AUTH_COOKIE_NAME,
+  PRE_AUTH_COOKIE_OPTIONS,
   type AuthenticatedRequest
 } from "./auth";
 import { loginSchema, registerSchema, insertTicketSchema, insertCommentSchema, insertAreaSchema, insertUserSchema, insertSlaDefinitionSchema, insertSlaEscalationSchema, insertKbCategorySchema, insertKbArticleSchema, insertTicketKbLinkSchema, insertTimeEntrySchema, insertSurveySchema, insertSurveyQuestionSchema, insertSurveyResponseSchema, insertAssetCategorySchema, insertAssetSchema, insertAssetLicenseSchema, insertAssetContractSchema, insertTicketAssetSchema, insertProjectSchema, insertProjectMemberSchema, insertBoardColumnSchema, insertTicketProjectSchema, insertOrganizationSchema, insertCustomerSchema, insertCustomerLocationSchema, insertContactSchema, insertTicketContactSchema, insertCustomerActivitySchema, updateTenantBrandingSchema, insertApprovalWorkflowSchema, insertApprovalWorkflowStepSchema, insertApprovalRequestSchema, insertApprovalDecisionSchema, type InsertExchangeConfiguration, type InsertExchangeEmail, type ExchangeConfiguration, type ExchangeMailbox, type EmailProcessingRule } from "@shared/schema";
 import crypto from "node:crypto";
+import { generateTotpSecret, verifyTotp, generateTotpUri } from "./totp";
 import { z } from "zod";
 import type { GraphEmail } from "./exchange-service";
 
@@ -705,6 +710,14 @@ export async function registerRoutes(
       }
 
       await storage.resetFailedLoginAttempts(user.id);
+
+      // BSI ORP.4.A12 — TOTP-Zweifaktorauthentifizierung prüfen
+      if (user.totpEnabled) {
+        const preAuthToken = generatePreAuthToken(user.id);
+        res.cookie(PRE_AUTH_COOKIE_NAME, preAuthToken, PRE_AUTH_COOKIE_OPTIONS);
+        return res.json({ requiresTotp: true });
+      }
+
       // lastLoginAt is excluded from InsertUser but valid in DB — cast required
       await storage.updateUser(user.id, { lastLoginAt: new Date() } as Parameters<typeof storage.updateUser>[1]);
 
@@ -745,7 +758,115 @@ export async function registerRoutes(
 
   app.post("/api/auth/logout", (_req, res) => {
     res.clearCookie(TOKEN_COOKIE_NAME, { path: TOKEN_COOKIE_OPTIONS.path });
+    res.clearCookie(PRE_AUTH_COOKIE_NAME, { path: PRE_AUTH_COOKIE_OPTIONS.path });
     res.status(204).send();
+  });
+
+  // TOTP / Zweifaktorauthentifizierung (BSI ORP.4.A12)
+
+  // Schritt 1 beim Login: TOTP-Code bestätigen und vollständiges JWT ausstellen
+  app.post("/api/auth/totp/confirm", async (req, res) => {
+    try {
+      const preAuthToken = (req.headers.cookie ?? "")
+        .split(";")
+        .find(c => c.trim().startsWith(`${PRE_AUTH_COOKIE_NAME}=`))
+        ?.split("=").slice(1).join("=");
+
+      if (!preAuthToken) return res.status(401).json({ message: "Kein Pre-Auth-Token vorhanden" });
+
+      const payload = verifyPreAuthToken(preAuthToken);
+      if (!payload) return res.status(401).json({ message: "Pre-Auth-Token ungültig oder abgelaufen" });
+
+      const { code } = req.body as { code?: string };
+      if (!code) return res.status(400).json({ message: "TOTP-Code ist erforderlich" });
+
+      const user = await storage.getUser(payload.userId);
+      if (!user || !user.totpEnabled || !user.totpSecret) {
+        return res.status(401).json({ message: "2FA nicht aktiviert" });
+      }
+
+      if (!verifyTotp(code, user.totpSecret)) {
+        logger.security("auth", "Fehlgeschlagener TOTP-Versuch", `Ungültiger TOTP-Code eingegeben`, {
+          entityType: "user", entityId: user.id, tenantId: user.tenantId || undefined, userId: user.id,
+        });
+        return res.status(401).json({ message: "Ungültiger TOTP-Code" });
+      }
+
+      res.clearCookie(PRE_AUTH_COOKIE_NAME, { path: PRE_AUTH_COOKIE_OPTIONS.path });
+      await storage.updateUser(user.id, { lastLoginAt: new Date() } as Parameters<typeof storage.updateUser>[1]);
+
+      logger.success("auth", "Erfolgreiche Anmeldung (2FA)", `Benutzer ${user.firstName} ${user.lastName} hat sich mit 2FA angemeldet`, {
+        entityType: "user", entityId: user.id, tenantId: user.tenantId || undefined, userId: user.id,
+      });
+
+      const token = generateToken(user);
+      res.cookie(TOKEN_COOKIE_NAME, token, TOKEN_COOKIE_OPTIONS);
+      res.json({ user: { ...user, password: undefined, totpSecret: undefined } });
+    } catch (error) {
+      handleApiError(res, error, "TOTP confirm error");
+    }
+  });
+
+  // 2FA einrichten: generiert ein neues Secret und gibt die otpauth-URI zurück
+  app.post("/api/auth/totp/setup", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const user = await storage.getUser(req.user!.id);
+      if (!user) return res.status(404).json({ message: "Benutzer nicht gefunden" });
+
+      const secret = generateTotpSecret();
+      const otpauthUrl = generateTotpUri(secret, user.email);
+
+      // Secret vorläufig speichern (noch nicht aktiviert, totpEnabled bleibt false)
+      await storage.updateUser(user.id, { totpSecret: secret } as Parameters<typeof storage.updateUser>[1]);
+
+      res.json({ secret, otpauthUrl });
+    } catch (error) {
+      handleApiError(res, error, "TOTP setup error");
+    }
+  });
+
+  // 2FA aktivieren: TOTP-Code gegen das vorläufige Secret verifizieren
+  app.post("/api/auth/totp/enable", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { code } = req.body as { code?: string };
+      if (!code) return res.status(400).json({ message: "TOTP-Code ist erforderlich" });
+
+      const user = await storage.getUser(req.user!.id);
+      if (!user || !user.totpSecret) {
+        return res.status(400).json({ message: "Bitte zuerst /api/auth/totp/setup aufrufen" });
+      }
+
+      if (!verifyTotp(code, user.totpSecret)) {
+        return res.status(401).json({ message: "Ungültiger TOTP-Code — bitte erneut versuchen" });
+      }
+
+      await storage.updateUser(user.id, { totpEnabled: true } as Parameters<typeof storage.updateUser>[1]);
+      res.json({ message: "Zwei-Faktor-Authentifizierung wurde aktiviert" });
+    } catch (error) {
+      handleApiError(res, error, "TOTP enable error");
+    }
+  });
+
+  // 2FA deaktivieren: erfordert aktuellen TOTP-Code zur Bestätigung
+  app.post("/api/auth/totp/disable", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { code } = req.body as { code?: string };
+      if (!code) return res.status(400).json({ message: "TOTP-Code ist erforderlich" });
+
+      const user = await storage.getUser(req.user!.id);
+      if (!user || !user.totpEnabled || !user.totpSecret) {
+        return res.status(400).json({ message: "2FA ist nicht aktiviert" });
+      }
+
+      if (!verifyTotp(code, user.totpSecret)) {
+        return res.status(401).json({ message: "Ungültiger TOTP-Code" });
+      }
+
+      await storage.updateUser(user.id, { totpEnabled: false, totpSecret: null } as Parameters<typeof storage.updateUser>[1]);
+      res.json({ message: "Zwei-Faktor-Authentifizierung wurde deaktiviert" });
+    } catch (error) {
+      handleApiError(res, error, "TOTP disable error");
+    }
   });
 
   // Dashboard Routes

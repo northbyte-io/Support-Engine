@@ -19,6 +19,17 @@ export const TOKEN_COOKIE_OPTIONS = {
   path: "/",
 };
 
+// Kurzlebiges Pre-Auth-Cookie für den TOTP-Zwischenschritt (5 Minuten)
+export const PRE_AUTH_COOKIE_NAME = "preauth_token";
+
+export const PRE_AUTH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: "strict" as const,
+  secure: process.env.NODE_ENV === "production",
+  maxAge: 5 * 60 * 1000, // 5 minutes
+  path: "/",
+};
+
 export interface AuthenticatedRequest extends Request {
   user?: User;
   tenantId?: string;
@@ -43,6 +54,20 @@ export async function comparePassword(password: string, hash: string): Promise<b
 export function verifyToken(token: string): { userId: string; email: string; role: string; tenantId: string | null } | null {
   try {
     return jwt.verify(token, JWT_SECRET) as unknown as { userId: string; email: string; role: string; tenantId: string | null };
+  } catch {
+    return null;
+  }
+}
+
+export function generatePreAuthToken(userId: string): string {
+  return jwt.sign({ userId, scope: "totp-pending" }, JWT_SECRET, { expiresIn: "5m" });
+}
+
+export function verifyPreAuthToken(token: string): { userId: string } | null {
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { userId: string; scope: string };
+    if (payload.scope !== "totp-pending") return null;
+    return { userId: payload.userId };
   } catch {
     return null;
   }
