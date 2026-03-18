@@ -125,7 +125,7 @@ httpServer.listen(
   {
     port,
     host: "0.0.0.0",
-    reusePort: true,
+    // reusePort is Linux-only (SO_REUSEPORT) — omitted for macOS compatibility
   },
   () => {
     log(`serving on port ${port}`);
