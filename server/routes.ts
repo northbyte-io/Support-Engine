@@ -1534,6 +1534,30 @@ export async function registerRoutes(
     }
   });
 
+  // DSGVO Art. 20 — Datenportabilität
+  app.get("/api/users/:id/export", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+
+      // Nur Admins oder der Nutzer selbst darf eigene Daten exportieren
+      if (req.user?.role !== "admin" && req.user?.id !== id) {
+        return res.status(403).json({ message: "Keine Berechtigung" });
+      }
+
+      const target = await storage.getUser(id);
+      if (!target || target.tenantId !== req.tenantId) {
+        return res.status(404).json({ message: "Benutzer nicht gefunden" });
+      }
+
+      const exportData = await storage.getUserExportData(id, req.tenantId!);
+      res
+        .setHeader("Content-Disposition", `attachment; filename="daten-export-${id}.json"`)
+        .json(exportData);
+    } catch (error) {
+      handleApiError(res, error, "User export error");
+    }
+  });
+
   // Areas
   app.get("/api/areas", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {

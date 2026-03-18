@@ -196,6 +196,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined>;
   anonymizeUser(id: string): Promise<User | undefined>;
+  getUserExportData(id: string, tenantId: string): Promise<Record<string, unknown>>;
   getUsers(tenantId?: string, params?: { limit?: number; offset?: number }): Promise<User[]>;
 
   // Tenants
@@ -658,6 +659,62 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return user || undefined;
+  }
+
+  async getUserExportData(id: string, tenantId: string): Promise<Record<string, unknown>> {
+    // DSGVO Art. 20 — Recht auf Datenübertragbarkeit: alle personenbezogenen Daten des Nutzers
+    const [user] = await db.select().from(users).where(and(eq(users.id, id), eq(users.tenantId, tenantId)));
+    if (!user) return {};
+
+    const [userTickets, userTimeEntries, userComments, userNotifications] = await Promise.all([
+      db.select().from(tickets).where(and(eq(tickets.createdById, id), eq(tickets.tenantId, tenantId))),
+      db.select().from(timeEntries).where(and(eq(timeEntries.userId, id), eq(timeEntries.tenantId, tenantId))),
+      db.select().from(comments).where(eq(comments.authorId, id)),
+      db.select().from(notifications).where(and(eq(notifications.userId, id), eq(notifications.tenantId, tenantId))),
+    ]);
+
+    return {
+      exportedAt: new Date().toISOString(),
+      exportVersion: "1.0",
+      profil: {
+        id: user.id,
+        vorname: user.firstName,
+        nachname: user.lastName,
+        email: user.email,
+        rolle: user.role,
+        aktiv: user.isActive,
+        erstellt: user.createdAt,
+        letzterLogin: user.lastLoginAt,
+      },
+      tickets: userTickets.map(t => ({
+        id: t.id,
+        nummer: t.ticketNumber,
+        titel: t.title,
+        status: t.status,
+        prioritaet: t.priority,
+        erstellt: t.createdAt,
+      })),
+      zeiteintraege: userTimeEntries.map(e => ({
+        id: e.id,
+        ticketId: e.ticketId,
+        minuten: e.minutes,
+        beschreibung: e.description,
+        datum: e.date,
+        erstellt: e.createdAt,
+      })),
+      kommentare: userComments.map(c => ({
+        id: c.id,
+        ticketId: c.ticketId,
+        inhalt: c.content,
+        erstellt: c.createdAt,
+      })),
+      benachrichtigungen: userNotifications.map(n => ({
+        id: n.id,
+        typ: n.type,
+        gelesen: n.isRead,
+        erstellt: n.createdAt,
+      })),
+    };
   }
 
   async getUsers(tenantId?: string, params?: { limit?: number; offset?: number }): Promise<User[]> {
