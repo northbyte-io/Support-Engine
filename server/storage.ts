@@ -195,6 +195,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined>;
+  anonymizeUser(id: string): Promise<User | undefined>;
   getUsers(tenantId?: string, params?: { limit?: number; offset?: number }): Promise<User[]>;
 
   // Tenants
@@ -641,13 +642,36 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  async anonymizeUser(id: string): Promise<User | undefined> {
+    // DSGVO Art. 17 — personenbezogene Daten anonymisieren, Konto deaktivieren
+    const [user] = await db
+      .update(users)
+      .set({
+        firstName: "[Gelöscht]",
+        lastName: "[Gelöscht]",
+        email: `deleted-${id}@deleted.invalid`,
+        password: "",
+        avatar: null,
+        isActive: false,
+        deletedAt: new Date(),
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
   async getUsers(tenantId?: string, params?: { limit?: number; offset?: number }): Promise<User[]> {
     const limit = params?.limit ?? 500;
     const offset = params?.offset ?? 0;
     if (tenantId) {
-      return db.select().from(users).where(eq(users.tenantId, tenantId)).limit(limit).offset(offset);
+      return db
+        .select()
+        .from(users)
+        .where(and(eq(users.tenantId, tenantId), isNull(users.deletedAt)))
+        .limit(limit)
+        .offset(offset);
     }
-    return db.select().from(users).limit(limit).offset(offset);
+    return db.select().from(users).where(isNull(users.deletedAt)).limit(limit).offset(offset);
   }
 
   // Tenants

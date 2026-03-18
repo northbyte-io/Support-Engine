@@ -55,6 +55,7 @@ export const users = pgTable("users", {
   isActive: boolean("is_active").default(true),
   lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"), // DSGVO Art. 17 — Recht auf Löschung
 }, (table) => [
   index("users_tenant_id_idx").on(table.tenantId),
   uniqueIndex("users_tenant_email_idx").on(table.tenantId, table.email),

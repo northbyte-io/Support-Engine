@@ -1509,6 +1509,31 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/users/:id", authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+
+      const target = await storage.getUser(id);
+      if (!target || target.tenantId !== req.tenantId) {
+        return res.status(404).json({ message: "Benutzer nicht gefunden" });
+      }
+
+      // Eigenes Konto darf nicht gelöscht werden
+      if (target.id === req.user?.id) {
+        return res.status(400).json({ message: "Das eigene Konto kann nicht gelöscht werden" });
+      }
+
+      const anonymized = await storage.anonymizeUser(id);
+      if (!anonymized) {
+        return res.status(500).json({ message: "Anonymisierung fehlgeschlagen" });
+      }
+
+      res.json({ message: "Benutzer wurde anonymisiert und deaktiviert", id });
+    } catch (error) {
+      handleApiError(res, error, "Delete user error");
+    }
+  });
+
   // Areas
   app.get("/api/areas", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
