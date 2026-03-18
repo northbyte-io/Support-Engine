@@ -622,6 +622,11 @@ export async function registerRoutes(
 
   // Auth Routes
   app.post("/api/auth/register", async (req, res) => {
+    // BSI ORP.4.A3 — Registrierung nur wenn explizit aktiviert (ALLOW_REGISTRATION=true)
+    if (process.env.ALLOW_REGISTRATION !== "true") {
+      return res.status(403).json({ message: "Selbstregistrierung ist deaktiviert. Bitte einen Administrator kontaktieren." });
+    }
+
     try {
       const data = registerSchema.parse(req.body);
       
