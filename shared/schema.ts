@@ -735,10 +735,19 @@ export const surveyResponsesRelations = relations(surveyResponses, ({ one }) => 
   }),
 }));
 
+// BSI ORP.4.A22 / NIST SP 800-63B: Passwortrichtlinie — min. 12 Zeichen, Großbuchstabe, Ziffer
+const passwordSchema = z
+  .string()
+  .min(12, "Passwort muss mindestens 12 Zeichen lang sein")
+  .regex(/[A-Z]/, "Passwort muss mindestens einen Großbuchstaben enthalten")
+  .regex(/[0-9]/, "Passwort muss mindestens eine Ziffer enthalten");
+
 // Insert Schemas
 export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, createdAt: true, updatedAt: true });
 export const updateTenantBrandingSchema = createInsertSchema(tenants).omit({ id: true, name: true, slug: true, createdAt: true, updatedAt: true, isActive: true }).partial();
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, lastLoginAt: true });
+export const insertUserSchema = createInsertSchema(users)
+  .omit({ id: true, createdAt: true, lastLoginAt: true, deletedAt: true })
+  .extend({ password: passwordSchema });
 export const insertTicketTypeSchema = createInsertSchema(ticketTypes).omit({ id: true, createdAt: true });
 export const insertCustomFieldSchema = createInsertSchema(customFields).omit({ id: true, createdAt: true });
 export const insertTicketSchema = createInsertSchema(tickets).omit({ id: true, ticketNumber: true, createdAt: true, updatedAt: true, resolvedAt: true, closedAt: true });
@@ -1703,12 +1712,12 @@ export type ApprovalRequestWithDetails = ApprovalRequest & {
 // Auth schemas
 export const loginSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
-  password: z.string().min(6, "Passwort muss mindestens 6 Zeichen lang sein"),
+  password: z.string().min(1, "Passwort ist erforderlich"),
 });
 
 export const registerSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
-  password: z.string().min(6, "Passwort muss mindestens 6 Zeichen lang sein"),
+  password: passwordSchema,
   firstName: z.string().min(1, "Vorname ist erforderlich"),
   lastName: z.string().min(1, "Nachname ist erforderlich"),
   tenantId: z.string().optional(),
