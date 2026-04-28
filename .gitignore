@@ -6,6 +6,8 @@ playwright-report/
 test-results/
 e2e/.auth/*.json
 .env.e2e
+.playwright-mcp/
+*.png
 .DS_Store
 server/public
 # Vite temp files (e.g. vite.config.ts.timestamp-*) — NOT vite.config.ts itself
