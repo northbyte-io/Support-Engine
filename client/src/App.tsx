@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/lib/theme";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { BrandingProvider } from "@/lib/branding";
+import { ModeProvider } from "@/lib/mode";
 import { LoadingPage } from "@/components/LoadingState";
 import { t } from "@/lib/i18n";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -39,6 +40,8 @@ import ReportsPage from "@/pages/reports";
 import SearchPage from "@/pages/search";
 import ApprovalsPage from "@/pages/approvals";
 import ApprovalWorkflowsPage from "@/pages/approval-workflows";
+import SetupPage from "@/pages/setup";
+import { CommandPalette } from "@/components/CommandPalette";
 
 function ProtectedRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -111,9 +114,16 @@ function AdminRoute({ children }: Readonly<{ children: React.ReactNode }>) {
 function Router() {
   return (
     <Switch>
+      <Route path="/setup" component={SetupPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       
+      <Route path="/portal/:id">
+        <CustomerRoute>
+          <PortalPage />
+        </CustomerRoute>
+      </Route>
+
       <Route path="/portal">
         <CustomerRoute>
           <PortalPage />
@@ -126,27 +136,26 @@ function Router() {
         </AgentRoute>
       </Route>
 
-      <Route path="/tickets">
+      {/* /tickets/new → redirect to /tickets (create modal opens inline) */}
+      <Route path="/tickets/new">
+        <Redirect to="/tickets" />
+      </Route>
+
+      {/* /tickets/:id/edit → redirect to /tickets/:id */}
+      <Route path="/tickets/:id/edit">
+        {(params) => <Redirect to={`/tickets/${params.id}`} />}
+      </Route>
+
+      {/* Three-pane workspace — handles both /tickets and /tickets/:id */}
+      <Route path="/tickets/:id">
         <AgentRoute>
           <TicketsPage />
         </AgentRoute>
       </Route>
 
-      <Route path="/tickets/new">
+      <Route path="/tickets">
         <AgentRoute>
-          <TicketFormPage />
-        </AgentRoute>
-      </Route>
-
-      <Route path="/tickets/:id/edit">
-        <AgentRoute>
-          <TicketFormPage />
-        </AgentRoute>
-      </Route>
-
-      <Route path="/tickets/:id">
-        <AgentRoute>
-          <TicketDetailPage />
+          <TicketsPage />
         </AgentRoute>
       </Route>
 
@@ -234,29 +243,36 @@ function Router() {
         </AgentRoute>
       </Route>
 
-      <Route path="/logs">
+      {/* Settings sub-pages — canonical routes under /settings/* */}
+      <Route path="/settings/logs">
         <AdminRoute>
           <LogsPage />
         </AdminRoute>
       </Route>
 
-      <Route path="/branding">
+      <Route path="/settings/branding">
         <AdminRoute>
           <BrandingPage />
         </AdminRoute>
       </Route>
 
-      <Route path="/tls-certificates">
+      <Route path="/settings/tls">
         <AdminRoute>
           <TlsCertificatesPage />
         </AdminRoute>
       </Route>
 
-      <Route path="/exchange-integration">
+      <Route path="/settings/exchange">
         <AdminRoute>
           <ExchangeIntegrationPage />
         </AdminRoute>
       </Route>
+
+      {/* Legacy redirects — keep old paths working */}
+      <Route path="/logs"><Redirect to="/settings/logs" /></Route>
+      <Route path="/branding"><Redirect to="/settings/branding" /></Route>
+      <Route path="/tls-certificates"><Redirect to="/settings/tls" /></Route>
+      <Route path="/exchange-integration"><Redirect to="/settings/exchange" /></Route>
 
       <Route path="/reports">
         <AgentRoute>
@@ -287,18 +303,29 @@ function Router() {
   );
 }
 
+function AppWithPalette() {
+  return (
+    <>
+      <Router />
+      <CommandPalette />
+    </>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
           <BrandingProvider>
+            <ModeProvider>
             <TooltipProvider>
               <Toaster />
               <ErrorBoundary>
-                <Router />
+                <AppWithPalette />
               </ErrorBoundary>
             </TooltipProvider>
+            </ModeProvider>
           </BrandingProvider>
         </AuthProvider>
       </ThemeProvider>

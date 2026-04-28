@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -22,8 +23,8 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("ErrorBoundary:", error, info.componentStack);
+  componentDidCatch(_error: Error, _info: ErrorInfo) {
+    // Errors are surfaced in the UI; structured logging belongs on the server
   }
 
   handleReset = () => {
@@ -37,17 +38,20 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="flex items-center justify-center min-h-screen p-4">
-          <Card className="max-w-md w-full">
+        <div className="flex items-center justify-center min-h-screen p-4 bg-background">
+          <Card className="max-w-md w-full border-destructive/40">
             <CardHeader>
-              <CardTitle>Unerwarteter Fehler</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="w-5 h-5" />
+                Unerwarteter Fehler
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 Ein unerwarteter Fehler ist aufgetreten. Bitte laden Sie die Seite neu oder versuchen Sie es erneut.
               </p>
               {this.state.error && (
-                <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-32">
+                <pre className="text-xs bg-muted/50 text-muted-foreground p-3 rounded-md border border-border overflow-auto max-h-32">
                   {this.state.error.message}
                 </pre>
               )}

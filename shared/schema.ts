@@ -114,6 +114,10 @@ export const tickets = pgTable("tickets", {
   slaBreached: boolean("sla_breached").default(false),
   resolvedAt: timestamp("resolved_at"),
   closedAt: timestamp("closed_at"),
+  // Signature capture (on-site service tickets)
+  signatureData: text("signature_data"),
+  signatureAt: timestamp("signature_at"),
+  signatureByName: text("signature_by_name"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),

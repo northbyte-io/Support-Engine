@@ -1291,6 +1291,81 @@ export async function registerRoutes(
     }
   });
 
+  // Anhang hochladen
+  app.post("/api/tickets/:id/attachments", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const ticket = await requireOwnedResource(
+        () => storage.getTicket(req.params.id),
+        req, res, "Ticket nicht gefunden"
+      );
+      if (!ticket) return;
+
+      const { fileName, fileSize, mimeType, data } = req.body as {
+        fileName: string;
+        fileSize: number;
+        mimeType: string;
+        data: string; // base64 data-URL or raw base64
+      };
+
+      if (!fileName || !mimeType || !data) {
+        return res.status(400).json({ message: "fileName, mimeType und data sind erforderlich" });
+      }
+
+      const objectStorage = new ObjectStorageClient();
+      const safeFileName = fileName.replaceAll(/[^a-zA-Z0-9._-]/g, "_");
+      const storagePath = `.private/attachments/${req.tenantId}/${Date.now()}_${safeFileName}.b64`;
+
+      // Strip data-URL prefix if present (data:mime/type;base64,...)
+      const base64Content = data.includes(",") ? data.split(",")[1] : data;
+      await objectStorage.uploadFromText(storagePath, base64Content);
+
+      const attachment = await storage.createAttachment({
+        ticketId: req.params.id,
+        fileName,
+        fileSize: fileSize ?? 0,
+        mimeType,
+        storagePath,
+        uploadedById: req.user?.id ?? null,
+      });
+
+      logger.info("api", "Anhang hochgeladen", `Ticket ${req.params.id}: ${fileName}`);
+      res.status(201).json(attachment);
+    } catch (error) {
+      handleApiError(res, error, "Upload attachment error");
+    }
+  });
+
+  // Anhang löschen
+  app.delete("/api/attachments/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const attachment = await storage.getAttachment(req.params.id);
+      if (!attachment) {
+        return res.status(404).json({ message: "Anhang nicht gefunden" });
+      }
+
+      // Tenant-Isolation: Ticket-Besitz prüfen
+      if (attachment.ticketId) {
+        const ticket = await storage.getTicket(attachment.ticketId);
+        if (!ticket || ticket.tenantId !== req.tenantId) {
+          return res.status(403).json({ message: "Zugriff verweigert" });
+        }
+      }
+
+      // Aus Object Storage löschen (best-effort)
+      try {
+        const objectStorage = new ObjectStorageClient();
+        await objectStorage.delete(attachment.storagePath);
+      } catch {
+        logger.warn("api", "Object Storage Löschung fehlgeschlagen", attachment.storagePath);
+      }
+
+      await storage.deleteAttachment(req.params.id);
+      res.status(204).end();
+    } catch (error) {
+      handleApiError(res, error, "Delete attachment error");
+    }
+  });
+
   // Ticket Comments
   app.post("/api/tickets/:id/comments", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
@@ -1445,6 +1520,31 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error) {
       handleApiError(res, error, "Delete timer error");
+    }
+  });
+
+  // Signature Capture
+  app.post("/api/tickets/:id/signature", authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const ticket = await requireOwnedResource(
+        () => storage.getTicket(req.params.id),
+        req, res, "Ticket nicht gefunden"
+      );
+      if (!ticket) return;
+      const { signature } = req.body as { signature: string };
+      if (!signature || !signature.startsWith("data:image/")) {
+        return res.status(400).json({ message: "Ungültige Unterschriftsdaten" });
+      }
+      const signerUser = await storage.getUser(req.user!.id);
+      const signerName = signerUser ? `${signerUser.firstName} ${signerUser.lastName}`.trim() : "Unbekannt";
+      await storage.updateTicket(req.params.id, {
+        signatureData: signature,
+        signatureAt: new Date(),
+        signatureByName: signerName,
+      }, req.tenantId ?? "");
+      res.json({ success: true });
+    } catch (error) {
+      handleApiError(res, error, "Signature save error");
     }
   });
 

@@ -132,6 +132,105 @@ export function DashboardSkeleton() {
   );
 }
 
+/** Matches the TicketListRow compact design in the three-pane list pane */
+export function SkeletonTicketRow() {
+  return (
+    <div className="flex flex-col gap-1.5 px-4 py-3 border-b border-border">
+      <div className="flex items-center justify-between gap-2">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-4 w-12 rounded-full" />
+      </div>
+      <Skeleton className="h-4 w-4/5" />
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-4 w-14 rounded-full" />
+        <Skeleton className="h-3 w-20" />
+      </div>
+    </div>
+  );
+}
+
+export function SkeletonTicketList({ count = 6 }: Readonly<{ count?: number }>) {
+  const keys = useMemo(
+    () => Array.from({ length: count }, () => crypto.randomUUID()),
+    [count],
+  );
+  return (
+    <div className="flex flex-col">
+      {keys.map((key) => (
+        <SkeletonTicketRow key={key} />
+      ))}
+    </div>
+  );
+}
+
+/** Matches the CommentBlock bubble layout */
+export function SkeletonCommentBlock({ align = "left" }: Readonly<{ align?: "left" | "right" }>) {
+  const isRight = align === "right";
+  return (
+    <div className={cn("flex gap-3", isRight ? "flex-row-reverse" : "flex-row")}>
+      <Skeleton className="w-8 h-8 rounded-full flex-shrink-0" />
+      <div className={cn("flex flex-col gap-1.5 max-w-[70%]", isRight ? "items-end" : "items-start")}>
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-3 w-14" />
+        </div>
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-3/4" />
+      </div>
+    </div>
+  );
+}
+
+export function SkeletonCommentThread({ count = 3 }: Readonly<{ count?: number }>) {
+  const items = useMemo(
+    () => Array.from({ length: count }, (_, i) => ({ key: crypto.randomUUID(), align: (i % 2 === 0 ? "left" : "right") as "left" | "right" })),
+    [count],
+  );
+  return (
+    <div className="flex flex-col gap-4 p-4">
+      {items.map(({ key, align }) => (
+        <SkeletonCommentBlock key={key} align={align} />
+      ))}
+    </div>
+  );
+}
+
+/** Matches the MetaPanel right sidebar structure */
+export function SkeletonMetaPanel() {
+  return (
+    <div className="flex flex-col gap-0 w-full">
+      {/* Section 1 — assignee / status / priority */}
+      <div className="px-4 py-3 border-b border-border space-y-3">
+        <Skeleton className="h-3 w-16" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="w-6 h-6 rounded-full" />
+          <Skeleton className="h-4 w-28" />
+        </div>
+      </div>
+      <div className="px-4 py-3 border-b border-border space-y-3">
+        <Skeleton className="h-3 w-12" />
+        <Skeleton className="h-5 w-20 rounded-full" />
+      </div>
+      <div className="px-4 py-3 border-b border-border space-y-3">
+        <Skeleton className="h-3 w-14" />
+        <Skeleton className="h-5 w-16 rounded-full" />
+      </div>
+      {/* Section 2 — SLA countdown */}
+      <div className="px-4 py-3 border-b border-border space-y-2">
+        <Skeleton className="h-3 w-10" />
+        <Skeleton className="h-7 w-24" />
+        <Skeleton className="h-1.5 w-full rounded-full" />
+      </div>
+      {/* Section 3 — customer info */}
+      <div className="px-4 py-3 space-y-2">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-3 w-24" />
+      </div>
+    </div>
+  );
+}
+
 export function TableSkeleton({
   rows = 5,
   cols = 5,
