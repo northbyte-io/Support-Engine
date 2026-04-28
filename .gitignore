@@ -31,10 +31,11 @@ docs/compliance-issues.md
 .design/
 
 
-# Claudify — personal & runtime files
+# Claudify — all personal & runtime files (entire .claude/ already ignored above)
 CLAUDE.local.md
-.claude/logs/
-.claude/agent-memory/
-.claude/backups/
-.claude/hooks/__counter
+SETUP.md
+Scratchpad.md
+Task Board.md
+Daily Notes/
+.mcp.json
 __NEEDS_ONBOARD
