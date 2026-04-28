@@ -16,6 +16,7 @@ import {
   Moon,
 } from "lucide-react";
 import { MainLayout } from "@/components/MainLayout";
+import { SettingsNav } from "@/components/SettingsNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -186,6 +187,7 @@ export default function BrandingPage() {
 
   return (
     <MainLayout title="Mandanten-Branding">
+      <SettingsNav />
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">

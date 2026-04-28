@@ -61,13 +61,13 @@ export function AuthPageShell({ title, description, children }: Readonly<Props>)
               <Ticket className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <span className="font-display font-bold text-base text-foreground block leading-tight">Support-Engine</span>
+              <span className="font-sans font-bold text-base text-foreground block leading-tight">Support-Engine</span>
               <span className="font-mono text-[10px] text-muted-foreground">v0.1.3</span>
             </div>
           </div>
 
           {/* Tagline */}
-          <h2 className="font-display font-extrabold text-3xl xl:text-4xl text-foreground leading-tight tracking-tight mb-4">
+          <h2 className="font-sans font-extrabold text-3xl xl:text-4xl text-foreground leading-tight tracking-tight mb-4">
             Helpdesk-Management<br />
             für <span className="text-primary">professionelle</span><br />
             Support-Teams.
@@ -114,7 +114,7 @@ export function AuthPageShell({ title, description, children }: Readonly<Props>)
             <div className="w-7 h-7 bg-primary rounded-md flex items-center justify-center">
               <Ticket className="w-3.5 h-3.5 text-primary-foreground" />
             </div>
-            <span className="font-display font-bold text-sm">Support-Engine</span>
+            <span className="font-sans font-bold text-sm">Support-Engine</span>
           </div>
           <div className="ml-auto">
             <ThemeToggle />
@@ -124,7 +124,7 @@ export function AuthPageShell({ title, description, children }: Readonly<Props>)
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-sm">
             <div className="mb-7">
-              <h1 className="font-display text-2xl font-bold text-foreground mb-1">{title}</h1>
+              <h1 className="font-sans text-2xl font-bold text-foreground mb-1">{title}</h1>
               <p className="text-sm text-muted-foreground">{description}</p>
             </div>
             {children}

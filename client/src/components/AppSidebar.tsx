@@ -22,11 +22,14 @@ import {
   BarChart3,
   ClipboardCheck,
   Workflow,
+  Monitor,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { useBranding } from "@/lib/branding";
 import { useTheme } from "@/lib/theme";
+import { useMode } from "@/lib/mode";
+import { LanguageToggle } from "@/components/LanguageToggle";
 import {
   Sidebar,
   SidebarContent,
@@ -58,7 +61,15 @@ const coreNavItems = [
   { title: "Wissensdatenbank", url: "/knowledge-base", icon: BookOpen },
 ];
 
-const resourceNavItems = [
+/** Resources shown in IT-Abteilung mode */
+const resourceNavIT = [
+  { title: "Assets",         url: "/assets",         icon: Package },
+  { title: "Bereiche",       url: "/areas",          icon: FolderKanban },
+  { title: "Projekte",       url: "/projects",       icon: Kanban },
+];
+
+/** Resources shown in MSP mode */
+const resourceNavMSP = [
   { title: "Kunden",         url: "/customers",      icon: Building2 },
   { title: "Kontakte",       url: "/contacts",       icon: Contact },
   { title: "Organisationen", url: "/organizations",  icon: Landmark },
@@ -82,6 +93,7 @@ export function AppSidebar() {
   const { user, logout } = useAuth();
   const { branding } = useBranding();
   const { theme } = useTheme();
+  const mode = useMode();
 
   const { data: pendingApprovalData } = useQuery<{ count: number }>({
     queryKey: ["/api/approvals/pending/count"],
@@ -97,7 +109,7 @@ export function AppSidebar() {
 
   const getInitials = (firstName?: string, lastName?: string) => {
     const first = firstName?.charAt(0) ?? "";
-    const last = lastName?.charAt(0) ?? "";
+    const last  = lastName?.charAt(0) ?? "";
     return (first + last).toUpperCase() || "U";
   };
 
@@ -111,8 +123,16 @@ export function AppSidebar() {
     return branding?.logoLight ?? branding?.logo;
   };
 
-  const logo = getLogo();
+  const logo       = getLogo();
   const tenantName = branding?.name ?? "Support-Engine";
+
+  // Mode-aware resource nav label and items
+  const resourceLabel = mode === "msp" ? "MSP-Ressourcen" : "Ressourcen";
+  const resourceItems = mode === "msp" ? resourceNavMSP : resourceNavIT;
+
+  // Mode icon for footer indicator
+  const ModeIcon = mode === "msp" ? Building2 : Monitor;
+  const modeLabel = mode === "msp" ? "MSP-Modus" : "IT-Abteilung";
 
   return (
     <Sidebar>
@@ -126,13 +146,14 @@ export function AppSidebar() {
             </div>
           )}
           <div className="overflow-hidden">
-            <span className="font-display font-semibold text-sm leading-tight block truncate">{tenantName}</span>
+            <span className="font-sans font-semibold text-sm leading-tight block truncate">{tenantName}</span>
             <span className="font-mono text-[10px] text-muted-foreground leading-tight">Helpdesk</span>
           </div>
         </div>
       </SidebarHeader>
 
       <SidebarContent>
+        {/* Core navigation */}
         <SidebarGroup>
           <SidebarGroupLabel>Übersicht</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -162,7 +183,7 @@ export function AppSidebar() {
                       <ClipboardCheck className="w-4 h-4" />
                       <span>Genehmigungen</span>
                       {pendingApprovalCount > 0 && (
-                        <span className="ml-auto bg-amber-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                        <span className="ml-auto bg-status-waiting text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                           {pendingApprovalCount > 9 ? "9+" : pendingApprovalCount}
                         </span>
                       )}
@@ -174,11 +195,12 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* Mode-aware resources */}
         <SidebarGroup>
-          <SidebarGroupLabel>Ressourcen</SidebarGroupLabel>
+          <SidebarGroupLabel>{resourceLabel}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {resourceNavItems.map((item) => (
+              {resourceItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -196,6 +218,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* Admin section */}
         {user?.role === "admin" && (
           <SidebarGroup>
             <SidebarGroupLabel>Administration</SidebarGroupLabel>
@@ -222,6 +245,16 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-3 gap-2">
+        <LanguageToggle className="w-full" />
+
+        <SidebarSeparator />
+
+        {/* Mode indicator */}
+        <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-muted/40 text-[10px] text-muted-foreground">
+          <ModeIcon className="w-3 h-3 flex-shrink-0" />
+          <span className="font-medium">{modeLabel}</span>
+        </div>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

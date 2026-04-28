@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { t } from "@/lib/i18n";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { MainLayout } from "@/components/MainLayout";
+import { SettingsNav } from "@/components/SettingsNav";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,7 +65,7 @@ function ConnectionStatusBadge({ status }: Readonly<{ status: string }>) {
       );
     case "disconnected":
       return (
-        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800">
+        <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
           <AlertCircle className="w-3 h-3 mr-1" />
           Getrennt
         </Badge>
@@ -672,6 +673,7 @@ export default function ExchangeIntegration() {
     <MainLayout
       title="Exchange-Integration"
     >
+      <SettingsNav />
       <div className="space-y-6">
         {/* Header mit Zurück-Button */}
         <div className="flex items-center gap-4">
@@ -686,7 +688,7 @@ export default function ExchangeIntegration() {
                 <Mail className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl font-semibold font-display" data-testid="text-page-title">Exchange Online Integration</h1>
+                <h1 className="text-2xl font-semibold font-sans" data-testid="text-page-title">Exchange Online Integration</h1>
                 <p className="text-sm text-muted-foreground">
                   E-Mail-Integration mit Microsoft Exchange Online über Graph API
                 </p>

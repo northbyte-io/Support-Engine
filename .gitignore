@@ -29,3 +29,12 @@ docs/compliance-issues.md
 .env
 .gitnexus
 .design/
+
+
+# Claudify — personal & runtime files
+CLAUDE.local.md
+.claude/logs/
+.claude/agent-memory/
+.claude/backups/
+.claude/hooks/__counter
+__NEEDS_ONBOARD

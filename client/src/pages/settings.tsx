@@ -1,72 +1,82 @@
 import { useLocation } from "wouter";
 import { MainLayout } from "@/components/MainLayout";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, Palette, Bell, Shield, Building, ScrollText, Lock, Mail } from "lucide-react";
+import { SettingsNav } from "@/components/SettingsNav";
+import {
+  Clock,
+  Palette,
+  Bell,
+  Shield,
+  Building,
+  ScrollText,
+  Lock,
+  Mail,
+} from "lucide-react";
 
 interface SettingItem {
-  title: string;
+  title:       string;
   description: string;
-  icon: React.ElementType;
-  url: string;
-  available: boolean;
+  icon:        React.ElementType;
+  url:         string;
+  available:   boolean;
 }
 
 const settingItems: SettingItem[] = [
   {
-    title: "SLA-Verwaltung",
+    title:       "SLA-Verwaltung",
     description: "Service-Level-Vereinbarungen und Eskalationsregeln verwalten",
-    icon: Clock,
-    url: "/settings/sla",
-    available: true,
+    icon:        Clock,
+    url:         "/settings/sla",
+    available:   true,
   },
   {
-    title: "Branding",
+    title:       "Branding",
     description: "Logo, Farben und Erscheinungsbild anpassen",
-    icon: Palette,
-    url: "/branding",
-    available: true,
+    icon:        Palette,
+    url:         "/branding",
+    available:   true,
   },
   {
-    title: "System-Logs",
+    title:       "System-Logs",
     description: "Systemprotokolle einsehen, filtern und exportieren",
-    icon: ScrollText,
-    url: "/logs",
-    available: true,
+    icon:        ScrollText,
+    url:         "/logs",
+    available:   true,
   },
   {
-    title: "TLS-Zertifikate",
+    title:       "TLS-Zertifikate",
     description: "SSL/TLS-Zertifikate mit Let's Encrypt verwalten",
-    icon: Lock,
-    url: "/tls-certificates",
-    available: true,
+    icon:        Lock,
+    url:         "/tls-certificates",
+    available:   true,
   },
   {
-    title: "Exchange-Integration",
+    title:       "Exchange-Integration",
     description: "Microsoft Exchange Online E-Mail-Integration",
-    icon: Mail,
-    url: "/exchange-integration",
-    available: true,
+    icon:        Mail,
+    url:         "/exchange-integration",
+    available:   true,
   },
   {
-    title: "Benachrichtigungen",
+    title:       "Benachrichtigungen",
     description: "E-Mail-Vorlagen und Benachrichtigungseinstellungen",
-    icon: Bell,
-    url: "/settings/notifications",
-    available: false,
+    icon:        Bell,
+    url:         "/settings/notifications",
+    available:   false,
   },
   {
-    title: "Sicherheit",
+    title:       "Sicherheit",
     description: "SSO, Azure AD und Zugriffsrechte konfigurieren",
-    icon: Shield,
-    url: "/settings/security",
-    available: false,
+    icon:        Shield,
+    url:         "/settings/security",
+    available:   false,
   },
   {
-    title: "Mandantenverwaltung",
+    title:       "Mandantenverwaltung",
     description: "Mandanteninformationen und Konfiguration",
-    icon: Building,
-    url: "/settings/tenant",
-    available: false,
+    icon:        Building,
+    url:         "/settings/tenant",
+    available:   false,
   },
 ];
 
@@ -75,8 +85,10 @@ export default function SettingsPage() {
 
   return (
     <MainLayout title="Einstellungen">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <p className="text-muted-foreground">
+      <div className="max-w-4xl mx-auto">
+        <SettingsNav />
+
+        <p className="text-sm text-muted-foreground mb-6">
           Systemeinstellungen und Konfiguration verwalten
         </p>
 
@@ -86,7 +98,7 @@ export default function SettingsPage() {
               key={item.url}
               className={item.available ? "hover-elevate cursor-pointer" : "opacity-60"}
               onClick={() => item.available && setLocation(item.url)}
-              data-testid={`card-settings-${item.url.split('/').pop()}`}
+              data-testid={`card-settings-${item.url.split("/").pop()}`}
             >
               <CardHeader className="flex flex-row items-start gap-4 space-y-0">
                 <div className="p-2 rounded-lg bg-muted">

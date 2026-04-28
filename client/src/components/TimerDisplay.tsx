@@ -75,7 +75,7 @@ function TimerItem({ timer, onOpenTicket, onStop }: TimerItemProps) {
     <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className={`font-mono text-sm font-medium ${isPaused ? "text-muted-foreground" : "text-primary"}`}>
+          <span className={`font-mono text-sm font-medium ${isPaused ? "text-muted-foreground" : "text-billable"}`}>
             {formatDuration(Math.max(0, elapsed))}
           </span>
           {isPaused && (
@@ -199,12 +199,12 @@ export function TimerDisplay() {
             className="relative gap-2"
             data-testid="button-timer-display"
           >
-            <Clock className={`h-4 w-4 ${hasRunningTimer ? "text-primary animate-pulse" : ""}`} />
+            <Clock className={`h-4 w-4 ${hasRunningTimer ? "text-billable animate-pulse" : ""}`} />
             <span className="font-mono text-sm">
               {totalActiveTimers} Timer
             </span>
             {hasRunningTimer && (
-              <span className="absolute -top-1 -right-1 h-2 w-2 bg-primary rounded-full" />
+              <span className="absolute -top-1 -right-1 h-2 w-2 bg-billable rounded-full" />
             )}
           </Button>
         </PopoverTrigger>
