@@ -64,7 +64,7 @@ interface LogsResponse {
 const levelConfig: Record<string, { icon: typeof Info; color: string; bgColor: string; borderColor: string; label: string }> = {
   debug:       { icon: Bug,           color: "text-muted-foreground",  bgColor: "bg-muted/40",          borderColor: "border-muted",          label: "Debug"       },
   info:        { icon: Info,          color: "text-primary",           bgColor: "bg-primary/5",         borderColor: "border-primary/20",     label: "Info"        },
-  warn:        { icon: AlertTriangle, color: "text-yellow-500",        bgColor: "bg-yellow-500/5",      borderColor: "border-yellow-500/20",  label: "Warnung"     },
+  warn:        { icon: AlertTriangle, color: "text-warning",           bgColor: "bg-warning/5",         borderColor: "border-warning/20",     label: "Warnung"     },
   error:       { icon: AlertCircle,   color: "text-red-500",           bgColor: "bg-red-500/5",         borderColor: "border-red-500/20",     label: "Fehler"      },
   security:    { icon: Shield,        color: "text-purple-500",        bgColor: "bg-purple-500/5",      borderColor: "border-purple-500/20",  label: "Sicherheit"  },
   performance: { icon: Gauge,         color: "text-orange-500",        bgColor: "bg-orange-500/5",      borderColor: "border-orange-500/20",  label: "Performance" },
@@ -198,8 +198,8 @@ function LogEntryRow({ log, isExpanded, onToggle }: Readonly<{ log: LogEntry; is
                   <p className="text-xs font-medium text-red-600 dark:text-red-400 mb-1">Fehlerbeschreibung</p>
                   <p className="text-xs">{log.error.description}</p>
                 </div>
-                <div className="rounded p-2.5 bg-yellow-500/10 border border-yellow-500/20">
-                  <p className="text-xs font-medium text-yellow-600 dark:text-yellow-400 mb-1">Ursache</p>
+                <div className="rounded p-2.5 bg-warning/10 border border-warning/20">
+                  <p className="text-xs font-medium text-warning mb-1">Ursache</p>
                   <p className="text-xs">{log.error.cause}</p>
                 </div>
                 <div className="rounded p-2.5 bg-green-500/10 border border-green-500/20">

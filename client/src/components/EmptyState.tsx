@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { LucideIcon, Inbox, Search, FileText, Users, Ticket } from "lucide-react";
+import { type LucideIcon, Inbox, Search, FileText, Users, Ticket, AlertTriangle, MousePointerClick } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface EmptyStateProps {
@@ -92,6 +92,35 @@ export function NoUsersEmpty({ onCreateUser }: Readonly<{ onCreateUser: () => vo
         label: "Benutzer erstellen",
         onClick: onCreateUser,
       }}
+    />
+  );
+}
+
+/** Shown in the detail pane when no ticket is selected */
+export function NoTicketSelected() {
+  return (
+    <div
+      className="flex flex-col items-center justify-center h-full gap-3 text-center p-8"
+      data-testid="empty-no-ticket-selected"
+    >
+      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+        <MousePointerClick className="w-5 h-5 text-muted-foreground" />
+      </div>
+      <p className="text-sm text-muted-foreground max-w-[200px]">
+        Ticket aus der Liste auswählen
+      </p>
+    </div>
+  );
+}
+
+/** Shown in SLA warning sections when there are no at-risk tickets */
+export function NoSlaWarnings() {
+  return (
+    <EmptyState
+      icon={AlertTriangle}
+      title="Keine SLA-Warnungen"
+      description="Alle Tickets liegen im grünen Bereich."
+      className="py-6"
     />
   );
 }

@@ -247,7 +247,7 @@ function TicketTab({ dateRange }: { dateRange: DateRange }) {
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <StatCard label="Gesamt" value={summary.total} />
-        <StatCard label="Offen" value={summary.open} color="text-amber-500" />
+        <StatCard label="Offen" value={summary.open} color="text-status-open" />
         <StatCard label="In Bearbeitung" value={summary.inProgress} color="text-blue-500" />
         <StatCard label="Gelöst" value={summary.resolved} color="text-emerald-500" />
         <StatCard label="Geschlossen" value={summary.closed} color="text-slate-400" />
@@ -364,7 +364,7 @@ function SlaTab({ dateRange }: { dateRange: DateRange }) {
   if (!data) return <p className="text-muted-foreground text-sm">Keine Daten verfügbar.</p>;
 
   const { summary, complianceRate, avgResponseMinutes, avgResolutionMinutes, byDay } = data;
-  const complianceColor = complianceRate >= 90 ? "text-emerald-500" : complianceRate >= 70 ? "text-amber-500" : "text-red-500";
+  const complianceColor = complianceRate >= 90 ? "text-emerald-500" : complianceRate >= 70 ? "text-warning" : "text-red-500";
 
   return (
     <div className="space-y-5">
@@ -453,7 +453,7 @@ function ZeitTab({ dateRange }: { dateRange: DateRange }) {
         <StatCard label="Nicht abrechenbar" value={fmtMinutes(nonBillableMinutes)} color="text-slate-400"
           sub={`${100 - billablePercent}% der Gesamtzeit`} />
         <StatCard label="Gesamtbetrag" value={`${(summary.totalAmount / 100).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}`}
-          color="text-amber-500" sub="abrechenbar" />
+          color="text-billable" sub="abrechenbar" />
       </div>
 
       <Card>

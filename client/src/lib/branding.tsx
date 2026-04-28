@@ -17,7 +17,7 @@ export function useBranding() {
   return useContext(BrandingContext);
 }
 
-// Color overrides removed — amber is the global primary (design system decision).
+// Color overrides removed — indigo (#6366F1) is the global primary (design system decision).
 // Branding only controls: favicon, custom CSS, logo, and tenant name.
 
 function applyBrandingStyles(branding: Tenant) {

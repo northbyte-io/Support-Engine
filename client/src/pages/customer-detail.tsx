@@ -1,4 +1,5 @@
 import { useParams, useLocation } from "wouter";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Building2, Mail, Phone, MapPin, Calendar, Ticket, User, Clock, Plus, ExternalLink } from "lucide-react";
 import { MainLayout } from "@/components/MainLayout";
@@ -11,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingPage } from "@/components/LoadingState";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PriorityBadge } from "@/components/PriorityBadge";
+import { TicketCreateModal } from "@/components/TicketCreateModal";
 import { format, formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
 import type { CustomerWithRelations } from "@shared/schema";
@@ -42,6 +44,7 @@ const roleConfig: Record<string, { label: string; color: string }> = {
 export default function CustomerDetailPage() {
   const params = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   const { data: customer, isLoading } = useQuery<CustomerWithRelations>({
     queryKey: ["/api/customers", params.id],
@@ -84,7 +87,7 @@ export default function CustomerDetailPage() {
           </Button>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-semibold font-display">{customer.name}</h1>
+              <h1 className="text-2xl font-semibold font-sans">{customer.name}</h1>
               <Badge variant="outline">{customer.customerNumber}</Badge>
               {customer.priority && (
                 <Badge className={priorityColor}>
@@ -102,6 +105,25 @@ export default function CustomerDetailPage() {
             )}
           </div>
         </div>
+
+        {/* SLA / Ticket-Status-Zusammenfassung */}
+        {customer.tickets && customer.tickets.length > 0 && (() => {
+          const counts: Record<string, number> = {};
+          for (const t of customer.tickets) {
+            const s = t.status ?? "open";
+            counts[s] = (counts[s] ?? 0) + 1;
+          }
+          return (
+            <div className="flex items-center gap-3 flex-wrap">
+              {Object.entries(counts).map(([status, count]) => (
+                <div key={status} className="flex items-center gap-1.5">
+                  <StatusBadge status={status as never} />
+                  <span className="text-xs text-muted-foreground font-mono">{count}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
@@ -121,7 +143,7 @@ export default function CustomerDetailPage() {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between gap-2">
                     <CardTitle className="text-lg">Tickets</CardTitle>
-                    <Button size="sm" onClick={() => setLocation("/tickets")} data-testid="button-new-ticket">
+                    <Button size="sm" onClick={() => setCreateModalOpen(true)} data-testid="button-new-ticket">
                       <Plus className="w-4 h-4 mr-2" />
                       Neues Ticket
                     </Button>
@@ -373,6 +395,12 @@ export default function CustomerDetailPage() {
           </div>
         </div>
       </div>
+      <TicketCreateModal
+        open={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onCreated={(id) => { setCreateModalOpen(false); setLocation(`/tickets/${id}`); }}
+        defaultCustomerId={customer.id}
+      />
     </MainLayout>
   );
 }

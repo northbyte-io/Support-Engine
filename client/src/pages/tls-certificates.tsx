@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { MainLayout } from "@/components/MainLayout";
+import { SettingsNav } from "@/components/SettingsNav";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,7 +77,7 @@ type SettingsForm = z.infer<typeof settingsSchema>;
 function getActionStatusClass(status: string): string {
   if (status === "success") return "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300";
   if (status === "failed") return "bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300";
-  return "bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-300";
+  return "bg-warning/10 text-warning";
 }
 
 function getActionStatusVariant(status: string): "default" | "destructive" | "secondary" {
@@ -257,6 +258,7 @@ export default function TlsCertificatesPage() {
 
   return (
     <MainLayout title="TLS-Zertifikate">
+      <SettingsNav />
       <Tabs defaultValue="certificates" className="space-y-4">
         <TabsList>
           <TabsTrigger value="certificates" data-testid="tab-certificates">

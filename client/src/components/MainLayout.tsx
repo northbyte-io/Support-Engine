@@ -32,7 +32,7 @@ export function MainLayout({ children, title, actions }: Readonly<MainLayoutProp
             <div className="flex items-center gap-3 flex-shrink-0">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               {title && (
-                <h1 className="font-display text-base font-semibold text-foreground" data-testid="text-page-title">
+                <h1 className="font-sans text-base font-semibold text-foreground" data-testid="text-page-title">
                   {title}
                 </h1>
               )}

@@ -2,81 +2,327 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   SUPPORT-ENGINE DESIGN TOKENS — v2.0
+   Philosophy : Precision Dark — dense, sharp, professional
+   Accent     : Indigo #6366F1  (replaces Amber)
+   Fonts      : Inter (all UI)  +  JetBrains Mono (IDs, times, code)
+   Dark-first : .dark class is the primary experience
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 /* ── LIGHT MODE ─────────────────────────────────────────────────────────── */
 :root {
-  --button-outline: rgba(0,0,0, .10);
-  --badge-outline: rgba(0,0,0, .05);
+  /* ── shadcn-ui internal control tokens ──────────────────────────────────── */
+  --button-outline: rgba(0, 0, 0, 0.10);
+  --badge-outline: rgba(0, 0, 0, 0.05);
   --opaque-button-border-intensity: -8;
-  --elevate-1: rgba(0,0,0, .03);
-  --elevate-2: rgba(0,0,0, .08);
+  --elevate-1: rgba(0, 0, 0, 0.03);
+  --elevate-2: rgba(0, 0, 0, 0.08);
 
-  /* Backgrounds */
-  --background: 40 20% 97%;
-  --foreground: 220 35% 12%;
+  /* ── Core backgrounds ───────────────────────────────────────────────────── */
+  --background: 240 15% 98%;          /* #F8F8FA */
+  --foreground: 240 5% 5%;            /* #0D0D0F */
 
-  /* Cards */
-  --card: 0 0% 100%;
-  --card-foreground: 220 35% 12%;
-  --card-border: 40 15% 89%;
+  /* ── Cards ──────────────────────────────────────────────────────────────── */
+  --card: 0 0% 100%;                  /* #FFFFFF */
+  --card-foreground: 240 5% 5%;
+  --card-border: 240 9% 89%;          /* #E1E1E8 */
 
-  /* Sidebar */
-  --sidebar: 40 15% 95%;
-  --sidebar-foreground: 220 35% 12%;
-  --sidebar-border: 40 12% 87%;
-  --sidebar-primary: 38 92% 50%;
-  --sidebar-primary-foreground: 0 0% 0%;
-  --sidebar-accent: 40 12% 90%;
-  --sidebar-accent-foreground: 220 35% 12%;
-  --sidebar-ring: 38 92% 50%;
+  /* ── Sidebar ─────────────────────────────────────────────────────────────── */
+  --sidebar: 240 20% 95%;             /* #F0F0F5 */
+  --sidebar-foreground: 240 5% 5%;
+  --sidebar-border: 240 9% 87%;       /* #DCDCE4 */
+  --sidebar-primary: 239 84% 67%;     /* #6366F1 — indigo */
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 240 20% 91%;      /* hover / selected item bg */
+  --sidebar-accent-foreground: 240 5% 5%;
+  --sidebar-ring: 239 84% 67%;
 
-  /* Popovers */
+  /* ── Popovers / dropdowns ───────────────────────────────────────────────── */
   --popover: 0 0% 100%;
-  --popover-foreground: 220 35% 12%;
-  --popover-border: 40 12% 87%;
+  --popover-foreground: 240 5% 5%;
+  --popover-border: 240 9% 87%;
 
-  /* Brand */
-  --primary: 38 92% 50%;
-  --primary-foreground: 0 0% 0%;
-  --secondary: 40 12% 91%;
-  --secondary-foreground: 220 35% 15%;
-  --muted: 40 10% 93%;
-  --muted-foreground: 220 10% 44%;
-  --accent: 40 12% 93%;
-  --accent-foreground: 220 35% 12%;
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 98%;
+  /* ── Brand — Indigo (replaces Amber) ────────────────────────────────────── */
+  --primary: 239 84% 67%;             /* #6366F1 */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 9% 91%;            /* #E5E5ED */
+  --secondary-foreground: 240 5% 20%;
+  --muted: 240 9% 93%;                /* #EBEBF0 */
+  --muted-foreground: 240 9% 37%;     /* #555566 */
+  --accent: 240 20% 91%;              /* subtle bg for accent-tinted elements */
+  --accent-foreground: 240 5% 5%;
+  --destructive: 0 84% 60%;           /* #EF4444 */
+  --destructive-foreground: 0 0% 100%;
 
-  /* Form elements */
-  --border: 40 12% 87%;
-  --input: 40 10% 82%;
-  --ring: 38 92% 50%;
+  /* ── Form elements ───────────────────────────────────────────────────────── */
+  --border: 240 9% 87%;
+  --input: 240 9% 84%;
+  --ring: 239 84% 67%;
 
-  /* Charts */
-  --chart-1: 38 92% 50%;
-  --chart-2: 142 76% 36%;
-  --chart-3: 221 83% 53%;
-  --chart-4: 262 83% 58%;
-  --chart-5: 0 84% 60%;
+  /* ── Charts ──────────────────────────────────────────────────────────────── */
+  --chart-1: 239 84% 67%;             /* indigo */
+  --chart-2: 160 84% 39%;             /* emerald */
+  --chart-3: 217 91% 60%;             /* blue */
+  --chart-4: 258 90% 66%;             /* violet */
+  --chart-5: 0 84% 60%;               /* red */
 
-  /* Typography */
-  --font-sans: 'DM Sans', system-ui, sans-serif;
-  --font-display: 'Syne', system-ui, sans-serif;
+  /* ── Typography ─────────────────────────────────────────────────────────── */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Inter', system-ui, sans-serif;   /* no separate display face */
   --font-serif: Georgia, serif;
-  --font-mono: 'JetBrains Mono', Menlo, monospace;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, monospace;
 
-  --radius: .5rem;
-  --shadow-2xs: 0px 1px 2px 0px hsl(220 35% 12% / 0.04);
-  --shadow-xs: 0px 1px 3px 0px hsl(220 35% 12% / 0.06);
-  --shadow-sm: 0px 1px 3px 0px hsl(220 35% 12% / 0.06), 0px 1px 2px -1px hsl(220 35% 12% / 0.04);
-  --shadow: 0px 2px 6px 0px hsl(220 35% 12% / 0.08), 0px 1px 2px -1px hsl(220 35% 12% / 0.04);
-  --shadow-md: 0px 4px 12px 0px hsl(220 35% 12% / 0.08), 0px 2px 4px -1px hsl(220 35% 12% / 0.04);
-  --shadow-lg: 0px 8px 24px 0px hsl(220 35% 12% / 0.10), 0px 4px 6px -1px hsl(220 35% 12% / 0.04);
-  --shadow-xl: 0px 16px 40px 0px hsl(220 35% 12% / 0.12), 0px 8px 10px -1px hsl(220 35% 12% / 0.04);
-  --shadow-2xl: 0px 24px 64px 0px hsl(220 35% 12% / 0.16);
+  /* Type scale — anchored in px for density control */
+  --text-2xs: 0.625rem;               /* 10px — tiny metadata, timestamps in list */
+  --text-xs: 0.6875rem;               /* 11px — IDs, labels, badge text */
+  --text-sm: 0.8125rem;               /* 13px — list rows, table cells */
+  --text-base: 0.9375rem;             /* 15px — body, comments, descriptions */
+  --text-lg: 1.125rem;                /* 18px — section headings, panel titles */
+  --text-xl: 1.375rem;                /* 22px — ticket title (H1 in detail pane) */
+  --text-2xl: 1.75rem;                /* 28px — dashboard section headers */
+
+  /* Line heights */
+  --leading-2xs: 1.4;
+  --leading-xs: 1.4;
+  --leading-sm: 1.5;
+  --leading-base: 1.6;
+  --leading-lg: 1.4;
+  --leading-xl: 1.3;
+  --leading-2xl: 1.2;
+
+  /* Font weights — 700 intentionally excluded (too heavy for dense UI) */
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* Letter spacing */
+  --tracking-tighter: -0.02em;        /* ticket titles, large display */
+  --tracking-tight: -0.01em;          /* headings */
   --tracking-normal: 0em;
-  --spacing: 0.25rem;
+  --tracking-wide: 0.04em;            /* ALL-CAPS metadata labels */
+  --tracking-wider: 0.08em;           /* badge text, chip labels */
 
-  /* Opaque border fallbacks */
+  /* ── Spacing — 4px base, 8-point grid ───────────────────────────────────── */
+  --spacing: 0.25rem;                 /* 4px — Tailwind base unit compatibility */
+  --space-px: 1px;
+  --space-0: 0;
+  --space-0-5: 0.125rem;              /* 2px */
+  --space-1: 0.25rem;                 /* 4px */
+  --space-1-5: 0.375rem;              /* 6px */
+  --space-2: 0.5rem;                  /* 8px */
+  --space-2-5: 0.625rem;              /* 10px */
+  --space-3: 0.75rem;                 /* 12px */
+  --space-4: 1rem;                    /* 16px */
+  --space-5: 1.25rem;                 /* 20px */
+  --space-6: 1.5rem;                  /* 24px */
+  --space-8: 2rem;                    /* 32px */
+  --space-10: 2.5rem;                 /* 40px */
+  --space-12: 3rem;                   /* 48px */
+  --space-16: 4rem;                   /* 64px */
+  --space-20: 5rem;                   /* 80px */
+  --space-24: 6rem;                   /* 96px */
+
+  /* Component padding conventions (from brief) */
+  --pad-list-row-y: var(--space-3);   /* 12px */
+  --pad-list-row-x: var(--space-4);   /* 16px */
+  --pad-meta-section: var(--space-4); /* 16px */
+  --pad-meta-gap: var(--space-6);     /* 24px */
+  --pad-comment: var(--space-4);      /* 16px */
+  --pad-comment-gap: var(--space-3);  /* 12px */
+  --pad-modal: var(--space-6);        /* 24px */
+
+  /* ── Border radius — sharp/precise ──────────────────────────────────────── */
+  --radius: 0.375rem;                 /* 6px — shadcn `rounded` base */
+  --radius-sm: 0.1875rem;             /* 3px */
+  --radius-md: 0.375rem;              /* 6px */
+  --radius-lg: 0.5625rem;             /* 9px */
+  --radius-xl: 0.75rem;               /* 12px */
+  --radius-2xl: 1rem;                 /* 16px */
+  --radius-full: 9999px;              /* pill */
+
+  /* ── Border widths ───────────────────────────────────────────────────────── */
+  --border-width: 1px;
+  --border-width-2: 2px;
+
+  /* ── Shadows — light mode ────────────────────────────────────────────────── */
+  --shadow-2xs: 0px 1px 2px 0px hsl(240 5% 5% / 0.04);
+  --shadow-xs: 0px 1px 3px 0px hsl(240 5% 5% / 0.06);
+  --shadow-sm: 0px 1px 3px 0px hsl(240 5% 5% / 0.06), 0px 1px 2px -1px hsl(240 5% 5% / 0.04);
+  --shadow: 0px 2px 6px 0px hsl(240 5% 5% / 0.08), 0px 1px 2px -1px hsl(240 5% 5% / 0.04);
+  --shadow-md: 0px 4px 12px 0px hsl(240 5% 5% / 0.08), 0px 2px 4px -1px hsl(240 5% 5% / 0.04);
+  --shadow-lg: 0px 8px 24px 0px hsl(240 5% 5% / 0.10), 0px 4px 6px -1px hsl(240 5% 5% / 0.04);
+  --shadow-xl: 0px 16px 40px 0px hsl(240 5% 5% / 0.12), 0px 8px 10px -1px hsl(240 5% 5% / 0.04);
+  --shadow-2xl: 0px 24px 64px 0px hsl(240 5% 5% / 0.16);
+
+  /* ── Focus ring ──────────────────────────────────────────────────────────── */
+  --focus-ring: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(239 84% 67%);
+  --focus-ring-color: 239 84% 67%;
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  /* ── Motion ──────────────────────────────────────────────────────────────── */
+  --duration-instant: 50ms;
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 350ms;
+  --duration-slower: 500ms;
+
+  --easing-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-in: cubic-bezier(0.4, 0, 1, 1);
+  --easing-out: cubic-bezier(0, 0, 0.2, 1);
+  --easing-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Layout ──────────────────────────────────────────────────────────────── */
+  --layout-sidebar-width: 240px;
+  --layout-sidebar-collapsed: 56px;
+  --layout-list-pane: 280px;
+  --layout-meta-panel: 300px;
+  --layout-content-max: 65ch;
+  --layout-page-max: 1440px;
+
+  /* Responsive breakpoints (for JS — CSS uses Tailwind classes) */
+  --bp-sm: 375px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+  --bp-2xl: 1536px;
+
+  /* ── Z-index ──────────────────────────────────────────────────────────────── */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-sidebar: 300;
+  --z-overlay: 400;
+  --z-modal: 500;
+  --z-toast: 600;
+  --z-tooltip: 700;
+
+  /* ── Semantic color tokens ───────────────────────────────────────────────── */
+
+  /* Accent variants */
+  --accent-primary: 239 84% 67%;      /* #6366F1 */
+  --accent-hover: 243 75% 59%;        /* #4F46E5 */
+  --accent-subtle: 239 60% 95%;       /* very light indigo tint */
+  --accent-subtle-border: 239 50% 82%;
+
+  /* SLA urgency states */
+  --sla-danger: 0 84% 60%;            /* #EF4444 — breach < 1h */
+  --sla-warning: 38 92% 50%;          /* #F59E0B — breach 1–4h */
+  --sla-ok: 160 84% 39%;              /* #10B981 — healthy */
+
+  /* Ticket status colors */
+  --status-open: 217 91% 60%;         /* #3B82F6 — Offen */
+  --status-active: 258 90% 66%;       /* #8B5CF6 — In Bearbeitung */
+  --status-waiting: 38 92% 50%;       /* #F59E0B — Wartend */
+  --status-done: 160 84% 39%;         /* #10B981 — Gelöst */
+  --status-closed: 240 8% 63%;        /* muted   — Geschlossen */
+
+  /* Billable time indicator */
+  --billable: 160 84% 39%;            /* #10B981 */
+  --billable-subtle: 160 60% 94%;     /* light bg for billable rows */
+
+  /* General semantic aliases */
+  --success: 160 84% 39%;
+  --warning: 38 92% 50%;
+  --error: 0 84% 60%;
+  --info: 217 91% 60%;
+
+  /* ── Component-level semantic tokens — Light ─────────────────────────────── */
+
+  /* App shell */
+  --shell-bg: hsl(240 15% 98%);
+  --shell-border: hsl(240 9% 87%);
+
+  /* Sidebar items */
+  --sidebar-item-hover-bg: hsl(240 20% 91%);
+  --sidebar-item-active-bg: hsl(239 84% 67% / 0.10);
+  --sidebar-item-active-border: hsl(239 84% 67%);
+  --sidebar-section-label-color: hsl(240 9% 55%);
+  --sidebar-badge-bg: hsl(0 84% 60%);
+  --sidebar-badge-text: hsl(0 0% 100%);
+
+  /* Ticket list rows */
+  --ticket-row-bg: transparent;
+  --ticket-row-hover-bg: hsl(240 15% 94%);
+  --ticket-row-selected-bg: hsl(239 84% 67% / 0.08);
+  --ticket-row-selected-border: hsl(239 84% 67%);
+  --ticket-row-unread-indicator: hsl(239 84% 67%);
+
+  /* Meta panel */
+  --meta-panel-bg: hsl(240 20% 95%);
+  --meta-panel-border: hsl(240 9% 87%);
+  --meta-panel-section-divider: hsl(240 9% 91%);
+  --meta-panel-label-color: hsl(240 9% 55%);
+
+  /* Comment blocks */
+  --comment-bg: hsl(0 0% 100%);
+  --comment-border: hsl(240 9% 89%);
+  --comment-avatar-bg: hsl(239 84% 67%);
+  --comment-time-entry-bg: hsl(160 60% 96%);   /* subtle green tint */
+  --comment-time-entry-border: hsl(160 50% 85%);
+
+  /* Input / form */
+  --input-bg: hsl(0 0% 100%);
+  --input-border-color: hsl(240 9% 84%);
+  --input-border-focus-color: hsl(239 84% 67%);
+  --input-placeholder-color: hsl(240 9% 60%);
+  --input-disabled-bg: hsl(240 9% 95%);
+  --input-disabled-color: hsl(240 9% 55%);
+
+  /* Modal / dialog */
+  --modal-bg: hsl(0 0% 100%);
+  --modal-overlay-bg: hsl(240 5% 5% / 0.60);
+  --modal-border-color: hsl(240 9% 87%);
+
+  /* Signature canvas (always high contrast — never dark) */
+  --signature-canvas-bg: hsl(0 0% 100%);
+  --signature-canvas-ink: hsl(240 5% 5%);
+  --signature-canvas-border: hsl(240 9% 84%);
+  --signature-canvas-overlay-bg: hsl(0 0% 100%);   /* force white even in dark mode */
+  --signature-canvas-overlay-text: hsl(240 5% 5%); /* force dark text */
+
+  /* Tables */
+  --table-header-bg: hsl(240 15% 96%);
+  --table-header-color: hsl(240 9% 37%);
+  --table-row-hover-bg: hsl(240 15% 97%);
+  --table-row-selected-bg: hsl(239 84% 67% / 0.06);
+  --table-border-color: hsl(240 9% 89%);
+
+  /* Dashboard */
+  --dashboard-sla-alert-bg: hsl(0 84% 60% / 0.06);
+  --dashboard-sla-alert-border: hsl(0 84% 60% / 0.25);
+  --dashboard-card-bg: hsl(0 0% 100%);
+  --dashboard-card-border: hsl(240 9% 89%);
+  --dashboard-card-header-color: hsl(240 5% 30%);
+  --dashboard-time-summary-bg: hsl(239 60% 97%);
+  --dashboard-time-summary-border: hsl(239 50% 88%);
+
+  /* Badges */
+  --badge-neutral-bg: hsl(240 9% 91%);
+  --badge-neutral-color: hsl(240 5% 30%);
+
+  /* SLA badge variants */
+  --badge-sla-danger-bg: hsl(0 84% 60% / 0.10);
+  --badge-sla-danger-color: hsl(0 84% 45%);
+  --badge-sla-danger-border: hsl(0 84% 60% / 0.30);
+  --badge-sla-warning-bg: hsl(38 92% 50% / 0.10);
+  --badge-sla-warning-color: hsl(38 85% 35%);
+  --badge-sla-warning-border: hsl(38 92% 50% / 0.30);
+  --badge-sla-ok-bg: hsl(160 84% 39% / 0.10);
+  --badge-sla-ok-color: hsl(160 84% 28%);
+  --badge-sla-ok-border: hsl(160 84% 39% / 0.30);
+
+  /* Empty states */
+  --empty-icon-color: hsl(240 9% 70%);
+  --empty-text-color: hsl(240 9% 55%);
+
+  /* Skeleton / loading */
+  --skeleton-base-color: hsl(240 9% 91%);
+  --skeleton-shimmer-color: hsl(240 9% 85%);
+
+  /* Opaque border fallbacks — shadcn pattern, keep for compatibility */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
   --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
   --sidebar-accent-border: hsl(var(--sidebar-accent));
@@ -95,74 +341,173 @@
 
 /* ── DARK MODE ──────────────────────────────────────────────────────────── */
 .dark {
-  --button-outline: rgba(255,255,255, .10);
-  --badge-outline: rgba(255,255,255, .05);
+  /* ── shadcn-ui internal control tokens ──────────────────────────────────── */
+  --button-outline: rgba(255, 255, 255, 0.08);
+  --badge-outline: rgba(255, 255, 255, 0.05);
   --opaque-button-border-intensity: 9;
-  --elevate-1: rgba(255,255,255, .04);
-  --elevate-2: rgba(255,255,255, .09);
+  --elevate-1: rgba(255, 255, 255, 0.03);
+  --elevate-2: rgba(255, 255, 255, 0.07);
 
-  /* Backgrounds — deep navy */
-  --background: 220 50% 6%;
-  --foreground: 220 30% 93%;
+  /* ── Core backgrounds — near-black, slightly cool ───────────────────────── */
+  --background: 240 5% 5%;            /* #0D0D0F */
+  --foreground: 240 7% 95%;           /* #F4F4F6 */
 
-  /* Cards */
-  --card: 220 44% 9%;
-  --card-foreground: 220 30% 93%;
-  --card-border: 220 42% 13%;
+  /* ── Cards ───────────────────────────────────────────────────────────────── */
+  --card: 240 4% 8%;                  /* #141417 — panels */
+  --card-foreground: 240 7% 95%;
+  --card-border: 240 11% 18%;         /* #2A2A35 */
 
-  /* Sidebar */
-  --sidebar: 220 44% 9%;
-  --sidebar-foreground: 220 30% 93%;
-  --sidebar-border: 220 38% 16%;
-  --sidebar-primary: 38 92% 50%;
-  --sidebar-primary-foreground: 0 0% 0%;
-  --sidebar-accent: 220 40% 16%;
-  --sidebar-accent-foreground: 220 30% 93%;
-  --sidebar-ring: 38 92% 50%;
+  /* ── Sidebar ─────────────────────────────────────────────────────────────── */
+  --sidebar: 240 4% 8%;               /* #141417 */
+  --sidebar-foreground: 240 7% 95%;
+  --sidebar-border: 240 11% 18%;
+  --sidebar-primary: 239 84% 67%;     /* #6366F1 */
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 240 6% 11%;       /* #1C1C20 — item hover bg */
+  --sidebar-accent-foreground: 240 7% 95%;
+  --sidebar-ring: 239 84% 67%;
 
-  /* Popovers */
-  --popover: 220 42% 11%;
-  --popover-foreground: 220 30% 93%;
-  --popover-border: 220 38% 18%;
+  /* ── Popovers / dropdowns ───────────────────────────────────────────────── */
+  --popover: 240 6% 11%;              /* #1C1C20 */
+  --popover-foreground: 240 7% 95%;
+  --popover-border: 240 11% 18%;
 
-  /* Brand — amber primary */
-  --primary: 38 92% 50%;
-  --primary-foreground: 0 0% 0%;
-  --secondary: 220 42% 13%;
-  --secondary-foreground: 220 30% 93%;
-  --muted: 220 42% 13%;
-  --muted-foreground: 220 20% 55%;
-  --accent: 220 40% 16%;
-  --accent-foreground: 220 30% 93%;
-  --destructive: 0 72% 51%;
-  --destructive-foreground: 0 0% 98%;
+  /* ── Brand ───────────────────────────────────────────────────────────────── */
+  --primary: 239 84% 67%;             /* #6366F1 */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 6% 11%;            /* #1C1C20 */
+  --secondary-foreground: 240 7% 95%;
+  --muted: 240 6% 11%;
+  --muted-foreground: 240 8% 63%;     /* #9999AA */
+  --accent: 240 6% 14%;               /* #212127 — slightly lighter than card */
+  --accent-foreground: 240 7% 95%;
+  --destructive: 0 84% 60%;           /* #EF4444 */
+  --destructive-foreground: 0 0% 100%;
 
-  /* Form elements */
-  --border: 220 38% 16%;
-  --input: 220 38% 19%;
-  --ring: 38 92% 50%;
+  /* ── Form elements ───────────────────────────────────────────────────────── */
+  --border: 240 11% 18%;              /* #2A2A35 */
+  --input: 240 8% 14%;                /* slightly above card bg */
+  --ring: 239 84% 67%;
 
-  /* Charts */
-  --chart-1: 38 92% 60%;
-  --chart-2: 142 70% 55%;
-  --chart-3: 221 83% 65%;
-  --chart-4: 262 70% 70%;
-  --chart-5: 0 80% 65%;
+  /* ── Charts — lightened for dark backgrounds ────────────────────────────── */
+  --chart-1: 239 84% 72%;             /* indigo — up 5% lightness */
+  --chart-2: 160 70% 50%;             /* emerald */
+  --chart-3: 217 80% 68%;             /* blue */
+  --chart-4: 258 75% 72%;             /* violet */
+  --chart-5: 0 80% 65%;               /* red */
 
-  /* Typography (same stack, inherited) */
-  --font-sans: 'DM Sans', system-ui, sans-serif;
-  --font-display: 'Syne', system-ui, sans-serif;
-  --font-serif: Georgia, serif;
-  --font-mono: 'JetBrains Mono', Menlo, monospace;
+  /* ── Shadows — dark (deep, opaque) ──────────────────────────────────────── */
+  --shadow-2xs: 0px 1px 2px 0px hsl(240 5% 2% / 0.40);
+  --shadow-xs: 0px 1px 3px 0px hsl(240 5% 2% / 0.50);
+  --shadow-sm: 0px 1px 3px 0px hsl(240 5% 2% / 0.50), 0px 1px 2px -1px hsl(240 5% 2% / 0.30);
+  --shadow: 0px 2px 6px 0px hsl(240 5% 2% / 0.55), 0px 1px 2px -1px hsl(240 5% 2% / 0.30);
+  --shadow-md: 0px 4px 12px 0px hsl(240 5% 2% / 0.60), 0px 2px 4px -1px hsl(240 5% 2% / 0.30);
+  --shadow-lg: 0px 8px 24px 0px hsl(240 5% 2% / 0.65), 0px 4px 6px -1px hsl(240 5% 2% / 0.30);
+  --shadow-xl: 0px 16px 40px 0px hsl(240 5% 2% / 0.75), 0px 8px 10px -1px hsl(240 5% 2% / 0.30);
+  --shadow-2xl: 0px 24px 64px 0px hsl(240 5% 2% / 0.85);
 
-  --shadow-2xs: 0px 1px 2px 0px hsl(220 50% 3% / 0.40);
-  --shadow-xs: 0px 1px 3px 0px hsl(220 50% 3% / 0.50);
-  --shadow-sm: 0px 1px 3px 0px hsl(220 50% 3% / 0.50), 0px 1px 2px -1px hsl(220 50% 3% / 0.30);
-  --shadow: 0px 2px 6px 0px hsl(220 50% 3% / 0.50), 0px 1px 2px -1px hsl(220 50% 3% / 0.30);
-  --shadow-md: 0px 4px 12px 0px hsl(220 50% 3% / 0.50), 0px 2px 4px -1px hsl(220 50% 3% / 0.30);
-  --shadow-lg: 0px 8px 24px 0px hsl(220 50% 3% / 0.60), 0px 4px 6px -1px hsl(220 50% 3% / 0.30);
-  --shadow-xl: 0px 16px 40px 0px hsl(220 50% 3% / 0.70), 0px 8px 10px -1px hsl(220 50% 3% / 0.30);
-  --shadow-2xl: 0px 24px 64px 0px hsl(220 50% 3% / 0.80);
+  /* ── Focus ring — slightly more visible on dark ──────────────────────────── */
+  --focus-ring: 0 0 0 2px hsl(240 5% 5%), 0 0 0 4px hsl(239 84% 67%);
+
+  /* ── Accent subtle — dark ────────────────────────────────────────────────── */
+  --accent-subtle: 240 31% 17%;       /* #1E1E3A */
+  --accent-subtle-border: 240 40% 26%;
+
+  /* ── SLA / Status / Billable — same hue, compatible on dark ─────────────── */
+  /* (values are identical across themes — these colors are bright enough) */
+
+  /* SLA badge variants — adjusted opacity for dark backgrounds */
+  --badge-sla-danger-bg: hsl(0 84% 60% / 0.12);
+  --badge-sla-danger-color: hsl(0 84% 72%);
+  --badge-sla-danger-border: hsl(0 84% 60% / 0.35);
+  --badge-sla-warning-bg: hsl(38 92% 50% / 0.12);
+  --badge-sla-warning-color: hsl(38 92% 65%);
+  --badge-sla-warning-border: hsl(38 92% 50% / 0.35);
+  --badge-sla-ok-bg: hsl(160 84% 39% / 0.12);
+  --badge-sla-ok-color: hsl(160 70% 55%);
+  --badge-sla-ok-border: hsl(160 84% 39% / 0.35);
+
+  /* ── Component-level semantic tokens — Dark ─────────────────────────────── */
+
+  /* App shell */
+  --shell-bg: hsl(240 5% 5%);
+  --shell-border: hsl(240 11% 18%);
+
+  /* Sidebar items */
+  --sidebar-item-hover-bg: hsl(240 6% 11%);
+  --sidebar-item-active-bg: hsl(239 84% 67% / 0.12);
+  --sidebar-item-active-border: hsl(239 84% 67%);
+  --sidebar-section-label-color: hsl(240 8% 38%);
+  --sidebar-badge-bg: hsl(0 84% 60%);
+  --sidebar-badge-text: hsl(0 0% 100%);
+
+  /* Ticket list rows */
+  --ticket-row-bg: transparent;
+  --ticket-row-hover-bg: hsl(240 6% 11%);
+  --ticket-row-selected-bg: hsl(239 84% 67% / 0.12);
+  --ticket-row-selected-border: hsl(239 84% 67%);
+  --ticket-row-unread-indicator: hsl(239 84% 67%);
+
+  /* Meta panel */
+  --meta-panel-bg: hsl(240 4% 8%);
+  --meta-panel-border: hsl(240 11% 18%);
+  --meta-panel-section-divider: hsl(240 11% 14%);
+  --meta-panel-label-color: hsl(240 8% 38%);
+
+  /* Comment blocks */
+  --comment-bg: hsl(240 6% 10%);
+  --comment-border: hsl(240 11% 17%);
+  --comment-avatar-bg: hsl(239 84% 67%);
+  --comment-time-entry-bg: hsl(160 30% 10%);   /* subtle dark-green tint */
+  --comment-time-entry-border: hsl(160 40% 18%);
+
+  /* Input / form */
+  --input-bg: hsl(240 7% 10%);
+  --input-border-color: hsl(240 11% 20%);
+  --input-border-focus-color: hsl(239 84% 67%);
+  --input-placeholder-color: hsl(240 8% 40%);
+  --input-disabled-bg: hsl(240 6% 9%);
+  --input-disabled-color: hsl(240 8% 32%);
+
+  /* Modal / dialog */
+  --modal-bg: hsl(240 6% 11%);
+  --modal-overlay-bg: hsl(240 5% 2% / 0.72);
+  --modal-border-color: hsl(240 11% 18%);
+
+  /* Signature canvas — ALWAYS high contrast, even in dark mode */
+  --signature-canvas-bg: hsl(0 0% 100%);
+  --signature-canvas-ink: hsl(240 5% 5%);
+  --signature-canvas-border: hsl(240 9% 80%);
+  --signature-canvas-overlay-bg: hsl(0 0% 100%);
+  --signature-canvas-overlay-text: hsl(240 5% 5%);
+
+  /* Tables */
+  --table-header-bg: hsl(240 5% 7%);
+  --table-header-color: hsl(240 8% 50%);
+  --table-row-hover-bg: hsl(240 6% 11%);
+  --table-row-selected-bg: hsl(239 84% 67% / 0.08);
+  --table-border-color: hsl(240 11% 16%);
+
+  /* Dashboard */
+  --dashboard-sla-alert-bg: hsl(0 84% 60% / 0.08);
+  --dashboard-sla-alert-border: hsl(0 84% 60% / 0.25);
+  --dashboard-card-bg: hsl(240 4% 8%);
+  --dashboard-card-border: hsl(240 11% 18%);
+  --dashboard-card-header-color: hsl(240 8% 50%);
+  --dashboard-time-summary-bg: hsl(239 40% 10%);
+  --dashboard-time-summary-border: hsl(239 40% 22%);
+
+  /* Badges */
+  --badge-neutral-bg: hsl(240 6% 14%);
+  --badge-neutral-color: hsl(240 7% 75%);
+
+  /* Empty states */
+  --empty-icon-color: hsl(240 8% 38%);
+  --empty-text-color: hsl(240 8% 40%);
+
+  /* Skeleton / loading */
+  --skeleton-base-color: hsl(240 6% 12%);
+  --skeleton-shimmer-color: hsl(240 6% 17%);
 
   /* Opaque border fallbacks */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
@@ -181,6 +526,43 @@
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
+/* ── System dark preference (honours manual override via .dark / .light) ── */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    /* Inlined from .dark — provides system-preference dark without JS */
+    --background: 240 5% 5%;
+    --foreground: 240 7% 95%;
+    --card: 240 4% 8%;
+    --card-foreground: 240 7% 95%;
+    --card-border: 240 11% 18%;
+    --sidebar: 240 4% 8%;
+    --sidebar-foreground: 240 7% 95%;
+    --sidebar-border: 240 11% 18%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 6% 11%;
+    --sidebar-accent-foreground: 240 7% 95%;
+    --sidebar-ring: 239 84% 67%;
+    --popover: 240 6% 11%;
+    --popover-foreground: 240 7% 95%;
+    --popover-border: 240 11% 18%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 6% 11%;
+    --secondary-foreground: 240 7% 95%;
+    --muted: 240 6% 11%;
+    --muted-foreground: 240 8% 63%;
+    --accent: 240 6% 14%;
+    --accent-foreground: 240 7% 95%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 11% 18%;
+    --input: 240 8% 14%;
+    --ring: 239 84% 67%;
+  }
+}
+
+/* ── Base layer ──────────────────────────────────────────────────────────── */
 @layer base {
   * {
     @apply border-border;
@@ -188,6 +570,16 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    /* Dense UI: tighten default inter character spacing slightly */
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Mono elements pick up JetBrains Mono automatically */
+  code, kbd, samp, pre,
+  [data-mono], .font-mono {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "zero", "ss01";
   }
 }
 

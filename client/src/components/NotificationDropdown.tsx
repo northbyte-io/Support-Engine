@@ -29,13 +29,13 @@ function getNotificationIcon(type: string) {
     case "mention":
       return <MessageSquare className="h-4 w-4 text-primary" />;
     case "assignment":
-      return <Users className="h-4 w-4 text-green-500" />;
+      return <Users className="h-4 w-4 text-billable" />;
     case "comment":
       return <MessageSquare className="h-4 w-4 text-muted-foreground" />;
     case "status_change":
-      return <AlertCircle className="h-4 w-4 text-orange-500" />;
+      return <AlertCircle className="h-4 w-4 text-status-waiting" />;
     case "sla_warning":
-      return <Clock className="h-4 w-4 text-destructive" />;
+      return <Clock className="h-4 w-4 text-sla-danger" />;
     default:
       return <Bell className="h-4 w-4 text-muted-foreground" />;
   }

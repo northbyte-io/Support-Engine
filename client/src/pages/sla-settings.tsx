@@ -1,6 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { MainLayout } from "@/components/MainLayout";
+import { SettingsNav } from "@/components/SettingsNav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -114,6 +115,7 @@ export default function SlaSettings() {
 
   return (
     <MainLayout title="SLA-Verwaltung">
+      <SettingsNav />
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>

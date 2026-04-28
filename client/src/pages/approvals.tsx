@@ -27,7 +27,7 @@ import {
 import type { ApprovalRequestWithDetails } from "@shared/schema";
 
 const statusConfig = {
-  pending: { label: "Ausstehend", icon: Clock, variant: "secondary" as const, color: "text-amber-500" },
+  pending: { label: "Ausstehend", icon: Clock, variant: "secondary" as const, color: "text-status-waiting" },
   approved: { label: "Genehmigt", icon: CheckCircle2, variant: "default" as const, color: "text-green-500" },
   rejected: { label: "Abgelehnt", icon: XCircle, variant: "destructive" as const, color: "text-red-500" },
   cancelled: { label: "Abgebrochen", icon: Ban, variant: "outline" as const, color: "text-muted-foreground" },
@@ -63,7 +63,7 @@ function StepTimeline({ request }: { request: ApprovalRequestWithDetails }) {
             <div className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
               decision?.decision === "approved" ? "bg-green-100 text-green-600 dark:bg-green-900/30" :
               decision?.decision === "rejected" ? "bg-red-100 text-red-600 dark:bg-red-900/30" :
-              isCurrent ? "bg-amber-100 text-amber-600 dark:bg-amber-900/30" :
+              isCurrent ? "bg-status-waiting/10 text-status-waiting" :
               "bg-muted text-muted-foreground"
             }`}>
               <Icon className="w-3 h-3" />
@@ -73,7 +73,7 @@ function StepTimeline({ request }: { request: ApprovalRequestWithDetails }) {
                 <span className={`text-sm font-medium ${isCurrent ? "text-foreground" : isDone ? "text-muted-foreground" : "text-muted-foreground"}`}>
                   Schritt {idx + 1}: {step.name}
                 </span>
-                {isCurrent && <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded">Aktuell</span>}
+                {isCurrent && <span className="text-xs bg-status-waiting/10 text-status-waiting px-1.5 py-0.5 rounded">Aktuell</span>}
               </div>
               {decision?.comment && (
                 <p className="text-xs text-muted-foreground mt-0.5 italic">"{decision.comment}"</p>
@@ -194,7 +194,7 @@ export default function ApprovalsPage() {
     <MainLayout>
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         <div>
-          <h1 className="text-2xl font-display font-bold">Genehmigungen</h1>
+          <h1 className="text-2xl font-sans font-bold">Genehmigungen</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Verwalten Sie Genehmigungsanfragen und treffen Sie Entscheidungen.
           </p>

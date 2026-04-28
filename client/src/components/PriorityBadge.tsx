@@ -11,26 +11,26 @@ const priorityConfig: Record<TicketPriority, {
 }> = {
   low: {
     label: "Niedrig",
-    className: "bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-400 border border-slate-200 dark:border-slate-700/50",
-    dotColor: "bg-slate-400 dark:bg-slate-500",
+    className: "bg-sla-ok/10 text-sla-ok border border-sla-ok/20",
+    dotColor: "bg-sla-ok",
     Icon: ArrowDown,
   },
   medium: {
     label: "Mittel",
-    className: "bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200 dark:border-sky-800/50",
-    dotColor: "bg-sky-500",
+    className: "bg-status-active/10 text-status-active border border-status-active/20",
+    dotColor: "bg-status-active",
     Icon: AlertCircle,
   },
   high: {
     label: "Hoch",
-    className: "bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-200 dark:border-orange-800/50",
-    dotColor: "bg-orange-500",
+    className: "bg-sla-warning/10 text-sla-warning border border-sla-warning/20",
+    dotColor: "bg-sla-warning",
     Icon: ArrowUp,
   },
   urgent: {
     label: "Dringend",
-    className: "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border border-red-200 dark:border-red-800/50",
-    dotColor: "bg-red-500",
+    className: "bg-sla-danger/10 text-sla-danger border border-sla-danger/20",
+    dotColor: "bg-sla-danger",
     Icon: Flame,
   },
 };

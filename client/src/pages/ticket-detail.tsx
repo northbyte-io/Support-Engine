@@ -463,7 +463,7 @@ export default function TicketDetailPage() {
               <StatusBadge status={ticket.status || "open"} />
               <PriorityBadge priority={ticket.priority || "medium"} />
             </div>
-            <h1 className="text-2xl font-semibold font-display mt-1" data-testid="text-ticket-title">
+            <h1 className="text-2xl font-semibold font-sans mt-1" data-testid="text-ticket-title">
               {ticket.title}
             </h1>
           </div>
@@ -533,7 +533,7 @@ export default function TicketDetailPage() {
                     <ShieldCheck className="w-4 h-4 mr-2" />
                     Genehmigung
                     {ticketApproval?.status === "pending" && (
-                      <span className="ml-1.5 w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                      <span className="ml-1.5 w-2 h-2 rounded-full bg-status-waiting inline-block" />
                     )}
                   </TabsTrigger>
                 )}
@@ -546,7 +546,7 @@ export default function TicketDetailPage() {
                       <div className="flex items-center justify-between">
                         <Label htmlFor="internal-toggle" className="flex items-center gap-2 cursor-pointer">
                           {isInternalComment ? (
-                            <Lock className="w-4 h-4 text-amber-600" />
+                            <Lock className="w-4 h-4 text-warning" />
                           ) : (
                             <Unlock className="w-4 h-4 text-green-600" />
                           )}
@@ -599,7 +599,7 @@ export default function TicketDetailPage() {
                             key={comment.id}
                             className={`p-4 rounded-lg ${
                               comment.visibility === "internal"
-                                ? "bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30"
+                                ? "bg-status-waiting/5 border border-status-waiting/20"
                                 : "bg-muted/50"
                             }`}
                             data-testid={`comment-${comment.id}`}
@@ -620,7 +620,7 @@ export default function TicketDetailPage() {
                                     {formatRelativeDate(comment.createdAt)}
                                   </span>
                                   {comment.visibility === "internal" && (
-                                    <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                    <Badge variant="secondary" className="text-xs bg-status-waiting/10 text-status-waiting">
                                       <Lock className="w-3 h-3 mr-1" />
                                       Intern
                                     </Badge>
@@ -726,7 +726,7 @@ export default function TicketDetailPage() {
                           <div className="flex items-center justify-between flex-wrap gap-2">
                             <div>
                               <div className="flex items-center gap-2 flex-wrap">
-                                {ticketApproval.status === "pending" && <span className="flex items-center gap-1 text-sm font-medium text-amber-600"><Clock className="w-4 h-4" /> Ausstehend</span>}
+                                {ticketApproval.status === "pending" && <span className="flex items-center gap-1 text-sm font-medium text-status-waiting"><Clock className="w-4 h-4" /> Ausstehend</span>}
                                 {ticketApproval.status === "approved" && <span className="flex items-center gap-1 text-sm font-medium text-green-600"><CheckCircle2 className="w-4 h-4" /> Genehmigt</span>}
                                 {ticketApproval.status === "rejected" && <span className="flex items-center gap-1 text-sm font-medium text-red-600"><XCircle className="w-4 h-4" /> Abgelehnt</span>}
                                 {ticketApproval.status === "cancelled" && <span className="flex items-center gap-1 text-sm font-medium text-muted-foreground"><Ban className="w-4 h-4" /> Abgebrochen</span>}
@@ -772,7 +772,7 @@ export default function TicketDetailPage() {
                                     <div className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                                       decision?.decision === "approved" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
                                       decision?.decision === "rejected" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" :
-                                      isCurrent ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" :
+                                      isCurrent ? "bg-status-waiting/10 text-status-waiting" :
                                       "bg-muted text-muted-foreground"
                                     }`}>
                                       {decision?.decision === "approved" ? <CheckCircle2 className="w-3.5 h-3.5" /> :
@@ -782,7 +782,7 @@ export default function TicketDetailPage() {
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2 flex-wrap">
                                         <span className="text-sm font-medium">{step.name}</span>
-                                        {isCurrent && <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded">Aktuell</span>}
+                                        {isCurrent && <span className="text-xs bg-status-waiting/10 text-status-waiting px-1.5 py-0.5 rounded">Aktuell</span>}
                                         {decision?.decision === "approved" && <span className="text-xs text-green-600">✓ Genehmigt</span>}
                                         {decision?.decision === "rejected" && <span className="text-xs text-red-600">✗ Abgelehnt</span>}
                                       </div>

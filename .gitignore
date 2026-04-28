@@ -6,6 +6,8 @@ playwright-report/
 test-results/
 e2e/.auth/*.json
 .env.e2e
+.playwright-mcp/
+*.png
 .DS_Store
 server/public
 # Vite temp files (e.g. vite.config.ts.timestamp-*) — NOT vite.config.ts itself
@@ -28,3 +30,14 @@ COMPLIANCE_ISSUES.md
 docs/compliance-issues.md
 .env
 .gitnexus
+.design/
+
+
+# Claudify — all personal & runtime files (entire .claude/ already ignored above)
+CLAUDE.local.md
+SETUP.md
+Scratchpad.md
+Task Board.md
+Daily Notes/
+.mcp.json
+__NEEDS_ONBOARD
