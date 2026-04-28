@@ -7,12 +7,15 @@
  */
 
 import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { SetupWizard } from "@/components/SetupWizard";
 
 export default function SetupPage() {
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
   const handleComplete = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/setup/status"] });
     setLocation("/login");
   };
 

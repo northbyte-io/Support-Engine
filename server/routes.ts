@@ -597,9 +597,56 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
-  // Seed default data on startup
-  await seedDefaultData();
+  // Only seed demo data if the database already has at least one tenant configured.
+  // On a fresh DB (needsSetup), let the setup wizard run first.
+  const existingTenants = await storage.getTenants();
+  if (existingTenants.length > 0) {
+    await seedDefaultData();
+  }
   
+  // Setup detection — no auth required
+  app.get("/api/setup/status", async (_req, res) => {
+    try {
+      const tenants = await storage.getTenants();
+      res.json({ needsSetup: tenants.length === 0 });
+    } catch {
+      res.status(500).json({ message: "Status konnte nicht ermittelt werden" });
+    }
+  });
+
+  app.post("/api/setup", async (req, res) => {
+    try {
+      const tenants = await storage.getTenants();
+      if (tenants.length > 0) {
+        return res.status(409).json({ message: "Bereits eingerichtet" });
+      }
+      const { mode: _mode, company, admin } = req.body as {
+        mode: string;
+        company: { name: string };
+        admin: { email: string; firstName: string; lastName: string; password: string };
+      };
+      const slug = company.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const tenant = await storage.createTenant({ name: company.name, slug });
+      const password = await hashPassword(admin.password);
+      await storage.createUser({
+        tenantId: tenant.id,
+        email: admin.email,
+        firstName: admin.firstName,
+        lastName: admin.lastName,
+        password,
+        role: "admin",
+      });
+      res.json({ success: true });
+      // Seed demo data right away in dev so the user sees data on first login
+      if (process.env.NODE_ENV === "development") {
+        seedDefaultData().catch(() => undefined);
+      }
+    } catch (err) {
+      logger.error("system", "Setup fehlgeschlagen", { description: String(err), cause: "Unbekannt", solution: "Logs prüfen" });
+      res.status(500).json({ message: "Setup fehlgeschlagen" });
+    }
+  });
+
   // AGPL-3.0 License endpoints (required for network use)
   app.get("/api/license", async (_req, res) => {
     try {

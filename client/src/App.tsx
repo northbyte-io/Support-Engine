@@ -1,6 +1,6 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/lib/theme";
@@ -303,12 +303,35 @@ function Router() {
   );
 }
 
+function SetupGuard({ children }: Readonly<{ children: React.ReactNode }>) {
+  const [location] = useLocation();
+  const { data, isLoading } = useQuery<{ needsSetup: boolean }>({
+    queryKey: ["/api/setup/status"],
+    retry: false,
+    staleTime: Infinity,
+  });
+
+  if (isLoading) {
+    return <LoadingPage message={t("loading.generic")} />;
+  }
+
+  if (data?.needsSetup && location !== "/setup") {
+    return <Redirect to="/setup" />;
+  }
+
+  if (!data?.needsSetup && location === "/setup") {
+    return <Redirect to="/" />;
+  }
+
+  return <>{children}</>;
+}
+
 function AppWithPalette() {
   return (
-    <>
+    <SetupGuard>
       <Router />
       <CommandPalette />
-    </>
+    </SetupGuard>
   );
 }
 
