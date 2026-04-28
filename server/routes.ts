@@ -597,13 +597,6 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
-  // Only seed demo data if the database already has at least one tenant configured.
-  // On a fresh DB (needsSetup), let the setup wizard run first.
-  const existingTenants = await storage.getTenants();
-  if (existingTenants.length > 0) {
-    await seedDefaultData();
-  }
-  
   // Setup detection — no auth required
   app.get("/api/setup/status", async (_req, res) => {
     try {
@@ -637,10 +630,6 @@ export async function registerRoutes(
         role: "admin",
       });
       res.json({ success: true });
-      // Seed demo data right away in dev so the user sees data on first login
-      if (process.env.NODE_ENV === "development") {
-        seedDefaultData().catch(() => undefined);
-      }
     } catch (err) {
       logger.error("system", "Setup fehlgeschlagen", { description: String(err), cause: "Unbekannt", solution: "Logs prüfen" });
       res.status(500).json({ message: "Setup fehlgeschlagen" });
